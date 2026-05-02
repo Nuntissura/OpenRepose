@@ -54,10 +54,16 @@ def test_two_viewports_exist(app_and_window) -> None:
     assert window._viewport_openpose is not None
 
 
-def test_four_dock_tabs_present(app_and_window) -> None:
+def test_five_dock_tabs_present(app_and_window) -> None:
     _app, window = app_and_window
     tab_titles = [window._tabs.tabText(i) for i in range(window._tabs.count())]
-    assert tab_titles == ["Inspector", "Options", "Log", "Help"]
+    assert tab_titles == [
+        "Inspector",
+        "Calibration",
+        "Options",
+        "Log",
+        "Help",
+    ]
 
 
 def test_status_bar_shows_yaw_readout(app_and_window) -> None:

@@ -22,6 +22,7 @@ from ..app import App
 from ..render.widget_grab import set_widget_provider
 from ..rotation import rotate_yaw
 from ..yaw_bin import parse_bin, signed_deg_to_bin, standard_13_angle_bins
+from .calibration import CalibrationPane
 from .help_pane import HelpPane
 from .inspector import InspectorPane
 from .log_pane import LogPane
@@ -119,7 +120,9 @@ class MainWindow(QMainWindow):
         self._options = OptionsPane()
         self._log_pane = LogPane(self._app.log)
         self._help_pane = HelpPane()
+        self._calibration = CalibrationPane(self._app)
         self._tabs.addTab(self._inspector, "Inspector")
+        self._tabs.addTab(self._calibration, "Calibration")
         self._tabs.addTab(self._options, "Options")
         self._tabs.addTab(self._log_pane, "Log")
         self._tabs.addTab(self._help_pane, "Help")
@@ -234,6 +237,9 @@ class MainWindow(QMainWindow):
         )
         # Update inspector.
         self._inspector.refresh()
+        # Update calibration tab (re-renders the overlay if the active
+        # calibration changed via LLM command or operator click).
+        self._calibration.refresh()
         # Update status bar.
         self._status_bar.refresh()
         # Render viewports if a rig is loaded.

@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-02
 - **Last Updated**: 2026-05-02
-- **Status**: IN-PROGRESS
+- **Status**: REVIEW
 - **Iteration**: I1
 - **Workflow Version**: 1.0 (grandfathered; original draft predates the 1.1 Research Notes rule)
 - **Packet Class**: IMPLEMENTATION
@@ -58,33 +58,79 @@ This is the documented mitigation for the WP-I0-003 diagnostic that proved Media
 
 ## Risks And Dependencies
 
-- **Risk**: thin-plate-spline implementation can produce artifacts near image edges. **Mitigation**: clamp deformation to a margin around marked points; default to identity outside that margin.
-- **Risk**: per-avatar calibration may need re-marking when MediaPipe model is upgraded. **Mitigation**: store the MediaPipe version + landmark indices used in calibration JSON; warn on mismatch.
-- **Dependency**: predecessor `DOCUMENTATION` WP must produce a full Feature 2 spec. Without it, this WP cannot start.
+- **Risk**: thin-plate-spline implementation can produce artifacts near image edges. **Mitigation**: 4 implicit corner clamp points are added inside `compute_field` so far-from-marked regions stay near identity. Verified by `test_field_keeps_far_corner_points_near_identity`.
+- **Risk**: per-avatar calibration may need re-marking when MediaPipe model is upgraded. **Mitigation**: `mediapipe_version` recorded in calibration JSON; `Calibration.load()` accepts mismatched versions silently (the operator's mark is in pixel space, not in landmark indices, so it survives MediaPipe minor-version bumps). A WARN-on-version-mismatch enhancement is a small followup.
+- **Dependency**: predecessor `DOCUMENTATION` WP (WP-I1-026) produced the Feature 2 spec — DONE 2026-05-02.
+
+## Fallback Register
+
+- **Path**: `gui/calibration.py` — operator marker editing.
+- **Required Label In Code/UI**: hint label on the tab states "click on portrait to place the active marker" (drag/right-click absent; user uses dropdown + click).
+- **Successor / Debt Owner**: future polish WP "Calibration overlay marker editing UX".
+- **Exit Condition To Remove**: drag-to-move and right-click-delete implemented on the Calibration tab.
+
+- **Path**: `snapshot.py` `_render` for `full_window` target.
+- **Required Label In Code/UI**: full_window composition does not include a calibration_overlay slot in v0.1; the standalone `calibration_overlay` snapshot target works.
+- **Successor / Debt Owner**: future polish WP "Calibration overlay in full_window composition".
+- **Exit Condition To Remove**: full_window layout extended with a calibration_overlay slot, or the active dock-tab is reflected in `full_window` snapshots.
 
 ## Definition Of Done
 
-- [ ] `calibration.py` exposes `load`, `save`, `compute_field`, `apply_deformation`, `REQUIRED_MARKERS`, `OPTIONAL_MARKERS`.
-- [ ] 4 commands registered in dispatcher; tests cover each (set/dump/clear/get_status, merge vs replace).
-- [ ] `state.json` `calibration` block populated per spec "State File Reflection".
-- [ ] `calibration_overlay` snapshot target produces a non-empty PNG with marker overlay; composes into `full_window`.
-- [ ] GUI Calibration tab functional: click to place, drag to move, right-click to delete, Save/Clear/Re-detect buttons, completeness indicator.
-- [ ] `Rig.from_portrait` accepts an optional calibration and applies the TPS field to face + body landmark XY before rotation; identity field used when no calibration loaded.
-- [ ] Diagnostic re-run of `probe_facemesh_fidelity.py` on Aeri shows mouth-corners-extend-past-eyes True after calibration is applied. (Promotion Guard.)
-- [ ] `pytest .product/tests/test_calibration.py .product/tests/test_calibration_commands.py .product/tests/test_calibration_snapshot.py` zero failures; full project suite still green (>= 111 + new tests).
-- [ ] `pwsh scripts/audit-repo.ps1` exits 0.
-- [ ] junit XML saved at `target/test-artifacts/WP-I1-001/pytest_results.xml`.
+- [x] `calibration.py` exposes `load`, `save`, `compute_field`, `apply_deformation`, `REQUIRED_MARKERS`, `OPTIONAL_MARKERS`, plus `Marker`, `Calibration`, `DeformationField`, `MEDIAPIPE_FACEMESH_INDEX_BY_MARKER`, `calibration_path`, `OpenReposeCalibrationError`.
+- [x] 4 commands registered in dispatcher; tests cover each (set/dump/clear/get_status, merge vs replace, validation, auto-load on import).
+- [x] `state.json` `calibration` block populated per spec "State File Reflection".
+- [x] `calibration_overlay` snapshot target produces a non-empty PNG with marker overlay. (Composing into `full_window` deferred — see Fallback Register.)
+- [x] GUI Calibration tab functional: click to place, Save/Clear/Re-detect buttons, completeness indicator. (Drag-to-move and right-click-delete deferred — see Fallback Register.)
+- [x] `Rig.from_portrait` accepts an optional calibration and applies the TPS field to face + body landmark XY before rotation; identity field used when no calibration loaded. `Rig.with_calibration()` re-applies a different calibration without re-running MediaPipe (uses cached raw landmarks).
+- [ ] Diagnostic re-run of `probe_facemesh_fidelity.py` on Aeri shows mouth-corners-extend-past-eyes True after calibration is applied. (Promotion Guard — operator-side verification; requires the operator to mark Aeri's reference points in the GUI then run the diagnostic.)
+- [x] `pytest` zero failures: 178/178 passing (was 111 baseline; +67 new tests across calibration module / commands / Rig integration / snapshot / GUI).
+- [x] `pwsh scripts/audit-repo.ps1` exits 0.
+- [x] junit XML saved at `target/test-artifacts/WP-I1-001/pytest_results.xml`.
 
 ## Headless LLM Operation Compliance
 
-- [ ] LLM agent triggers via `set_calibration_points`, `dump_calibration`, `clear_calibration`, `get_calibration_status`.
-- [ ] State reflected in `state.json` under a new `calibration` block (active avatar slug, marker count, partial flag).
-- [ ] LLM pulls visual via `snapshot {target: "calibration"}`.
-- [ ] No `raise_/activateWindow/showNormal/setForegroundWindow` in any code path.
-- [ ] No modal dialogs from LLM commands (operator-side click-to-place is interactive, but LLM-driven `set_calibration_points` is non-interactive).
-- [ ] Tests cover the headless command path (without launching the GUI).
+- [x] LLM agent triggers via `set_calibration_points`, `dump_calibration`, `clear_calibration`, `get_calibration_status`. All four registered in `_HANDLERS`; covered by `test_calibration_commands.py`.
+- [x] State reflected in `state.json` under the `calibration` block (`active_avatar`, `completeness`, `marker_count`, `missing_required`, `field_cached`, `loaded_from`, `last_dump_at`). Verified by `test_state_json_has_calibration_block` and the dispatcher cycle test.
+- [x] LLM pulls visual via `snapshot {target: "calibration_overlay"}`. Renderer at `render/draw_calibration.py`; falls back to a labeled dark canvas when portrait or calibration is missing so the snapshot never crashes.
+- [x] No `raise_/activateWindow/showNormal/showMaximized` in any code path. Runtime test `test_calibration_pane_clicks_do_not_call_focus_apis` drives 10 clicks + a clear and asserts zero invocations; existing `test_gui_no_focus_steal` covers the project-wide contract.
+- [x] No modal dialogs from any command path. Source check `test_calibration_pane_no_modal_dialog_apis_in_source` rejects `QMessageBox` / `.exec(` / `.exec_(` in `gui/calibration.py`.
+- [x] Tests cover the headless command path (`test_calibration_commands.py` runs the full set/dump/clear/get_status cycle through `App.handle_command` without launching the GUI).
+
+## Change Ledger
+
+- **What Became Real**:
+  - `.product/src/openrepose/calibration.py` (NEW): `Marker`, `Calibration`, `DeformationField` dataclasses; `REQUIRED_MARKERS` (6) + `OPTIONAL_MARKERS` (4) + `MEDIAPIPE_FACEMESH_INDEX_BY_MARKER` (10-entry landmark index map); `load()` + `save()` with atomic `.tmp` + `os.replace`; schema validation rejects bad versions, unknown marker names, malformed XY; `compute_field()` builds TPS via `scipy.interpolate.RBFInterpolator(kernel="thin_plate_spline")` with 4 implicit corner clamps; `apply_deformation()` identity-passes when field is None; `calibration_path()` conventional location helper.
+  - `.product/src/openrepose/state.py`: `AppState.calibration` dict block (active_avatar, completeness, marker_count, missing_required, field_cached, loaded_from, last_dump_at) with `set_calibration_status()` + `mark_calibration_dump()` helpers. `to_dict()` includes the new block.
+  - `.product/src/openrepose/rig.py`: `Rig` carries optional `raw_face_mesh`, `raw_body_kps`, `calibration` fields. `from_portrait(*, calibration=None)` applies the TPS field to face + body XY before head_anchor (per spec Application Flow). `with_calibration(new_cal)` rebuilds the field from cached raw landmarks — cheap, no MediaPipe re-run. Head anchor computation extracted into `_compute_head_anchor` helper.
+  - `.product/src/openrepose/commands.py`: 4 new handlers per spec Command Surface. `set_calibration_points` accepts markers list + merge flag, derives mediapipe_xy from rig when omitted, persists JSON, re-applies field to active rig. `dump_calibration` returns full content + marks last_dump_at. `clear_calibration` deletes JSON + drops field. `get_calibration_status` mirrors state.calibration. `_h_import_portrait` auto-loads `outputs/<avatar-slug>/calibration.json` if present and passes it to `Rig.from_portrait`. `OpenReposeCalibrationError` added to dispatcher catch list. `_h_snapshot` plumbs portrait_path + calibration through to snapshot.
+  - `.product/src/openrepose/render/draw_calibration.py` (NEW): cv2-based renderer for the `calibration_overlay` snapshot target. Loads master portrait or falls back to a dark labeled canvas. Per spec, draws MediaPipe-detected positions as small dim dots, operator-marked positions as larger bright rings, connected by a thin link line, with anatomical-name labels.
+  - `.product/src/openrepose/snapshot.py`: `calibration_overlay` added to `VALID_TARGETS`; `snapshot()` signature gains optional `portrait_path` + `calibration` kwargs; `_render` dispatches to `draw_calibration` for the new target. Existing callers unaffected (kwargs default to None).
+  - `.product/src/openrepose/gui/calibration.py` (NEW): operator-facing Calibration tab. Marker-name dropdown (10 anatomical names), portrait display with overlay (rendered via `render_calibration_overlay`), completeness indicator, Save/Clear/Re-detect buttons. `_ClickablePortrait` (QLabel subclass) emits image-space (x, y) on left-click; the pane fires `set_calibration_points {merge: true}` for the active marker. Save dispatches `dump_calibration`. Clear dispatches `clear_calibration`. Re-detect dispatches `import_portrait` again. No `raise_/activateWindow/showNormal/showMaximized` invocations; no modal dialogs.
+  - `.product/src/openrepose/gui/main_window.py`: `Calibration` tab inserted in the right dock between Inspector and Options. Polling timer calls `_calibration.refresh()` so LLM-driven calibration changes update the overlay silently.
+  - `.product/tests/`: `test_calibration.py` (27 unit tests for the module), `test_calibration_commands.py` (14 dispatcher tests including the full set/dump/clear/get_status cycle, merge vs replace, auto-load on import, state.json reflection), `test_rig_calibration.py` (6 Rig integration tests against the aeri master fixture), `test_calibration_snapshot.py` (10 snapshot-target tests), `test_calibration_gui.py` (9 GUI tests including a runtime no-focus-steal check across 10 calibration clicks). `test_gui_layout.py` updated from 4-tab to 5-tab assertion. Total +66 new tests across the WP.
+  - `pyproject.toml`: `scipy>=1.11` promoted from transitive (mediapipe) to explicit dependency.
+- **What Remains Simulated / Deferred**:
+  - Drag-to-move and right-click-delete on the Calibration tab — deferred to a polish WP. Click-to-place + Clear/Re-detect cover the core flow.
+  - `calibration_overlay` inclusion in the `full_window` snapshot composition — deferred. Standalone `calibration_overlay` snapshot target works.
+  - WARN-on-MediaPipe-version-mismatch when loading a calibration whose `mediapipe_version` differs from the runtime — small followup; current behavior is silent acceptance because the operator's marks are in pixel space and survive MediaPipe minor-version bumps.
+  - Operator-side Promotion Guard: `probe_facemesh_fidelity.py` re-run on the Aeri master after calibration. Operator must mark Aeri's reference points in the GUI then run the diagnostic to satisfy the Reality Boundary's "mouth-corners-extend-past-eyes True" check.
+- **Next Blocking Real Seam**: with calibration shipped, the next WP unblocked is WP-I1-009 (identity-export profiles), which composes naturally with calibrated rigs. WP-I1-023 (frame reframing) is also fully unblocked.
+
+## Evidence
+
+- **Test Suite Execution**: `target/test-artifacts/WP-I1-001/pytest_results.xml` — 178 passed, 0 failed (full project suite). Calibration-specific subset: 66 new tests across `test_calibration.py` (27), `test_calibration_commands.py` (14), `test_rig_calibration.py` (6), `test_calibration_snapshot.py` (10), `test_calibration_gui.py` (9).
+- **Local Audit Run**: `pwsh scripts/audit-repo.ps1` exits 0 on the live tree.
+- **Build Artifacts**: new modules `calibration.py`, `render/draw_calibration.py`, `gui/calibration.py`; new tests as listed; `pyproject.toml` adds `scipy>=1.11`.
+- **Proof Artifact**: `target/test-artifacts/WP-I1-001/`
+- **Operator Sign-off**: PENDING — operator to verify by running `.\.venv\Scripts\python.exe -m openrepose.cli gui --inbox`, marking Aeri's reference points via the Calibration tab, exporting at multiple yaw angles (`her-right 30`, `her-right 45`, `her-right 90`) and confirming the calibrated wireframes maintain the operator's marked proportions across rotation. Optionally re-run `probe_facemesh_fidelity.py` on the calibrated Aeri rig to satisfy the Promotion Guard.
 
 ## Progress Log
 
 - 2026-05-02: WP drafted. Status DRAFT until I0 closes and the predecessor DOCUMENTATION WP authors the Feature 2 spec.
 - 2026-05-02: I0 closed; WP-I1-026 (Feature 2 spec) DONE. All predecessors satisfied. Field text aligned with the new spec (algorithm locked to TPS via scipy; snapshot target renamed to `calibration_overlay`; application point moved from `rotation.rotate_yaw` to `Rig.from_portrait` per spec "Application Flow"; commands enumerated; DoD expanded). Status DRAFT -> READY. Operator authorized start; kickoff commit follows.
+- 2026-05-02: Kickoff commit `6ff61c0` pushed (WP file + taskboard + WP-I1-026 archive). Status -> IN-PROGRESS.
+- 2026-05-02: Checkpoint A (`e91e725`): calibration module + 27 tests. scipy promoted to explicit dep.
+- 2026-05-02: Checkpoint B (`04f7439`): state `calibration` block + Rig.from_portrait/with_calibration + 4 commands + 20 dispatcher/Rig tests. 158/158 passing.
+- 2026-05-02: Checkpoint C: calibration_overlay snapshot target + draw_calibration renderer + 10 tests. 169/169 passing.
+- 2026-05-02: Checkpoint D: GUI Calibration tab + main_window wiring + 9 GUI tests. test_gui_layout.py updated for 5-tab layout.
+- 2026-05-02: Status IN-PROGRESS -> REVIEW. Full suite 178/178 passing in 37s; junit XML saved at `target/test-artifacts/WP-I1-001/pytest_results.xml`. Audit exits 0. Awaiting operator sign-off (run `.\.venv\Scripts\python.exe -m openrepose.cli gui --inbox`, mark Aeri's reference points via the Calibration tab, export at multiple yaw angles, confirm calibrated wireframes look right; optionally re-run `probe_facemesh_fidelity.py` to satisfy the Promotion Guard).

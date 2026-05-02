@@ -1,13 +1,13 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-02 (I0 closed; WP-I1-025/026 closed; WP-I1-001 READY — calibration overlay kickoff)
+Last Updated: 2026-05-02 (I0 closed; WP-I1-025/026 closed; WP-I1-001 in REVIEW — calibration overlay shipped, awaiting operator GUI verification)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 1 (WP-I1-001 per-avatar calibration overlay)
-- WPs pending review (REVIEW): 0
+- WPs in flight (READY + IN-PROGRESS): 0
+- WPs pending review (REVIEW): 1 (WP-I1-001 per-avatar calibration overlay)
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 19
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
@@ -22,7 +22,8 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I1-001 | Per-Avatar Calibration Overlay | assistant | READY | IMPLEMENTATION | L | 2026-05-02 |
+
+_(none)_
 
 ## Pending Review
 
@@ -30,8 +31,7 @@ Implementation claims to be done; awaiting operator verification.
 
 | WP-ID | Title | Owner | Class | Updated | Verify |
 |-------|-------|-------|-------|---------|--------|
-
-_(none)_
+| WP-I1-001 | Per-Avatar Calibration Overlay | assistant | IMPLEMENTATION | 2026-05-02 | run `.\.venv\Scripts\python.exe -m openrepose.cli gui --inbox`, import the Aeri master, switch to the new Calibration tab, mark the 6 required reference points by clicking on the portrait while the marker dropdown is set, export at `her-right 30`/`45`/`90`, and confirm the calibrated wireframes preserve operator-marked proportions across rotation. Optionally re-run `target/test-artifacts/diag/probe_facemesh_fidelity.py` on the calibrated rig to satisfy the Promotion Guard. Sign-off closes WP-I1-001. |
 
 ## Blocked
 
