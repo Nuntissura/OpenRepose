@@ -20,6 +20,13 @@ permissions:
   contents: read
   issues: write
 
+# Opt every JavaScript action in this workflow into Node.js 24 ahead of the
+# 2026-06-02 default switch. Silences the Node 20 deprecation warning that
+# actions/checkout, actions/upload-artifact, and actions/github-script emit
+# while their Node-24-aware versions catch up.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   audit:
     name: Run audit-repo.ps1
