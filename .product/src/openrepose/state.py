@@ -100,6 +100,15 @@ class AppState:
     marker_visibility: dict[str, dict[str, bool]] = field(
         default_factory=lambda: {"body_18": {}, "face_70": {}}
     )
+    frame: dict[str, Any] = field(
+        default_factory=lambda: {
+            "scale": 1.0,
+            "offset_x": 0,
+            "offset_y": 0,
+            "anchor_mode": "head_anchor",
+            "anchor_point": None,
+        }
+    )
 
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
@@ -123,6 +132,7 @@ class AppState:
             "marker_visibility": {
                 k: dict(v) for k, v in self.marker_visibility.items()
             },
+            "frame": dict(self.frame),
         }
 
     def write(self) -> None:

@@ -4,7 +4,7 @@
 
 - **Owner**: TBD (operator)
 - **Date Opened**: 2026-05-02
-- **Status**: IN-PROGRESS
+- **Status**: REVIEW
 - **Iteration**: I1
 - **Workflow Version**: 1.0
 - **Packet Class**: IMPLEMENTATION
@@ -142,7 +142,22 @@ Solves the portrait-bias / cropped-feet problem operators hit when image generat
 
 ## Change Ledger
 
-- (filled at REVIEW)
+- **What Became Real**:
+  - `openpose_schema.py`: `ANCHOR_MODES` (`head_anchor`, `canvas_center`, `custom`), `default_frame()`, `resolve_frame_anchor()`, `apply_frame_to_keypoints(kp_xy, frame, head_anchor_xy, canvas_size)`. Identity fast-path: scale=1 + offset=(0,0) returns input unchanged. Transform: `(kp - anchor) * scale + anchor + offset`.
+  - `openpose_serialize.py`: `serialize()` and `serialize_to_string()` accept optional `frame` kwarg; transform applied to body_18 + face_70[:, :2] before flatten. Head anchor pulled from `rotated.head_anchor[:2]`.
+  - `render/draw_openpose.py`: `render_openpose()` accepts `frame` kwarg; transform applied to body18 + face70 XY before draw. Line widths and dot sizes are canvas-pixel constants and stay invariant by construction.
+  - `state.py`: new `frame` block defaulting to identity (scale=1.0, offset=(0,0), anchor_mode=head_anchor).
+  - `commands.py`: 5 new handlers — `set_frame_scale` (positive float; 0 + negative + non-numeric rejected), `set_frame_offset` (numeric x + y), `set_frame_anchor` (mode in ANCHOR_MODES; custom requires point), `reset_frame`, `get_frame`. Export handlers + `_h_snapshot` thread `dict(state.frame)` through.
+  - `snapshot.py`: signature gains `frame` kwarg; threaded into `render_openpose` for `openpose_viewport` and `full_window` targets.
+  - `gui/options.py`: 4 new signals (`frame_scale_changed`, `frame_offset_changed`, `frame_anchor_changed`, `frame_reset_clicked`). Frame controls in OptionsPane: scale slider (30-200 → 0.30x-2.00x with live label), offset x/y QSpinBox (-2048..2048), anchor QComboBox (head_anchor / canvas_center), Reset frame button. `load_frame()` syncs from state.
+  - `gui/main_window.py`: wires the four new signals to dispatch the matching commands. Initial sync via `load_frame()` on construction.
+  - `test_frame_reframing.py` (NEW): 30 tests — defaults / anchor modes / resolve_anchor (3 modes + 2 error paths) / transform math (identity / pure scale / pure offset / combined / canvas_center / anchor-invariance under scale) / dispatcher commands (5 happy + error paths) / end-to-end (default baseline / scale=0.5 changes positions / offset translates positions / state block) / line width invariance under scale.
+- **What Remains Simulated / Deferred**:
+  - Toolbar frame controls (the WP suggested "toolbar additions or new Frame tab"; OptionsPane is the chosen location for now — moving to toolbar can be a polish followup).
+  - Per-export-target framing (single + batch share state; spec lists this as Out Of Scope).
+  - Non-uniform x/y scaling (Out Of Scope).
+  - Composes-with WP-I1-022 (read OpenPose JSON as alternate input) — WP-I1-022 not yet implemented; the frame transform applies regardless of where keypoints came from once it lands.
+- **Next Blocking Real Seam**: WP-I1-022 to enable importing OpenPose JSON; WP-I1-024 to wire frame state into 3D viewport / OpenPose preview / reference window for synchronized zoom.
 
 ## Checkpoint Commit Plan
 
@@ -169,9 +184,13 @@ Solves the portrait-bias / cropped-feet problem operators hit when image generat
 
 ## Evidence
 
-- (filled at REVIEW)
+- **Test Suite Execution**: `target/test-artifacts/WP-I1-023/pytest_results.xml` — 277 passed, 0 failed (full suite; +30 new from this WP).
+- **Local Audit Run**: `pwsh scripts/audit-repo.ps1` exits 0.
+- **Build Artifacts**: schema/serializer/renderer/snapshot/state/commands modifications; `gui/options.py` extended with frame controls; `gui/main_window.py` wires the signals; new `test_frame_reframing.py`.
+- **Operator Sign-off**: PENDING — operator to verify by adjusting the frame scale slider in Options, exporting, and confirming downstream ControlNet generation (e.g. legs/feet visible at scale=0.6 from a tight portrait). Bundled with the rest of the fast-track batch.
 
 ## Progress Log
 
 - 2026-05-02: WP drafted, status DRAFT. Robust rerender approach is the only allowed path; naive image-resize is excluded by spec decision.
 - 2026-05-02: Enhanced with full template sections (Files Touched, Test Plan, Risks, Rollback, Exit Criteria, etc.) for session-survivability.
+- 2026-05-03: Operator approved fast-track batch (slot 4). Status DRAFT -> IN-PROGRESS. Implementation complete: schema helpers + serializer + renderer + state + 5 commands + Options frame controls + 30 tests. 277/277 passing. Audit clean. Status -> REVIEW.

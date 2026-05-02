@@ -35,6 +35,7 @@ from .openpose_schema import (
     OPENPOSE_BODY_COUNT,
     OPENPOSE_FACE_COUNT,
     apply_body_part_visibility,
+    apply_frame_to_keypoints,
     apply_marker_visibility,
     map_face_mesh_to_openpose,
 )
@@ -48,6 +49,7 @@ def serialize(
     *,
     body_part_visibility: dict[str, bool] | None = None,
     marker_visibility: dict | None = None,
+    frame: dict | None = None,
 ) -> dict[str, Any]:
     """Serialize one RotatedRig to the OpenPose people-array JSON shape.
 
@@ -78,8 +80,23 @@ def serialize(
         body_18_conf, face_visible_70, marker_visibility
     )
 
+    # Frame reframing (WP-I1-023): scale + offset keypoint coords. Line widths
+    # and dot sizes are unaffected because they are canvas-pixel constants
+    # in the renderer; the serializer just emits transformed XY.
+    head_anchor_xy = (
+        rotated.head_anchor[:2]
+        if hasattr(rotated, "head_anchor") and rotated.head_anchor is not None
+        else None
+    )
+    body_18 = apply_frame_to_keypoints(
+        body_18, frame, head_anchor_xy, (canvas_w, canvas_h)
+    )
+    face_70_xy = apply_frame_to_keypoints(
+        face_70[:, :2], frame, head_anchor_xy, (canvas_w, canvas_h)
+    )
+
     pose_kps_flat = _flatten_with_visibility(body_18, body_18_conf)
-    face_kps_flat = _flatten_with_visibility(face_70[:, :2], face_visible_70.astype(np.float32))
+    face_kps_flat = _flatten_with_visibility(face_70_xy, face_visible_70.astype(np.float32))
 
     payload = [
         {
@@ -106,6 +123,7 @@ def serialize_to_string(
     indent: int | None = None,
     body_part_visibility: dict[str, bool] | None = None,
     marker_visibility: dict | None = None,
+    frame: dict | None = None,
 ) -> str:
     """Convenience: serialize then `json.dumps`."""
     return json.dumps(
@@ -115,6 +133,7 @@ def serialize_to_string(
             canvas_height=canvas_height,
             body_part_visibility=body_part_visibility,
             marker_visibility=marker_visibility,
+            frame=frame,
         ),
         indent=indent,
         ensure_ascii=False,

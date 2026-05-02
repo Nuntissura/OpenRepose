@@ -268,6 +268,89 @@ def apply_marker_visibility(
     return body18, face70
 
 
+# --- frame reframing (WP-I1-023) --------------------------------------------
+
+ANCHOR_MODES: tuple[str, ...] = ("head_anchor", "canvas_center", "custom")
+
+
+def default_frame() -> dict:
+    """Identity frame: no scale change, no offset, head_anchor mode."""
+    return {
+        "scale": 1.0,
+        "offset_x": 0,
+        "offset_y": 0,
+        "anchor_mode": "head_anchor",
+        "anchor_point": None,
+    }
+
+
+def resolve_frame_anchor(
+    mode: str,
+    point,
+    head_anchor_xy,
+    canvas_size: tuple[int, int],
+):
+    """Resolve a frame anchor to a 2D pixel coord."""
+    import numpy as np
+
+    if mode == "head_anchor":
+        if head_anchor_xy is None:
+            # Fallback: canvas center.
+            return np.array(
+                [canvas_size[0] / 2.0, canvas_size[1] / 2.0],
+                dtype=np.float64,
+            )
+        return np.asarray(head_anchor_xy, dtype=np.float64)
+    if mode == "canvas_center":
+        return np.array(
+            [canvas_size[0] / 2.0, canvas_size[1] / 2.0],
+            dtype=np.float64,
+        )
+    if mode == "custom":
+        if point is None:
+            raise ValueError(
+                "anchor_mode 'custom' requires anchor_point as [x, y]"
+            )
+        return np.asarray(point, dtype=np.float64)
+    raise ValueError(
+        f"unknown anchor_mode {mode!r}; allowed: {ANCHOR_MODES}"
+    )
+
+
+def apply_frame_to_keypoints(
+    kp_xy,
+    frame: dict | None,
+    head_anchor_xy,
+    canvas_size: tuple[int, int],
+):
+    """Apply `(kp - anchor) * scale + anchor + offset` to an (N, 2) array.
+
+    `frame` is the state.frame dict. If None or identity, returns the input
+    array unchanged. Out-of-canvas keypoints are emitted unchanged (the
+    renderer + serializer apply their own clip semantics).
+    """
+    if frame is None:
+        return kp_xy
+    scale = float(frame.get("scale", 1.0))
+    offset = (
+        float(frame.get("offset_x", 0)),
+        float(frame.get("offset_y", 0)),
+    )
+    if scale == 1.0 and offset == (0.0, 0.0):
+        return kp_xy
+
+    import numpy as np
+
+    anchor = resolve_frame_anchor(
+        frame.get("anchor_mode", "head_anchor"),
+        frame.get("anchor_point"),
+        head_anchor_xy,
+        canvas_size,
+    )
+    arr = np.asarray(kp_xy, dtype=np.float64)
+    return (arr - anchor) * scale + anchor + np.array(offset, dtype=np.float64)
+
+
 def map_face_mesh_to_openpose(mp_mesh_xyz):
     """Take a (478, 3) MediaPipe FaceMesh array and return (70, 3) in OpenPose order.
 

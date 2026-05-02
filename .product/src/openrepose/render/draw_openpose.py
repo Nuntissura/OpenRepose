@@ -28,6 +28,7 @@ from ..openpose_schema import (
     BODY_R_SHOULDER,
     MP_POSE_TO_BODY18,
     apply_body_part_visibility,
+    apply_frame_to_keypoints,
     apply_marker_visibility,
     map_face_mesh_to_openpose,
 )
@@ -90,6 +91,7 @@ def render_openpose(
     *,
     body_part_visibility: dict[str, bool] | None = None,
     marker_visibility: dict | None = None,
+    frame: dict | None = None,
 ) -> np.ndarray:
     """Render the rotated rig as an OpenPose-style wireframe.
 
@@ -122,6 +124,23 @@ def render_openpose(
         body18_visible, face70_visible, marker_visibility
     )
 
+    # Frame reframing (WP-I1-023): scale + offset coords; line widths and
+    # dot sizes are canvas-pixel constants and stay invariant.
+    head_anchor_xy = (
+        rotated.head_anchor[:2]
+        if hasattr(rotated, "head_anchor") and rotated.head_anchor is not None
+        else None
+    )
+    body18 = apply_frame_to_keypoints(
+        body18, frame, head_anchor_xy, (canvas_width, canvas_height)
+    )
+    face70_xy = apply_frame_to_keypoints(
+        face70[:, :2].astype(np.float64),
+        frame,
+        head_anchor_xy,
+        (canvas_width, canvas_height),
+    )
+
     for (a, b), color in zip(LIMB_PAIRS, LIMB_COLORS_BGR, strict=True):
         if not body18_visible[a] or not body18_visible[b]:
             continue
@@ -137,10 +156,10 @@ def render_openpose(
         cv2.circle(canvas, p, KEYPOINT_RADIUS, KEYPOINT_COLOR_BGR, -1, lineType=cv2.LINE_AA)
 
     # Face landmarks as small white dots.
-    for i in range(face70.shape[0]):
+    for i in range(face70_xy.shape[0]):
         if not face70_visible[i]:
             continue
-        p = (int(round(face70[i, 0])), int(round(face70[i, 1])))
+        p = (int(round(face70_xy[i, 0])), int(round(face70_xy[i, 1])))
         cv2.circle(canvas, p, FACE_DOT_RADIUS, FACE_DOT_COLOR_BGR, -1, lineType=cv2.LINE_AA)
 
     return canvas

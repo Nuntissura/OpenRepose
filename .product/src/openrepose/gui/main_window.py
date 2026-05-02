@@ -155,12 +155,31 @@ class MainWindow(QMainWindow):
         self._toolbar.export_single_clicked.connect(self._on_export_single)
         self._toolbar.export_batch_clicked.connect(self._on_export_batch)
 
-        # Options pane -> persistent settings.
+        # Options pane -> persistent settings + per-body-part + frame.
         self._options.load_from_settings(self._app.settings)
         self._options.load_body_part_visibility(self._app.state.body_part_visibility)
+        self._options.load_frame(self._app.state.frame)
         self._options.settings_changed.connect(self._on_settings_changed)
         self._options.body_part_visibility_changed.connect(
             self._on_body_part_visibility_changed
+        )
+        self._options.frame_scale_changed.connect(
+            lambda s: self._app.handle_command(
+                {"command": "set_frame_scale", "scale": float(s)}
+            )
+        )
+        self._options.frame_offset_changed.connect(
+            lambda x, y: self._app.handle_command(
+                {"command": "set_frame_offset", "x": int(x), "y": int(y)}
+            )
+        )
+        self._options.frame_anchor_changed.connect(
+            lambda mode: self._app.handle_command(
+                {"command": "set_frame_anchor", "mode": str(mode)}
+            )
+        )
+        self._options.frame_reset_clicked.connect(
+            lambda: self._app.handle_command({"command": "reset_frame"})
         )
 
         # Inspector buttons -> dispatcher commands.

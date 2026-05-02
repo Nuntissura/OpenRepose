@@ -22,7 +22,8 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I1-023 | Frame Reframing (Robust Rerender) | assistant | IN-PROGRESS | IMPLEMENTATION | M | 2026-05-03 |
+
+_(none — WP-I1-023 moved to REVIEW; fast-track batch complete)_
 
 ## Pending Review
 
@@ -33,6 +34,7 @@ Implementation claims to be done; awaiting operator verification.
 | WP-I1-027 | Export Folder Picker And Persistence | assistant | IMPLEMENTATION | 2026-05-03 | launch the GUI, open Options, click Browse..., pick a folder, export (single + batch), restart, confirm exports land in the same folder. Sign-off bundled with the rest of the fast-track batch. |
 | WP-I1-017 | Per-Body-Part Visibility Toggles | assistant | IMPLEMENTATION | 2026-05-03 | toggle a body-part checkbox in Options (e.g. legs); export and inspect the JSON to confirm leg keypoints are zeroed. Sign-off bundled. |
 | WP-I1-029 | Per-Marker Visibility Toggles | assistant | IMPLEMENTATION | 2026-05-03 | open the new Markers tab; uncheck a single noisy keypoint (e.g. body_18 right_wrist or face_70 jaw); export and inspect the JSON to confirm only that triple is `[0.0, 0.0, 0.0]`. Sign-off bundled. |
+| WP-I1-023 | Frame Reframing (Robust Rerender) | assistant | IMPLEMENTATION | 2026-05-03 | open Options → Frame scale slider; export at scale=0.6 from a tight portrait; confirm downstream ControlNet generation shows legs/feet visible (was the portrait-bias / cropped-feet target of this WP). Sign-off bundled. |
 
 ## Blocked
 

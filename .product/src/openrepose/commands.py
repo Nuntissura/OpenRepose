@@ -23,7 +23,13 @@ from .calibration import (
     save as save_calibration,
 )
 from .log import Logger
-from .openpose_schema import BODY_GROUPS, MARKER_SCHEMAS, default_marker_visibility
+from .openpose_schema import (
+    ANCHOR_MODES,
+    BODY_GROUPS,
+    MARKER_SCHEMAS,
+    default_frame,
+    default_marker_visibility,
+)
 from .openpose_serialize import serialize_to_string
 from .rig import OpenReposeRigFitError, Rig
 from .rotation import rotate_yaw
@@ -278,6 +284,7 @@ def _h_export_single(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any
         indent=None,
         body_part_visibility=dict(d.state.body_part_visibility),
         marker_visibility=_copy_marker_visibility(d.state.marker_visibility),
+        frame=dict(d.state.frame),
     )
     out_json.write_text(payload + "\n", encoding="utf-8")
 
@@ -322,6 +329,7 @@ def _h_export_batch(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]
     written: list[str] = []
     bpv = dict(d.state.body_part_visibility)
     mv = _copy_marker_visibility(d.state.marker_visibility)
+    fr = dict(d.state.frame)
     for label in angles:
         bin_obj = parse_bin(label)  # validates each label
         safe_bin = bin_obj.label.replace(" ", "-")
@@ -332,6 +340,7 @@ def _h_export_batch(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]
             indent=None,
             body_part_visibility=bpv,
             marker_visibility=mv,
+            frame=fr,
         )
         out_json.write_text(payload + "\n", encoding="utf-8")
         written.append(str(out_json))
@@ -393,6 +402,7 @@ def _h_snapshot(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
         calibration=calibration,
         body_part_visibility=dict(d.state.body_part_visibility),
         marker_visibility=_copy_marker_visibility(d.state.marker_visibility),
+        frame=dict(d.state.frame),
     )
     d.log.ok("viewport.snapshot", target=target, out=str(out))
     return {"target": target, "out_path": str(out)}
@@ -873,6 +883,98 @@ def _h_reset_marker_visibility(
     return {"marker_visibility": dict(d.state.marker_visibility)}
 
 
+# --- frame reframing handlers (WP-I1-023) -----------------------------------
+
+
+def _h_set_frame_scale(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Set frame_scale (positive float)."""
+    raw = cmd.get("scale")
+    if not isinstance(raw, (int, float)) or isinstance(raw, bool):
+        raise OpenReposeCommandError("set_frame_scale requires numeric 'scale'")
+    scale = float(raw)
+    if scale <= 0.0:
+        raise OpenReposeCommandError(
+            f"frame scale must be > 0; got {scale}"
+        )
+    new_frame = dict(d.state.frame)
+    new_frame["scale"] = scale
+    with d.state._lock:
+        d.state.frame = new_frame
+    d.state.write()
+    d.log.ok("frame.set_scale", scale=scale)
+    return {"frame": dict(new_frame)}
+
+
+def _h_set_frame_offset(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Set frame_offset (x, y as integers)."""
+    x = cmd.get("x")
+    y = cmd.get("y")
+    if not isinstance(x, (int, float)) or isinstance(x, bool):
+        raise OpenReposeCommandError("set_frame_offset requires numeric 'x'")
+    if not isinstance(y, (int, float)) or isinstance(y, bool):
+        raise OpenReposeCommandError("set_frame_offset requires numeric 'y'")
+    new_frame = dict(d.state.frame)
+    new_frame["offset_x"] = int(x)
+    new_frame["offset_y"] = int(y)
+    with d.state._lock:
+        d.state.frame = new_frame
+    d.state.write()
+    d.log.ok("frame.set_offset", x=int(x), y=int(y))
+    return {"frame": dict(new_frame)}
+
+
+def _h_set_frame_anchor(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Set frame anchor mode and (for custom) point.
+
+    Payload: {"mode": "head_anchor"|"canvas_center"|"custom", "point": [x, y]?}.
+    """
+    mode = cmd.get("mode")
+    if mode not in ANCHOR_MODES:
+        raise OpenReposeCommandError(
+            f"set_frame_anchor 'mode' must be one of {ANCHOR_MODES}; got {mode!r}"
+        )
+    point = cmd.get("point")
+    if mode == "custom":
+        if not (isinstance(point, list) and len(point) == 2):
+            raise OpenReposeCommandError(
+                "anchor mode 'custom' requires 'point' as [x, y]"
+            )
+        anchor_point = [float(point[0]), float(point[1])]
+    else:
+        anchor_point = None
+    new_frame = dict(d.state.frame)
+    new_frame["anchor_mode"] = mode
+    new_frame["anchor_point"] = anchor_point
+    with d.state._lock:
+        d.state.frame = new_frame
+    d.state.write()
+    d.log.ok("frame.set_anchor", mode=mode, point=str(anchor_point))
+    return {"frame": dict(new_frame)}
+
+
+def _h_reset_frame(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Reset to default frame (scale=1, offset=(0,0), anchor=head_anchor)."""
+    with d.state._lock:
+        d.state.frame = default_frame()
+    d.state.write()
+    d.log.ok("frame.reset")
+    return {"frame": dict(d.state.frame)}
+
+
+def _h_get_frame(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    return {"frame": dict(d.state.frame)}
+
+
 def _h_dump_settings(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     """Return the effective settings JSON (operator-chosen export folder +
     subdir templates), the resolved export folder, and whether the default
@@ -924,5 +1026,10 @@ _HANDLERS = {
     "set_marker_visibility": _h_set_marker_visibility,
     "get_marker_visibility": _h_get_marker_visibility,
     "reset_marker_visibility": _h_reset_marker_visibility,
+    "set_frame_scale": _h_set_frame_scale,
+    "set_frame_offset": _h_set_frame_offset,
+    "set_frame_anchor": _h_set_frame_anchor,
+    "reset_frame": _h_reset_frame,
+    "get_frame": _h_get_frame,
     "dump_settings": _h_dump_settings,
 }
