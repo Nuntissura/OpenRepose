@@ -1,6 +1,6 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (WP-I1-001 calibration overlay DONE; calibration UX polish + export-folder-picker WPs queued)
+Last Updated: 2026-05-03 (WP-I1-001 DONE; WP-I1-027/028/029 follow-ups drafted)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
@@ -9,7 +9,7 @@ Live status of all OpenRepose workpackets. Update in the same session as any wor
 - WPs in flight (READY + IN-PROGRESS): 0
 - WPs pending review (REVIEW): 0
 - WPs blocked (BLOCKED): 0
-- WPs draft (DRAFT, eligible to promote): 19
+- WPs draft (DRAFT, eligible to promote): 22 (19 original + WP-I1-027/028/029 follow-ups drafted 2026-05-03)
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
 - WPs done (I0): 4 (WP-I0-001/002/003/004) — I0 CLOSED 2026-05-02
 - WPs done (I1): 3 (WP-I1-025, WP-I1-026, WP-I1-001)
@@ -72,6 +72,9 @@ I0 closed 2026-05-02. The I0-blocking constraint on every I1 WP below is satisfi
 | WP-I1-022 | Read OpenPose JSON as alternate input | IMPLEMENTATION | M | Workflow expansion | yes | I0; composes with WP-I1-023 |
 | WP-I1-023 | Frame reframing (robust rerender) | IMPLEMENTATION | M | High (fixes portrait-bias / cropped-feet) | yes | I0; composes with WP-I1-022 |
 | WP-I1-024 | Synchronized viewport zoom | IMPLEMENTATION | S | Polish | n/a (GUI sync only; headless covered by WP-I1-023) | WP-I0-004; WP-I1-015; WP-I1-023 |
+| WP-I1-027 | Export folder picker + persistence | IMPLEMENTATION | M | High (current bug: pasted paths silently ignored) | yes (dump_settings) | I0 (DONE) |
+| WP-I1-028 | Calibration zoom + frontal mesh inspector | IMPLEMENTATION | M | High (WP-I1-001 UX polish — operator confused jaw markers without it) | n/a (operator-side polish) | WP-I1-001 (DONE) |
+| WP-I1-029 | Per-marker visibility toggles | IMPLEMENTATION | M | Mid (companion to WP-I1-017 group-level toggles; per-marker overrides) | yes | I0 (DONE); composes with WP-I1-017 |
 
 ## Recently Done
 
@@ -112,8 +115,8 @@ _(none)_
 - Workflow Version bumped to 1.1: new IMPLEMENTATION/RESEARCH WPs created from the template must carry a `## Research Notes` section. Existing 1.0 WPs grandfathered.
 - WP-I1-026 (Feature 2 Calibration Overlay Spec, DOCUMENTATION) shipped DONE 2026-05-02 — locks the deformation algorithm (TPS via scipy), marker schema, calibration JSON schema, command surface, state-file shape, and snapshot target for WP-I1-001 to implement against.
 - WP-I1-001 (Per-Avatar Calibration Overlay, IMPLEMENTATION, L) shipped DONE 2026-05-03. 178/178 tests passing; junit XML at `target/test-artifacts/WP-I1-001/`. GUI verification surfaced two Calibration-tab usability gaps (no zoom; no frontal mesh sanity preview) — operator approved sign-off on the basis that the spec contract + headless surface + tests are met; deferred items recorded in WP-I1-001 Fallback Register and queued as WP-I1-028.
-- Queued follow-up WPs (not yet drafted): **WP-I1-027 Export folder picker + persistence** (highest priority — current behavior silently ignores operator-pasted paths because the OptionsPane `settings_changed` signal is unwired); **WP-I1-028 Calibration zoom + frontal mesh inspector** (UX polish for WP-I1-001); extension of existing **WP-I1-017 Per-OpenPose-marker visibility toggles** to per-individual-marker granularity.
-- 19 I1 WPs remain at DRAFT awaiting promotion.
+- 2026-05-03: three follow-up WPs drafted at status DRAFT: **WP-I1-027 Export folder picker + persistence** (highest priority — fixes the bug where the OptionsPane `settings_changed` signal is unwired so pasted paths silently ignored); **WP-I1-028 Calibration zoom + frontal mesh inspector** (UX polish for WP-I1-001 — surfaced during sign-off when operator confused jaw markers without an independent mesh reference); **WP-I1-029 Per-marker visibility toggles** (sibling of WP-I1-017's per-body-part — per-marker overrides, both layers compose with documented precedence).
+- 22 I1 WPs at DRAFT awaiting promotion.
 
 ## Iteration Pipeline
 
