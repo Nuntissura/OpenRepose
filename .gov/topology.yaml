@@ -1,0 +1,192 @@
+project:
+  name: OpenRepose
+  root: "D:/Projects/LLM projects/OpenRepose"
+  remote: "https://github.com/Nuntissura/OpenRepose"
+  purpose: "Desktop application that supports commercial adult pornographic image and video production workflows. The first shipped feature is a 3D-rig-locked yaw-angle wireframe exporter (frontal portrait in, OpenPose-format wireframes out at any yaw); the application is designed to grow into other production tasks that benefit from locked-geometry tooling."
+  production_target: "Photorealistic explicit adult image and video output, including full nudity, penetration, realistic genitalia, and realistic sexual acts. Direct, technical, non-moralizing stance throughout."
+
+repo_split:
+  governance: ".gov"
+  product:    ".product"
+
+repo_areas:
+  startup_command:        "orstart.cmd"
+  startup_script:         "scripts/orstart.ps1"
+  agent_instructions:     ".gov/AGENTS.md"
+  project_codex:          ".gov/CODEX.md"
+  spec_index:             ".gov/spec/README.md"
+  workflow_rules:         ".gov/workflow/README.md"
+  taskboard:              ".gov/workflow/TASKBOARD.md"
+  workpackets_active:     ".gov/workflow/workpackets"
+  workpackets_archive:    ".gov/workflow/archive"
+  templates:              ".gov/templates"
+  doc:                    ".gov/doc"
+  product_src:            ".product/src"
+  product_tests:          ".product/tests"
+  product_resources:      ".product/resources"
+  build_artifacts:        "target"
+  installer_builds:       "dist"
+  app_outputs:            "outputs"
+  scripts:                "scripts"
+
+terminology:
+  yaw:
+    convention: "her-anatomy"
+    rule: "Yaw is described relative to the avatar's body, not the viewer's frame."
+    bins:
+      frontal: "0"
+      her_left:  ["her-left 15", "her-left 30", "her-left 45", "her-left 60", "her-left 75", "her-left 90"]
+      her_right: ["her-right 15", "her-right 30", "her-right 45", "her-right 60", "her-right 75", "her-right 90"]
+      rear_optional: ["her-left 105", "her-left 120", "her-left 150", "her-right 105", "her-right 120", "her-right 150", "180"]
+    forbidden_phrases:
+      - "image-left"
+      - "image-right"
+      - "viewer-left"
+      - "viewer-right"
+      - "left view"
+      - "right view"
+    file_naming_pattern: "<avatar-slug>_yaw_<bin>.png and <avatar-slug>_yaw_<bin>.json"
+    file_naming_examples:
+      - "aeri_yaw_0.png"
+      - "aeri_yaw_her-left-15.png"
+      - "aeri_yaw_her-right-30.png"
+
+large_file_policy:
+  keep_out_of_git:
+    - build artifacts (target/)
+    - installer builds (dist/)
+    - generated outputs (outputs/)
+    - large model weights (.safetensors, .ckpt, .bin, .pt, .pth, .onnx)
+    - private datasets
+    - secrets / API keys
+  preferred_storage:
+    build_artifacts:    "target/ (gitignored)"
+    installer_builds:   "dist/ (gitignored)"
+    generated_outputs:  "outputs/ (gitignored)"
+    documentation:      ".gov/doc/"
+    spec:               ".gov/spec/"
+
+push_hygiene:
+  rule: "target/, dist/, and outputs/ must be cleaned (or verified empty of tracked files) before every push to origin."
+  helper_script: "scripts/clean-target.ps1"
+
+llm_provider_agnostic:
+  rule: "Core application functionality must not depend on any specific LLM vendor. Optional provider adapters live in isolated subfolders and are never required for the core rotation/export pipeline."
+
+headless_llm_operation:
+  rule: "Every operator-facing or visually interactive feature in OpenRepose must be fully usable by an LLM agent running in the background, without requiring foreground GUI interaction and without violating Operator Experience Guarantees."
+  scope: "Project-wide. Applies to v0.1 features (rig, rotation, export, snapshot subsystem) and to every feature added after."
+  required_per_feature:
+    - "command-schema entry point reachable via HTTP localhost or file-watch inbox"
+    - "state reflected in outputs/.runtime/state.json (or a documented additional state file)"
+    - "snapshot target (or extension of full_window composition) for visual artifact retrieval"
+    - "no raise_(), activateWindow(), showNormal(), setForegroundWindow(), or equivalent"
+    - "no modal dialogs in response to LLM-originated commands"
+    - "no audio, no OS notifications, no keyboard / focus capture"
+  verification_checklist: "see .gov/AGENTS.md section 'Headless Verification Checklist'"
+
+dependencies:
+  required_runtime:
+    - python: ">=3.11"
+    - mediapipe: "for FaceMesh and Pose detection"
+    - numpy
+    - opencv-python
+    - pillow
+    - pyrender: "for 3D mesh rendering in the GUI viewport"
+    - PySide6: "for the desktop GUI"
+  optional_provider_adapters: []
+
+runtime_paths:
+  state_file:        "outputs/.runtime/state.json"
+  log_file_pattern:  "target/logs/openrepose-YYYYMMDD.log"
+  snapshots_dir:     "outputs/.runtime/snapshots/"
+  snapshots_log:     "outputs/.runtime/snapshots.jsonl"
+  inbox_dir:         "outputs/.runtime/inbox/"
+  processed_dir:     "outputs/.runtime/processed/"
+
+llm_control_surface:
+  state_file: "outputs/.runtime/state.json (always written, atomic)"
+  channels:
+    http_localhost:
+      enabled_by: "operator opt-in (Options tab or --http-port flag)"
+      bind: "127.0.0.1"
+      default_port: 8765
+      endpoints:
+        - "POST /command"
+        - "GET /state"
+        - "GET /log"
+    file_watch_inbox:
+      enabled_by: "operator opt-in (Options tab or --inbox flag)"
+      inbox: "outputs/.runtime/inbox/"
+      processed: "outputs/.runtime/processed/"
+      ordering: "mtime ascending, one at a time"
+  commands:
+    - import_portrait
+    - set_yaw
+    - set_yaw_bin
+    - export_single
+    - export_batch
+    - snapshot
+    - dump_rig
+    - dump_state
+    - clear_outputs
+
+snapshot_subsystem:
+  targets:
+    - "3d_viewport"
+    - "openpose_viewport"
+    - "inspector_pane"
+    - "log_pane"
+    - "options_pane"
+    - "status_bar"
+    - "toolbar"
+    - "full_window"
+  output_pattern: "outputs/.runtime/snapshots/<YYYYMMDD-HHMMSS-mmm>_<target>.png"
+  manifest: "outputs/.runtime/snapshots.jsonl"
+  rules:
+    - "no raise_(), activateWindow(), showNormal() in snapshot path"
+    - "must work with window minimized to taskbar or tray"
+    - "must work when another app is in foreground"
+    - "must not affect operator window stack or focus"
+
+operator_experience:
+  must_not:
+    - "raise own window to foreground"
+    - "take keyboard focus from another application"
+    - "capture mouse cursor"
+    - "modify operator window stack"
+    - "display modal dialogs in response to LLM commands"
+    - "play audio"
+    - "trigger OS-level notifications"
+  may:
+    - "update visible widgets when state changes"
+    - "expose system tray icon (opt-in)"
+    - "write to log/state/snapshots/exports folders"
+    - "emit one stdout log line per significant action"
+
+mechanical_log_format:
+  shapes:
+    - "[YYYY-MM-DDTHH:MM:SS.mmm] OK   <op>: <k=v> <k=v> ..."
+    - "[YYYY-MM-DDTHH:MM:SS.mmm] WARN <op>: <reason>; <k=v>"
+    - "[YYYY-MM-DDTHH:MM:SS.mmm] ERR  <op>: <reason>; <k=v>"
+    - "[YYYY-MM-DDTHH:MM:SS.mmm] DBG  <op>: <k=v>"
+  op_namespace: "dotted lower-snake-case (rig.fit, viewport.snapshot, export.single, cmd.received, ...)"
+
+workflow:
+  framework_version: "1.0"
+  workpacket_template: ".gov/templates/WP_TEMPLATE.md"
+  status_lifecycle:
+    - DRAFT
+    - READY
+    - IN-PROGRESS
+    - BLOCKED
+    - REVIEW
+    - DONE
+    - CANCELLED
+  packet_classes:
+    - RESEARCH
+    - SCAFFOLD
+    - IMPLEMENTATION
+    - VERIFICATION
+    - DOCUMENTATION
+    - INFRASTRUCTURE

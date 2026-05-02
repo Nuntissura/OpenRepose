@@ -1,0 +1,67 @@
+# Build / test artifacts (cargo, pyinstaller, pytest, mypy, coverage, etc.)
+target/
+!target/.gitkeep
+!target/README.md
+
+# Distribution / installer outputs (.exe, .msi, .bat wrappers, .zip)
+dist/
+!dist/.gitkeep
+!dist/README.md
+
+# Application-generated outputs (OpenPose images, JSON keypoints, batch exports)
+outputs/
+!outputs/.gitkeep
+!outputs/README.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+.tox/
+.venv/
+venv/
+env/
+
+# Rust
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# Node / web
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Local secrets / env
+.env
+.env.local
+*.pem
+*.key
+
+# Large model weights / checkpoints (do not commit)
+*.safetensors
+*.ckpt
+*.bin
+*.pt
+*.pth
+*.onnx

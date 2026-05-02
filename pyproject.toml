@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openrepose"
+version = "0.1.0.dev0"
+description = "Desktop application supporting commercial adult production workflows. First feature: 3D-rig-locked yaw-angle wireframe exporter (frontal portrait -> OpenPose JSON at any yaw)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "Nuntissura" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: Microsoft :: Windows",
+    "Environment :: X11 Applications :: Qt",
+    "Topic :: Multimedia :: Graphics",
+    "Intended Audience :: End Users/Desktop",
+    "Private :: Do Not Upload",
+]
+dependencies = [
+    "mediapipe>=0.10.21,<0.10.30",
+    "numpy>=1.26",
+    "opencv-python>=4.10",
+    "pillow>=10.4",
+    "PySide6>=6.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "pytest-qt>=4.4",
+    "ruff>=0.6",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+openrepose = "openrepose.cli:main"
+
+[tool.setuptools.packages.find]
+where = [".product/src"]
+
+[tool.setuptools.package-dir]
+"" = ".product/src"
+
+[tool.pytest.ini_options]
+testpaths = [".product/tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RUF"]
+ignore = []
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = [".product/src/openrepose"]
