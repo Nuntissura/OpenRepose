@@ -52,6 +52,9 @@ pnpm-lock.yaml
 .DS_Store
 Thumbs.db
 
+# Claude Code session locks (per-session runtime state, not repo content)
+.claude/scheduled_tasks.lock
+
 # Local secrets / env
 .env
 .env.local
