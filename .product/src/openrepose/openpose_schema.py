@@ -195,6 +195,79 @@ def apply_body_part_visibility(
     return body18, face70
 
 
+# --- per-marker visibility (WP-I1-029) --------------------------------------
+
+MARKER_SCHEMAS: tuple[str, ...] = ("body_18", "face_70")
+_SCHEMA_COUNT: dict[str, int] = {
+    "body_18": OPENPOSE_BODY_COUNT,
+    "face_70": OPENPOSE_FACE_COUNT,
+}
+
+
+def default_marker_visibility() -> dict[str, dict[str, bool]]:
+    """Empty per-schema override dicts. Empty = no individual overrides;
+    every marker inherits its body-part group's visibility."""
+    return {schema: {} for schema in MARKER_SCHEMAS}
+
+
+def apply_marker_visibility(
+    body18_visible,
+    face70_visible,
+    marker_visibility: dict | None,
+):
+    """Apply per-marker overrides on top of group flags.
+
+    `marker_visibility` shape: `{"body_18": {<int_index>: bool, ...},
+    "face_70": {<int_index>: bool, ...}}`. Indices may be int or stringified
+    int (JSON-friendly). Per-marker entries are the authoritative override:
+    an explicit True keeps the marker visible even if its group is off; an
+    explicit False suppresses it even if its group is on.
+
+    Unknown schema name raises ValueError. Out-of-range index raises
+    IndexError. Empty / missing dicts are no-ops.
+    """
+    if marker_visibility is None:
+        return body18_visible, face70_visible
+    for schema in marker_visibility:
+        if schema not in MARKER_SCHEMAS:
+            raise ValueError(
+                f"unknown marker schema {schema!r}; allowed: {MARKER_SCHEMAS}"
+            )
+    body_overrides = marker_visibility.get("body_18", {}) or {}
+    face_overrides = marker_visibility.get("face_70", {}) or {}
+    if not body_overrides and not face_overrides:
+        return body18_visible, face70_visible
+
+    import numpy as np
+
+    body18 = np.asarray(body18_visible).copy()
+    face70 = np.asarray(face70_visible).copy()
+
+    for raw_idx, visible in body_overrides.items():
+        idx = int(raw_idx)
+        if not (0 <= idx < _SCHEMA_COUNT["body_18"]):
+            raise IndexError(
+                f"body_18 index {idx} out of range [0, {_SCHEMA_COUNT['body_18']})"
+            )
+        if body18.dtype == bool:
+            body18[idx] = bool(visible)
+        else:
+            body18[idx] = 1.0 if visible else 0.0
+
+    for raw_idx, visible in face_overrides.items():
+        idx = int(raw_idx)
+        if not (0 <= idx < _SCHEMA_COUNT["face_70"]):
+            raise IndexError(
+                f"face_70 index {idx} out of range [0, {_SCHEMA_COUNT['face_70']})"
+            )
+        if face70.dtype == bool:
+            face70[idx] = bool(visible)
+        else:
+            face70[idx] = 1.0 if visible else 0.0
+
+    return body18, face70
+
+
 def map_face_mesh_to_openpose(mp_mesh_xyz):
     """Take a (478, 3) MediaPipe FaceMesh array and return (70, 3) in OpenPose order.
 

@@ -97,6 +97,9 @@ class AppState:
             "hands": True,
         }
     )
+    marker_visibility: dict[str, dict[str, bool]] = field(
+        default_factory=lambda: {"body_18": {}, "face_70": {}}
+    )
 
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
@@ -117,6 +120,9 @@ class AppState:
             "calibration": dict(self.calibration),
             "settings": dict(self.settings),
             "body_part_visibility": dict(self.body_part_visibility),
+            "marker_visibility": {
+                k: dict(v) for k, v in self.marker_visibility.items()
+            },
         }
 
     def write(self) -> None:

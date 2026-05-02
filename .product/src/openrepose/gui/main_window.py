@@ -26,6 +26,7 @@ from .calibration import CalibrationPane
 from .help_pane import HelpPane
 from .inspector import InspectorPane
 from .log_pane import LogPane
+from .markers import MarkersPane
 from .options import OptionsPane
 from .status_bar import StatusBar
 from .style import DARK_QSS
@@ -121,8 +122,10 @@ class MainWindow(QMainWindow):
         self._log_pane = LogPane(self._app.log)
         self._help_pane = HelpPane()
         self._calibration = CalibrationPane(self._app)
+        self._markers = MarkersPane(self._app)
         self._tabs.addTab(self._inspector, "Inspector")
         self._tabs.addTab(self._calibration, "Calibration")
+        self._tabs.addTab(self._markers, "Markers")
         self._tabs.addTab(self._options, "Options")
         self._tabs.addTab(self._log_pane, "Log")
         self._tabs.addTab(self._help_pane, "Help")
@@ -280,6 +283,8 @@ class MainWindow(QMainWindow):
         # Update calibration tab (re-renders the overlay if the active
         # calibration changed via LLM command or operator click).
         self._calibration.refresh()
+        # Sync markers tab from state (LLM commands can mutate it too).
+        self._markers.refresh()
         # Update status bar.
         self._status_bar.refresh()
         # Render viewports if a rig is loaded.

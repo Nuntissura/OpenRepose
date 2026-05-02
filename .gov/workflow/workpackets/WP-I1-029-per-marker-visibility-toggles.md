@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: IN-PROGRESS
+- **Status**: REVIEW
 - **Iteration**: I1
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -147,7 +147,22 @@ Decision: per-keypoint suppression layered as a `marker_visibility` block in `st
 
 ## Change Ledger
 
-- (filled at REVIEW)
+- **What Became Real**:
+  - `openpose_schema.py`: `MARKER_SCHEMAS` (`body_18`, `face_70`), `default_marker_visibility()`, `apply_marker_visibility(body18, face70, marker_visibility)` helper. Per-marker overrides applied AFTER body-part group flags so per-marker is the authoritative layer (explicit True restores a marker even if its group is off; explicit False suppresses it even if its group is on). Accepts both int and stringified-int keys (JSON round-trip safe).
+  - `openpose_serialize.py`: `serialize()` and `serialize_to_string()` accept optional `marker_visibility` kwarg; helper applied on the conf arrays after group flags.
+  - `render/draw_openpose.py`: `render_openpose()` accepts `marker_visibility`; helper applied on the bool visibility arrays.
+  - `state.py`: new `marker_visibility` block defaulting to `{"body_18": {}, "face_70": {}}` (empty = no overrides).
+  - `commands.py`: 3 new handlers — `set_marker_visibility` (single `index` or bulk `indices` form, mutually exclusive; validates schema, visible flag, ranges), `get_marker_visibility` (read-only), `reset_marker_visibility` (clears all overrides). Export handlers + `_h_snapshot` pass `dict(state.marker_visibility)` through.
+  - `snapshot.py`: signature gains `marker_visibility` kwarg threaded into `render_openpose` for `openpose_viewport` and `full_window` targets.
+  - `gui/markers.py` (NEW): `MarkersPane` operator-facing tab. Two QListWidget sections (body_18 with anatomical labels; face_70 with region labels — jaw outline / right brow / outer mouth / pupils / etc.). Each item is checkable. Toggling fires `set_marker_visibility` for that single index. Reset-all button dispatches `reset_marker_visibility`. `refresh()` syncs from state without re-firing. Suppress flag prevents init-time signal storm.
+  - `gui/main_window.py`: new "Markers" tab between "Calibration" and "Options". Polling timer calls `_markers.refresh()` so LLM-driven mutations update the checkboxes silently.
+  - `test_marker_visibility.py` (NEW): 22 tests — schema layer (defaults, identity-fast-return, single body / face, string-key acceptance, unknown schema raises, out-of-range raises); precedence (per-marker overrides group-off; per-marker overrides group-on); dispatcher (single + bulk + unknown schema + missing visible + both-index-and-indices + out-of-range + reset); end-to-end (single body marker zeroed in JSON; per-marker restoration of one face_70 keypoint when face group is off; state.json block).
+  - `test_gui_layout.py`: assertion updated for 6-tab layout.
+- **What Remains Simulated / Deferred**:
+  - Hand keypoints (no `hand_21_*` schema in v0.1; gated on WP-I1-018 hand detection landing).
+  - Face_70 region labels are coarse (per-region, not per-keypoint anatomical name). Operator can read the index next to the label; finer naming is a polish followup.
+  - Auto-detect-and-suppress noisy keypoints (future RESEARCH WP).
+- **Next Blocking Real Seam**: with both layers shipped, the next visibility expansion is hand keypoints when WP-I1-018 lands.
 
 ## Checkpoint Commit Plan
 
@@ -183,8 +198,12 @@ Decision: per-keypoint suppression layered as a `marker_visibility` block in `st
 
 ## Evidence
 
-- (filled at close)
+- **Test Suite Execution**: `target/test-artifacts/WP-I1-029/pytest_results.xml` — 247 passed, 0 failed (full suite; +22 new from this WP, including 4 precedence tests against WP-I1-017 group flags).
+- **Local Audit Run**: `pwsh scripts/audit-repo.ps1` exits 0.
+- **Build Artifacts**: schema/serializer/renderer/snapshot/state/commands modifications; new `gui/markers.py`, new `test_marker_visibility.py`; `test_gui_layout.py` updated for 6-tab layout.
+- **Operator Sign-off**: PENDING — operator to verify by opening the new Markers tab, unchecking a noisy keypoint (e.g. body_18 right_wrist or a face_70 jaw point), exporting, inspecting JSON.
 
 ## Progress Log
 
 - 2026-05-03: WP drafted at status DRAFT. Predecessors satisfied. Intentionally a sibling of WP-I1-017 (not a successor) — both layers compose with documented precedence. Awaits operator promotion to READY.
+- 2026-05-03: Operator approved fast-track batch (slot 3). Status DRAFT -> IN-PROGRESS. Implementation complete: schema helper + serializer + renderer + state + 3 commands + Markers tab + 22 tests. 247/247 passing. Audit clean. Status -> REVIEW.

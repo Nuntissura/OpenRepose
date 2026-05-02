@@ -62,6 +62,7 @@ def snapshot(
     portrait_path: str | Path | None = None,
     calibration: "Calibration | None" = None,
     body_part_visibility: dict[str, bool] | None = None,
+    marker_visibility: dict | None = None,
 ) -> Path:
     """Render `target` to a PNG. Returns the absolute output path.
 
@@ -81,7 +82,10 @@ def snapshot(
 
     out = _resolve_out_path(target, out_path, snapshots_root)
 
-    image = _render(target, rotated, portrait_path, calibration, body_part_visibility)
+    image = _render(
+        target, rotated, portrait_path, calibration,
+        body_part_visibility, marker_visibility,
+    )
     out.parent.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(out), image)
 
@@ -105,6 +109,7 @@ def _render(
     portrait_path: str | Path | None,
     calibration: "Calibration | None",
     body_part_visibility: dict[str, bool] | None,
+    marker_visibility: dict | None,
 ) -> "np.ndarray":
     if target == "3d_viewport":
         if rotated is None:
@@ -114,7 +119,9 @@ def _render(
         if rotated is None:
             raise OpenReposeSnapshotError("openpose_viewport requires a rotated rig")
         return render_openpose(
-            rotated, body_part_visibility=body_part_visibility
+            rotated,
+            body_part_visibility=body_part_visibility,
+            marker_visibility=marker_visibility,
         )
     if target == "calibration_overlay":
         return render_calibration_overlay(portrait_path, calibration)
@@ -123,7 +130,9 @@ def _render(
         if rotated is not None:
             panes["viewport_3d"] = render_3d_viewport(rotated)
             panes["viewport_openpose"] = render_openpose(
-                rotated, body_part_visibility=body_part_visibility
+                rotated,
+                body_part_visibility=body_part_visibility,
+                marker_visibility=marker_visibility,
             )
         for name in ("toolbar", "inspector", "status_bar", "log"):
             panes[name] = render_widget_or_placeholder(name)

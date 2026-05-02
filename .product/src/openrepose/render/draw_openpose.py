@@ -28,6 +28,7 @@ from ..openpose_schema import (
     BODY_R_SHOULDER,
     MP_POSE_TO_BODY18,
     apply_body_part_visibility,
+    apply_marker_visibility,
     map_face_mesh_to_openpose,
 )
 from ..openpose_serialize import _project_body_18
@@ -88,6 +89,7 @@ def render_openpose(
     canvas_height: int | None = None,
     *,
     body_part_visibility: dict[str, bool] | None = None,
+    marker_visibility: dict | None = None,
 ) -> np.ndarray:
     """Render the rotated rig as an OpenPose-style wireframe.
 
@@ -111,9 +113,13 @@ def render_openpose(
     face70 = map_face_mesh_to_openpose(rotated.face_mesh_world)
     face70_visible = _face_visibility_from_478(rotated.face_mesh_visible)
 
-    # Apply per-body-part visibility mask (WP-I1-017).
+    # Apply per-body-part visibility mask (WP-I1-017), then per-marker
+    # overrides (WP-I1-029) — per-marker is authoritative.
     body18_visible, face70_visible = apply_body_part_visibility(
         body18_visible, face70_visible, body_part_visibility
+    )
+    body18_visible, face70_visible = apply_marker_visibility(
+        body18_visible, face70_visible, marker_visibility
     )
 
     for (a, b), color in zip(LIMB_PAIRS, LIMB_COLORS_BGR, strict=True):

@@ -35,6 +35,7 @@ from .openpose_schema import (
     OPENPOSE_BODY_COUNT,
     OPENPOSE_FACE_COUNT,
     apply_body_part_visibility,
+    apply_marker_visibility,
     map_face_mesh_to_openpose,
 )
 from .rotation import RotatedRig
@@ -46,6 +47,7 @@ def serialize(
     canvas_height: int | None = None,
     *,
     body_part_visibility: dict[str, bool] | None = None,
+    marker_visibility: dict | None = None,
 ) -> dict[str, Any]:
     """Serialize one RotatedRig to the OpenPose people-array JSON shape.
 
@@ -66,11 +68,14 @@ def serialize(
         rotated.body_visible,
     )
 
-    # Apply per-body-part visibility mask (WP-I1-017). Body group flags
-    # zero confidence on the corresponding body_18 indices; the `face`
-    # group additionally zeros the entire face_70 visibility array.
+    # Apply per-body-part visibility mask (WP-I1-017) first, then per-marker
+    # overrides (WP-I1-029) on top — per-marker is the authoritative layer
+    # so an explicit True restores a keypoint even if its group is off.
     body_18_conf, face_visible_70 = apply_body_part_visibility(
         body_18_conf, face_visible_70, body_part_visibility
+    )
+    body_18_conf, face_visible_70 = apply_marker_visibility(
+        body_18_conf, face_visible_70, marker_visibility
     )
 
     pose_kps_flat = _flatten_with_visibility(body_18, body_18_conf)
@@ -100,6 +105,7 @@ def serialize_to_string(
     *,
     indent: int | None = None,
     body_part_visibility: dict[str, bool] | None = None,
+    marker_visibility: dict | None = None,
 ) -> str:
     """Convenience: serialize then `json.dumps`."""
     return json.dumps(
@@ -108,6 +114,7 @@ def serialize_to_string(
             canvas_width=canvas_width,
             canvas_height=canvas_height,
             body_part_visibility=body_part_visibility,
+            marker_visibility=marker_visibility,
         ),
         indent=indent,
         ensure_ascii=False,

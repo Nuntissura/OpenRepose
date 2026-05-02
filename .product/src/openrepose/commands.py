@@ -23,7 +23,7 @@ from .calibration import (
     save as save_calibration,
 )
 from .log import Logger
-from .openpose_schema import BODY_GROUPS
+from .openpose_schema import BODY_GROUPS, MARKER_SCHEMAS, default_marker_visibility
 from .openpose_serialize import serialize_to_string
 from .rig import OpenReposeRigFitError, Rig
 from .rotation import rotate_yaw
@@ -277,6 +277,7 @@ def _h_export_single(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any
         rotated,
         indent=None,
         body_part_visibility=dict(d.state.body_part_visibility),
+        marker_visibility=_copy_marker_visibility(d.state.marker_visibility),
     )
     out_json.write_text(payload + "\n", encoding="utf-8")
 
@@ -320,13 +321,17 @@ def _h_export_batch(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]
 
     written: list[str] = []
     bpv = dict(d.state.body_part_visibility)
+    mv = _copy_marker_visibility(d.state.marker_visibility)
     for label in angles:
         bin_obj = parse_bin(label)  # validates each label
         safe_bin = bin_obj.label.replace(" ", "-")
         out_json = out_dir / f"{avatar_slug}_yaw_{safe_bin}.json"
         rotated = rotate_yaw(d._rig, bin_obj)
         payload = serialize_to_string(
-            rotated, indent=None, body_part_visibility=bpv
+            rotated,
+            indent=None,
+            body_part_visibility=bpv,
+            marker_visibility=mv,
         )
         out_json.write_text(payload + "\n", encoding="utf-8")
         written.append(str(out_json))
@@ -387,6 +392,7 @@ def _h_snapshot(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
         portrait_path=portrait_path,
         calibration=calibration,
         body_part_visibility=dict(d.state.body_part_visibility),
+        marker_visibility=_copy_marker_visibility(d.state.marker_visibility),
     )
     d.log.ok("viewport.snapshot", target=target, out=str(out))
     return {"target": target, "out_path": str(out)}
@@ -770,6 +776,103 @@ def _h_get_body_part_visibility(
     return {"body_part_visibility": dict(d.state.body_part_visibility)}
 
 
+# --- per-marker visibility handlers (WP-I1-029) -----------------------------
+
+
+def _copy_marker_visibility(mv: dict) -> dict:
+    """Defensive copy: state holds the canonical dict; serializers/renderers
+    get their own copy so accidental mutation does not leak across calls."""
+    return {schema: dict(overrides) for schema, overrides in mv.items()}
+
+
+def _h_set_marker_visibility(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Set per-marker visibility override. Two payload shapes:
+
+        {"command": "set_marker_visibility", "schema": "body_18", "index": 4, "visible": false}
+        {"command": "set_marker_visibility", "schema": "face_70", "indices": [12, 13, 14], "visible": false}
+
+    Single `index` and bulk `indices` are mutually exclusive; one is required.
+    Unknown schema, missing visible, or out-of-range index raises a structured
+    error.
+    """
+    schema = cmd.get("schema")
+    if schema not in MARKER_SCHEMAS:
+        raise OpenReposeCommandError(
+            f"set_marker_visibility 'schema' must be one of {MARKER_SCHEMAS}; got {schema!r}"
+        )
+    visible = cmd.get("visible")
+    if not isinstance(visible, bool):
+        raise OpenReposeCommandError(
+            "set_marker_visibility requires 'visible' as a boolean"
+        )
+    single = cmd.get("index")
+    bulk = cmd.get("indices")
+    if (single is None) == (bulk is None):
+        raise OpenReposeCommandError(
+            "set_marker_visibility requires exactly one of 'index' or 'indices'"
+        )
+    if single is not None:
+        indices = [int(single)]
+    else:
+        if not isinstance(bulk, list):
+            raise OpenReposeCommandError("'indices' must be a list of ints")
+        indices = [int(i) for i in bulk]
+
+    # Validate range against the schema.
+    from .openpose_schema import _SCHEMA_COUNT
+
+    upper = _SCHEMA_COUNT[schema]
+    for idx in indices:
+        if not (0 <= idx < upper):
+            raise OpenReposeCommandError(
+                f"{schema} index {idx} out of range [0, {upper})"
+            )
+
+    new_mv = _copy_marker_visibility(d.state.marker_visibility)
+    overrides = new_mv.setdefault(schema, {})
+    for idx in indices:
+        overrides[str(idx)] = bool(visible)
+    with d.state._lock:
+        d.state.marker_visibility = new_mv
+    d.state.write()
+    d.log.ok(
+        "marker.set",
+        schema=schema,
+        count=len(indices),
+        visible=bool(visible),
+    )
+    return {
+        "marker_visibility": {
+            k: dict(v) for k, v in new_mv.items()
+        },
+        "schema": schema,
+        "updated_count": len(indices),
+        "visible": bool(visible),
+    }
+
+
+def _h_get_marker_visibility(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Read-only state.marker_visibility."""
+    return {
+        "marker_visibility": _copy_marker_visibility(d.state.marker_visibility)
+    }
+
+
+def _h_reset_marker_visibility(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Clear all per-marker overrides; markers inherit body-part group flags."""
+    with d.state._lock:
+        d.state.marker_visibility = default_marker_visibility()
+    d.state.write()
+    d.log.ok("marker.reset")
+    return {"marker_visibility": dict(d.state.marker_visibility)}
+
+
 def _h_dump_settings(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     """Return the effective settings JSON (operator-chosen export folder +
     subdir templates), the resolved export folder, and whether the default
@@ -818,5 +921,8 @@ _HANDLERS = {
     "get_calibration_status": _h_get_calibration_status,
     "set_body_part_visibility": _h_set_body_part_visibility,
     "get_body_part_visibility": _h_get_body_part_visibility,
+    "set_marker_visibility": _h_set_marker_visibility,
+    "get_marker_visibility": _h_get_marker_visibility,
+    "reset_marker_visibility": _h_reset_marker_visibility,
     "dump_settings": _h_dump_settings,
 }
