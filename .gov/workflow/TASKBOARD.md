@@ -1,18 +1,18 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-02 (I0 closed; WP-I1-025/026 closed; WP-I1-001 in REVIEW — calibration overlay shipped, awaiting operator GUI verification)
+Last Updated: 2026-05-03 (WP-I1-001 calibration overlay DONE; calibration UX polish + export-folder-picker WPs queued)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
 - WPs in flight (READY + IN-PROGRESS): 0
-- WPs pending review (REVIEW): 1 (WP-I1-001 per-avatar calibration overlay)
+- WPs pending review (REVIEW): 0
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 19
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
 - WPs done (I0): 4 (WP-I0-001/002/003/004) — I0 CLOSED 2026-05-02
-- WPs done (I1): 2 (WP-I1-025, WP-I1-026)
+- WPs done (I1): 3 (WP-I1-025, WP-I1-026, WP-I1-001)
 - WPs reserved-not-drafted: 3 (WP-I1-019/020/021 joint-manipulation chain — operator deferred to later)
 - Iterations open: I1 (in progress)
 
@@ -31,7 +31,8 @@ Implementation claims to be done; awaiting operator verification.
 
 | WP-ID | Title | Owner | Class | Updated | Verify |
 |-------|-------|-------|-------|---------|--------|
-| WP-I1-001 | Per-Avatar Calibration Overlay | assistant | IMPLEMENTATION | 2026-05-02 | run `.\.venv\Scripts\python.exe -m openrepose.cli gui --inbox`, import the Aeri master, switch to the new Calibration tab, mark the 6 required reference points by clicking on the portrait while the marker dropdown is set, export at `her-right 30`/`45`/`90`, and confirm the calibrated wireframes preserve operator-marked proportions across rotation. Optionally re-run `target/test-artifacts/diag/probe_facemesh_fidelity.py` on the calibrated rig to satisfy the Promotion Guard. Sign-off closes WP-I1-001. |
+
+_(none)_
 
 ## Blocked
 
@@ -84,6 +85,7 @@ Last 10 workpackets to reach DONE. Files moved from `workpackets/` to `archive/`
 | WP-I0-004 | Double Viewport GUI | assistant | IMPLEMENTATION | 2026-05-02 |
 | WP-I1-025 | Quarterly Governance Audit | assistant | INFRASTRUCTURE | 2026-05-02 |
 | WP-I1-026 | Feature 2 Calibration Overlay Spec | assistant | DOCUMENTATION | 2026-05-02 |
+| WP-I1-001 | Per-Avatar Calibration Overlay | assistant | IMPLEMENTATION | 2026-05-03 |
 
 ## Cancelled
 
@@ -109,7 +111,8 @@ _(none)_
 - WP-I1-025 (Quarterly Governance Audit) shipped DONE on 2026-05-02 ahead of the rest of I1 because the audit script is infrastructure scaffolding for the workflow rules introduced this iteration.
 - Workflow Version bumped to 1.1: new IMPLEMENTATION/RESEARCH WPs created from the template must carry a `## Research Notes` section. Existing 1.0 WPs grandfathered.
 - WP-I1-026 (Feature 2 Calibration Overlay Spec, DOCUMENTATION) shipped DONE 2026-05-02 — locks the deformation algorithm (TPS via scipy), marker schema, calibration JSON schema, command surface, state-file shape, and snapshot target for WP-I1-001 to implement against.
-- WP-I1-001 (Per-Avatar Calibration Overlay, IMPLEMENTATION, L) promoted from DRAFT to READY 2026-05-02 after WP-I1-026 sign-off; field text aligned with the new spec; kickoff commit pushed before any product file edit per Pre-Work Commit Rule.
+- WP-I1-001 (Per-Avatar Calibration Overlay, IMPLEMENTATION, L) shipped DONE 2026-05-03. 178/178 tests passing; junit XML at `target/test-artifacts/WP-I1-001/`. GUI verification surfaced two Calibration-tab usability gaps (no zoom; no frontal mesh sanity preview) — operator approved sign-off on the basis that the spec contract + headless surface + tests are met; deferred items recorded in WP-I1-001 Fallback Register and queued as WP-I1-028.
+- Queued follow-up WPs (not yet drafted): **WP-I1-027 Export folder picker + persistence** (highest priority — current behavior silently ignores operator-pasted paths because the OptionsPane `settings_changed` signal is unwired); **WP-I1-028 Calibration zoom + frontal mesh inspector** (UX polish for WP-I1-001); extension of existing **WP-I1-017 Per-OpenPose-marker visibility toggles** to per-individual-marker granularity.
 - 19 I1 WPs remain at DRAFT awaiting promotion.
 
 ## Iteration Pipeline

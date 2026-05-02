@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-02
 - **Last Updated**: 2026-05-02
-- **Status**: REVIEW
+- **Status**: DONE
 - **Iteration**: I1
 - **Workflow Version**: 1.0 (grandfathered; original draft predates the 1.1 Research Notes rule)
 - **Packet Class**: IMPLEMENTATION
@@ -122,7 +122,7 @@ This is the documented mitigation for the WP-I0-003 diagnostic that proved Media
 - **Local Audit Run**: `pwsh scripts/audit-repo.ps1` exits 0 on the live tree.
 - **Build Artifacts**: new modules `calibration.py`, `render/draw_calibration.py`, `gui/calibration.py`; new tests as listed; `pyproject.toml` adds `scipy>=1.11`.
 - **Proof Artifact**: `target/test-artifacts/WP-I1-001/`
-- **Operator Sign-off**: PENDING — operator to verify by running `.\.venv\Scripts\python.exe -m openrepose.cli gui --inbox`, marking Aeri's reference points via the Calibration tab, exporting at multiple yaw angles (`her-right 30`, `her-right 45`, `her-right 90`) and confirming the calibrated wireframes maintain the operator's marked proportions across rotation. Optionally re-run `probe_facemesh_fidelity.py` on the calibrated Aeri rig to satisfy the Promotion Guard.
+- **Operator Sign-off**: 2026-05-03: APPROVED by operator. Headless surface + tests verified. Calibration-tab usability gaps surfaced during GUI verification (operator confused about jaw marker orientation; no zoom; no frontal mesh sanity preview) are tracked as follow-up WPs (WP-I1-028 calibration zoom + frontal mesh inspector). Promotion Guard (`probe_facemesh_fidelity` re-run on the calibrated Aeri rig) deferred to operator's discretion; not gating sign-off given the spec contract is met by the headless surface and tests.
 
 ## Progress Log
 
@@ -134,3 +134,4 @@ This is the documented mitigation for the WP-I0-003 diagnostic that proved Media
 - 2026-05-02: Checkpoint C: calibration_overlay snapshot target + draw_calibration renderer + 10 tests. 169/169 passing.
 - 2026-05-02: Checkpoint D: GUI Calibration tab + main_window wiring + 9 GUI tests. test_gui_layout.py updated for 5-tab layout.
 - 2026-05-02: Status IN-PROGRESS -> REVIEW. Full suite 178/178 passing in 37s; junit XML saved at `target/test-artifacts/WP-I1-001/pytest_results.xml`. Audit exits 0. Awaiting operator sign-off (run `.\.venv\Scripts\python.exe -m openrepose.cli gui --inbox`, mark Aeri's reference points via the Calibration tab, export at multiple yaw angles, confirm calibrated wireframes look right; optionally re-run `probe_facemesh_fidelity.py` to satisfy the Promotion Guard).
+- 2026-05-03: GUI verification surfaced two real Calibration-tab usability gaps (no zoom on the master portrait; no frontal mesh sanity preview to disambiguate marker orientation — operator mixed up jaw pointers without it). Operator approved sign-off on the basis that the headless surface + tests are solid; deferred polish items recorded in Fallback Register and tracked as follow-up WP-I1-028. Status REVIEW -> DONE. WP archived to `.gov/workflow/archive/`.
