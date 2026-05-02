@@ -1,6 +1,6 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (WP-I1-001 DONE; WP-I1-027/028/029 follow-ups drafted)
+Last Updated: 2026-05-03 (fast-track batch in progress: WP-I1-027/017/029/023 sequential)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
@@ -22,8 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-
-_(none)_
+| WP-I1-027 | Export Folder Picker And Persistence | assistant | READY | IMPLEMENTATION | M | 2026-05-03 |
 
 ## Pending Review
 
