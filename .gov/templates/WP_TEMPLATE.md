@@ -31,6 +31,27 @@ _1-3 sentence outcome statement. What does the world look like after this workpa
 - `<spec-section-or-REQ-id>`
 - `<spec-section-or-REQ-id>`
 
+## Research Notes
+
+Required for IMPLEMENTATION / RESEARCH classes; optional for SCAFFOLD / VERIFICATION / DOCUMENTATION / INFRASTRUCTURE that does not introduce a new dependency, model, or algorithm.
+
+Capture what was found before scope was locked. Keep entries dated. Update Reality Boundary or DoD in the same commit if research changes the chosen approach.
+
+| Date | Source | URL | Takeaway | Verdict |
+|------|--------|-----|----------|---------|
+| `YYYY-MM-DD` | `<github / hugging face / civit ai / arxiv / vendor docs / forum>` | `<url>` | `<one-line summary>` | `adopt | adapt | reject | watch` |
+
+Sources to consider, in order of preference:
+
+1. Official library / vendor docs (MediaPipe, ControlNet, PySide6, OpenCV, etc.).
+2. GitHub repos — issues, READMEs, releases, code search.
+3. Hugging Face — model cards, discussions, leaderboards.
+4. Civit AI — model pages, version notes, reviews.
+5. Vendor and university research papers — arXiv, vendor research blogs.
+6. Forums, Discord summaries, blog posts when they contain concrete settings or evidence.
+
+If the research concluded "the existing approach is correct, no better alternative found," log that explicitly with the sources checked and the date.
+
 ## Reality Boundary
 
 Sacred. Captured before work starts. Do not rewrite after the fact.

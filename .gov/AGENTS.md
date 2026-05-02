@@ -176,6 +176,94 @@ Concretely, any new feature that touches the operator-facing GUI must also:
 
 Workpacket authors must verify this rule before opening any IMPLEMENTATION-class workpacket that adds an operator-facing feature. If a proposed feature cannot be made headless-LLM-usable, open a RESEARCH workpacket first to design the headless path, then open the IMPLEMENTATION workpacket.
 
+## Work-Start Protocol
+
+Hard rule for every product change.
+
+1. **Workpacket exists.** No edit under `.product/` may begin without a workpacket file in `.gov/workflow/workpackets/` at status `READY` or `IN-PROGRESS`. The workpacket cites a spec section and lists Expected Files Touched.
+2. **Taskboard row exists.** `.gov/workflow/TASKBOARD.md` has a row for the WP at the same status.
+3. **Repo is committed and pushed.** Before any product file is edited, the workpacket file + taskboard row are committed and pushed to `origin/main`. The commit message names the WP-ID. The push must succeed.
+4. **Only then** does product code get touched.
+
+This is the survival sequence. Past delete fiascos — wrong git tooling, accidental directory climbing, scripts deleting parents of parents — lost product code that had not been pushed. Pushing intent first means the WP scope and taskboard row outlive any local-tree disaster.
+
+**Governance refactors are exempt from this protocol.** Edits confined to `.gov/` (spec, AGENTS.md, CODEX.md, topology.yaml, workflow files, templates, taskboard, individual workpackets) do not require their own workpacket and may be committed directly. They still obey the disk-agnostic, naming-convention, research-first, and deletion-protocol rules below.
+
+A change is a "governance refactor" iff it touches only files under `.gov/` (and possibly `README.md` or `pyproject.toml` for cross-cutting metadata). Any modification of a file under `.product/`, `scripts/`, or `orstart.cmd` is product work and requires a WP.
+
+## Pre-Work Commit Rule
+
+Before opening or editing any file under `.product/`:
+
+```powershell
+git add -A
+git commit -m "WP-IX-NNN: kickoff — <one line summary>"
+git push
+```
+
+The commit may contain only the WP file + taskboard row + governance updates. Push must return success before the editor opens any product file. If the push fails (network, auth, hooks), do not proceed; resolve the push first.
+
+## Naming Convention Rule
+
+Files and folders inside this repo MUST NOT contain blank-space characters.
+
+- Preferred for docs, WPs, scripts: `kebab-case` (e.g., `WP-I1-007-pitch-roll-rotation.md`).
+- Preferred for Python modules: `snake_case` (e.g., `openpose_serialize.py`).
+- Forbidden: `Some File With Spaces.md`, `My Folder/`.
+
+If a legacy path with blank space is found, rename it before any other change in the same workpacket and update every reference in the same commit. The rule does not extend to ancestor directories outside the repo root (the operator's choice of parent directory is not under repo control).
+
+A grep test `git ls-files | grep ' '` MUST return zero matches. Any new commit that introduces a path with a blank space is a workflow violation.
+
+## Disk-Agnostic Rule
+
+No absolute path may be hardcoded into any committed file. Every script, doc, spec, WP, and config must work when the repo is moved to any disk (`C:\`, `D:\`, `E:\`, network drive) or any machine.
+
+Allowed pattern in PowerShell scripts:
+
+```powershell
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRoot  = Resolve-Path (Join-Path $ScriptDir "..")
+```
+
+Forbidden: `D:\Projects\...`, `/home/<user>/...`, `C:\Users\<name>\...` in any committed file. Examples that legitimately need a real path (e.g., illustrating an absolute path the operator must supply at runtime) belong in `.gov/doc/` with a clear "operator supplies" label.
+
+Test: copy the repo to a different disk or path; run `.\orstart`. Anything that breaks because of a hardcoded path is a violation. The CI / pre-push grep is `Select-String -Pattern '[A-Z]:\\\\Projects' -Path **/*.md, **/*.yaml, **/*.ps1, **/*.py` returning zero matches outside `.gov/doc/`.
+
+## Research-First Rule
+
+Before implementing a non-trivial feature, dependency choice, model, or algorithm, research current sources. Someone may have shipped a better solution; implementing without checking is a known anti-pattern in this domain.
+
+Search order (use as many as the question warrants):
+
+1. Official library / vendor docs (MediaPipe, ControlNet, PySide6, OpenCV, etc.).
+2. GitHub repos — issues, READMEs, releases, code search.
+3. Hugging Face — model cards, discussions, leaderboards.
+4. Civit AI — model pages, version notes, reviews relevant to the production stack.
+5. Vendor and university research papers — arXiv, vendor research blogs.
+6. Forums, Discord summaries, blog posts when they contain concrete settings or evidence.
+
+Output goes in the WP's `## Research Notes` section (added by the v1.1 template) with: source URL, date checked, one-line takeaway, and a verdict (`adopt | adapt | reject | watch`). Old memory is not research; date the source.
+
+If research changes the WP's Reality Boundary or Definition of Done, update those sections in the same commit so the workpacket reflects the chosen approach, not the original guess.
+
+## Deletion Protocol
+
+Manual deletion of tracked files or repo folders is forbidden. All deletions go through one of:
+
+- **Claude side**: the `/safe-delete` slash command (`.claude/commands/safe-delete.md`). Refuses any path that resolves outside the repo root or that names the repo root or its parent.
+- **Operator side**: `scripts/safe-delete.ps1`. Same guards. Logs every removal under `target/safe-delete-log/` (gitignored) so post-mortem is possible.
+
+Forbidden patterns:
+
+- `cd ..` followed by `Remove-Item` or `rm -rf`.
+- `Remove-Item -Recurse -Force` on any path containing `OpenRepose` literal.
+- Any deletion using an absolute path supplied by the assistant rather than computed by the safe-delete helper.
+
+Past disasters: wrong git tooling and accidental directory-climbing deleted entire repos, and on one occasion an entire disk. Routing every deletion through a checked path makes that class of error impossible.
+
+When the safe-delete helper refuses a path, do not work around it — investigate why. If the legitimate target really is outside the repo root, the operator runs the deletion by hand consciously.
+
 ## Headless Verification Checklist
 
 Use this checklist when reviewing or signing off any IMPLEMENTATION-class workpacket that adds an operator-facing or visual feature:

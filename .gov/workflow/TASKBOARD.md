@@ -29,7 +29,7 @@ Implementation claims to be done; awaiting operator verification.
 
 | WP-ID | Title | Owner | Class | Updated | Verify |
 |-------|-------|-------|-------|---------|--------|
-| WP-I0-004 | Double Viewport GUI | assistant | IMPLEMENTATION | 2026-05-02 | run `.\.venv\Scripts\python.exe -m openrepose.cli gui --inbox` from `D:\Projects\LLM projects\OpenRepose`, exercise the GUI through a portrait import + yaw drag + export. Sign-off closes I0. |
+| WP-I0-004 | Double Viewport GUI | assistant | IMPLEMENTATION | 2026-05-02 | run `.\.venv\Scripts\python.exe -m openrepose.cli gui --inbox` from the repo root, exercise the GUI through a portrait import + yaw drag + export. Sign-off closes I0. |
 
 ## Blocked
 

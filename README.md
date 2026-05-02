@@ -64,6 +64,17 @@ git push -u origin main
 
 Before any push, run `.\scripts\clean-target.ps1` to wipe `target/`, `dist/`, and `outputs/` (or verify they are empty / gitignored). Build artifacts and generated outputs do not enter Git.
 
+## Repo Rules
+
+Six non-negotiable rules govern this repo. Full bodies in `.gov/AGENTS.md`; codified in `.gov/topology.yaml` under `repo_rules:`.
+
+1. **Work-Start Protocol** — no edit under `.product/` without a workpacket at READY/IN-PROGRESS, a taskboard row, and the workpacket committed and pushed first. Governance refactors (changes confined to `.gov/`) are exempt.
+2. **Pre-Work Commit Rule** — commit + push the workpacket and taskboard row BEFORE opening any product file in the editor. Past deletion fiascos lost product code that had not yet been pushed; pushing intent first survives any local-tree disaster.
+3. **Naming Convention** — no blank-space characters in any committed file or folder path inside the repo. kebab-case for docs/WPs, snake_case for Python modules. Legacy paths with spaces are renamed before any other change in the same workpacket.
+4. **Disk-Agnostic** — no hardcoded absolute paths in any committed file. The repo runs unchanged on any drive, any machine. `.\orstart` resolves the root from its own script path.
+5. **Research-First** — research current sources (GitHub, Hugging Face, Civit AI, vendor docs, papers, forums) before implementing non-trivial features; record findings in the WP's Research Notes section with dated source URLs.
+6. **Deletion Protocol** — no manual `Remove-Item` / `rm` / `del` on tracked files or repo folders. All deletions go through `/safe-delete` (Claude side, `.claude/commands/safe-delete.md`) or `scripts/safe-delete.ps1` (operator side). Both refuse paths that resolve outside the repo root, contain `..`, or name the repo root or its top-level governance / product / scripts folders wholesale.
+
 ## Project Notes
 
 - Agent instructions: `.gov/AGENTS.md`
@@ -73,3 +84,6 @@ Before any push, run `.\scripts\clean-target.ps1` to wipe `target/`, `dist/`, an
 - Workflow rules: `.gov/workflow/README.md`
 - Active taskboard: `.gov/workflow/TASKBOARD.md`
 - Workpacket template: `.gov/templates/WP_TEMPLATE.md`
+- Slash command (deletion): `.claude/commands/safe-delete.md`
+- Operator helper (deletion): `scripts/safe-delete.ps1`
+- Operator helper (clean build/dist/outputs): `scripts/clean-target.ps1`

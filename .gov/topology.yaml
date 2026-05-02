@@ -1,13 +1,47 @@
 project:
   name: OpenRepose
-  root: "D:/Projects/LLM projects/OpenRepose"
   remote: "https://github.com/Nuntissura/OpenRepose"
+  disk_agnostic: true
+  note: "No absolute path is recorded in this repo. The repo runs unchanged from any disk and any working directory; bootstrap (orstart) resolves the repo root from its own script path."
   purpose: "Desktop application that supports commercial adult pornographic image and video production workflows. The first shipped feature is a 3D-rig-locked yaw-angle wireframe exporter (frontal portrait in, OpenPose-format wireframes out at any yaw); the application is designed to grow into other production tasks that benefit from locked-geometry tooling."
   production_target: "Photorealistic explicit adult image and video output, including full nudity, penetration, realistic genitalia, and realistic sexual acts. Direct, technical, non-moralizing stance throughout."
 
 repo_split:
   governance: ".gov"
   product:    ".product"
+
+repo_rules:
+  work_start_protocol:
+    rule: "No edit under .product/ may begin without (a) a workpacket file in .gov/workflow/workpackets/ at status READY or IN-PROGRESS, (b) a matching row on the taskboard, and (c) the repo committed and pushed to origin/main BEFORE the product edit is made."
+    rationale: "Records intent and current scope on the remote before any product change, so a wrong-tool / wrong-cwd accident cannot lose the plan."
+    governance_exempt: "Edits confined to .gov/ (spec, AGENTS.md, CODEX.md, topology.yaml, workflow files, templates, taskboard, workpackets) do not require their own workpacket. Governance refactors may be committed directly. They still follow the disk-agnostic, naming, and research rules."
+  pre_work_commit_rule:
+    rule: "Before opening or editing any .product/ file, run: git add -A && git commit && git push. The commit may be the workpacket file itself + taskboard row. Push must succeed before product code is touched."
+    rationale: "Survival rule. Past delete fiascos lost product code that had not yet been pushed. Pushing intent first means the WP scope and taskboard row outlive any local-tree disaster."
+  naming_convention_rule:
+    rule: "Files and folders inside this repo MUST NOT contain blank-space characters. Use kebab-case (preferred for docs / WPs / scripts) or snake_case (preferred for Python modules)."
+    legacy: "If a legacy path with blank space is found, rename it before any other change in the same workpacket. Update every reference in the same commit."
+    parent_directory: "The rule does not extend to ancestor directories outside the repo root (a parent like 'LLM projects' is the operator's choice and is not under repo control)."
+  disk_agnostic_rule:
+    rule: "No absolute path may be hardcoded into committed files. Every script, doc, spec, WP, and config must work when the repo is moved to any disk or any machine."
+    allowed: "Bootstrap scripts compute the repo root from their own location ($MyInvocation.MyCommand.Path -> Resolve-Path .. is the canonical pattern)."
+    test: "Copy the repo to a different disk or path; run orstart. If anything breaks because of a hardcoded path, that is a violation."
+  research_first_rule:
+    rule: "Before implementing a non-trivial feature, dependency choice, model, or algorithm, research current sources. The research result is captured in the WP's Research Notes section and dated."
+    sources_in_order:
+      - "Official library / vendor docs (MediaPipe, ControlNet, PySide6, etc.)"
+      - "GitHub repos (issues, READMEs, releases, code searches)"
+      - "Hugging Face model cards and discussions"
+      - "Civit AI model pages, version notes, and reviews"
+      - "Vendor and university research papers (arXiv, vendor research blogs)"
+      - "Forums, Discord summaries, and blog posts when they contain concrete settings or evidence"
+    rationale: "Someone may have already shipped a better solution. Implementing without checking is a known anti-pattern in this domain."
+  deletion_protocol:
+    rule: "No manual rm / Remove-Item / del on tracked files or repo folders. All deletions go through the /safe-delete slash command (Claude side) or scripts/safe-delete.ps1 (operator side)."
+    forbidden: "Do not use 'cd ..' followed by deletion. Do not use absolute paths in deletion commands. Do not use Remove-Item with -Recurse on a parent that contains the repo."
+    safe_delete_helper: "scripts/safe-delete.ps1"
+    safe_delete_slash_command: ".claude/commands/safe-delete.md"
+    rationale: "Past disasters: wrong git tooling and accidental directory climbing deleted entire repos and a disk. Routing all deletions through a checked path makes that class of error impossible."
 
 repo_areas:
   startup_command:        "orstart.cmd"

@@ -62,30 +62,20 @@ scripts/     Repo helper scripts including orstart.ps1.
 
 Spec belongs under `.gov/spec/`. Source belongs under `.product/src/`. Generated artifacts do not enter Git.
 
-## Working Paths On This Machine
+## Repo Layout (Disk-Agnostic)
+
+All paths are relative to the repo root. The repo is disk-agnostic by rule (see `.gov/AGENTS.md` "Disk-Agnostic Rule"); copy it to any drive or machine and `.\orstart` resolves the root from its own script path.
 
 ```text
-Repo:
-D:\Projects\LLM projects\OpenRepose
-
-Governance:
-D:\Projects\LLM projects\OpenRepose\.gov
-
-Product:
-D:\Projects\LLM projects\OpenRepose\.product
-
-Build / test artifacts (gitignored, cleaned before push):
-D:\Projects\LLM projects\OpenRepose\target
-
-Installer builds (gitignored, cleaned before push):
-D:\Projects\LLM projects\OpenRepose\dist
-
-App outputs (gitignored, cleaned before push):
-D:\Projects\LLM projects\OpenRepose\outputs
-
-Helper scripts including orstart:
-D:\Projects\LLM projects\OpenRepose\scripts
+.gov/        Governance, documentation, spec, workflow, templates.
+.product/    Product source code, tests, resources.
+target/      Build / test artifacts. Gitignored. Cleaned before every push.
+dist/        Installer / distributable builds. Gitignored. Cleaned before every push.
+outputs/     Application-generated outputs. Gitignored. Cleaned before every push.
+scripts/     Helper scripts (orstart, clean-target, safe-delete).
 ```
+
+No file in this repo records an absolute path. The operator may keep the repo wherever they like.
 
 ## Yaw Terminology Lock
 
@@ -142,6 +132,17 @@ All material work is organized as workpackets on a taskboard. The hard rules:
 2. No workpacket reaches `DONE` without linked evidence and operator sign-off.
 3. The taskboard updates in the same session as any workpacket transition.
 4. Reality Boundary, Fallback Register, and Change Ledger fields are kept truthful even if the result was unflattering.
+
+## Repo Rules (canonical list lives in AGENTS.md)
+
+These are non-negotiable rules. Full bodies in `.gov/AGENTS.md`; codified in `.gov/topology.yaml` under `repo_rules:`.
+
+1. **Work-Start Protocol** — no `.product/` edit without a WP at READY/IN-PROGRESS + a taskboard row + the WP committed and pushed first. Governance refactors (changes confined to `.gov/`) are exempt.
+2. **Pre-Work Commit Rule** — `git add -A && git commit && git push` runs successfully BEFORE any `.product/` file is opened in the editor.
+3. **Naming Convention Rule** — no blank-space characters in any committed file or folder path inside the repo. kebab-case for docs/WPs, snake_case for Python.
+4. **Disk-Agnostic Rule** — no hardcoded absolute paths in any committed file. Bootstrap scripts compute root from their own location.
+5. **Research-First Rule** — research current sources (GitHub, Hugging Face, Civit AI, vendor docs, papers, forums) before implementing non-trivial features; record findings in the WP's Research Notes section.
+6. **Deletion Protocol** — no manual `rm` / `Remove-Item` / `del` on tracked files or repo folders. All deletions through `/safe-delete` slash command (Claude side) or `scripts/safe-delete.ps1` (operator side).
 
 Workpacket lifecycle:
 
