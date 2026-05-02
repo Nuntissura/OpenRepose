@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-02
 - **Last Updated**: 2026-05-02
-- **Status**: REVIEW
+- **Status**: DONE
 - **Iteration**: I1
 - **Workflow Version**: 1.1
 - **Packet Class**: DOCUMENTATION
@@ -156,9 +156,10 @@ Single bundled commit (governance-confined; Work-Start Protocol exempt): WP file
 - **Test Suite Execution**: full `pytest` run remains green (no product code changed; documentation-only WP).
 - **Build Artifacts**: none beyond the spec edit.
 - **Proof Artifact**: `target/test-artifacts/WP-I1-026/` (audit log + git-diff snapshot if archived).
-- **Operator Sign-off**: PENDING — operator to confirm the spec section reads correctly and the algorithm choice (TPS via scipy) is acceptable for WP-I1-001 to implement against.
+- **Operator Sign-off**: 2026-05-02: APPROVED by operator after reading the new Feature 2 spec section and the TPS-via-scipy algorithm choice. WP-I1-001 authorized to start.
 
 ## Progress Log
 
 - 2026-05-02: WP drafted at READY status (DOCUMENTATION-class, governance-confined; Work-Start Protocol exempt). Research-First pass complete (TPS via scipy locked).
 - 2026-05-02: Spec extension authored. New "Feature 2: Per-Avatar Calibration Overlay" section added between Feature 1's last subsection and the Project-Wide Principle section. I1 roadmap entry for WP-I1-001 updated to cross-reference the new section and include the fourth command. Status READY -> REVIEW awaiting operator sign-off on the spec wording and TPS-via-scipy algorithm choice.
+- 2026-05-02: Operator sign-off APPROVED. Status REVIEW -> DONE. WP archived to `.gov/workflow/archive/`. WP-I1-001 unblocked.
