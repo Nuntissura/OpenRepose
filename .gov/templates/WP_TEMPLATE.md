@@ -7,7 +7,7 @@
 - **Last Updated**: `YYYY-MM-DD`
 - **Status**: `DRAFT | READY | IN-PROGRESS | BLOCKED | REVIEW | DONE | CANCELLED`
 - **Iteration**: `I0..In | All`
-- **Workflow Version**: `1.0`
+- **Workflow Version**: `1.1`
 - **Packet Class**: `RESEARCH | SCAFFOLD | IMPLEMENTATION | VERIFICATION | DOCUMENTATION | INFRASTRUCTURE`
 - **Effort Estimate**: `XS | S | M | L | XL`
 - **Linked Spec**: `.gov/spec/<spec-file>.md` (or `N/A`)

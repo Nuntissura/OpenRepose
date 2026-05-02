@@ -5,9 +5,9 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-02
 - **Last Updated**: 2026-05-02
-- **Status**: READY
+- **Status**: REVIEW
 - **Iteration**: I1
-- **Workflow Version**: 1.0
+- **Workflow Version**: 1.1
 - **Packet Class**: INFRASTRUCTURE
 - **Effort Estimate**: S
 - **Linked Spec**: `.gov/AGENTS.md` sections "Disk-Agnostic Rule", "Naming Convention Rule", "Research-First Rule"; `.gov/topology.yaml` `repo_rules` block.
@@ -181,3 +181,5 @@ Decision: GH Actions cron with `actions/github-script` to open an issue on audit
 ## Progress Log
 
 - 2026-05-02: WP drafted and promoted directly to READY (operator authorized infrastructure work in same turn). Pre-work commit + push to follow before any scripts/ or .github/ file is created.
+- 2026-05-02: Pre-work commit `8e1c00a` pushed to origin/main with WP file + taskboard row only — Work-Start Protocol demonstrated.
+- 2026-05-02: Implementation complete in same session — `scripts/audit-repo.ps1` (3 checks, exit codes 0/1/2), `.github/workflows/quarterly-audit.yml` (cron `7 9 1 1,4,7,10 *` UTC + `workflow_dispatch` + issue-on-failure via `actions/github-script@v7`), `.product/tests/test_audit_repo.py` (9 cases). Bumped `.gov/templates/WP_TEMPLATE.md` Workflow Version to 1.1 so existing WPs are grandfathered and only newly-created ones must carry Research Notes. Local audit run on the live tree: `audit-repo: OK   no violations`. Status moved to REVIEW.

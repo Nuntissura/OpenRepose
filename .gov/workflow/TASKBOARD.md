@@ -6,8 +6,8 @@ Live status of all OpenRepose workpackets. Update in the same session as any wor
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 1 (WP-I1-025 quarterly governance audit)
-- WPs pending review (REVIEW): 1
+- WPs in flight (READY + IN-PROGRESS): 0
+- WPs pending review (REVIEW): 2 (WP-I0-004 GUI; WP-I1-025 quarterly governance audit)
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote when predecessors close): 20
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
@@ -21,7 +21,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I1-025 | Quarterly Governance Audit | assistant | READY | INFRASTRUCTURE | S | 2026-05-02 |
+_(none — WP-I1-025 moved to REVIEW)_
 
 ## Pending Review
 
@@ -30,6 +30,7 @@ Implementation claims to be done; awaiting operator verification.
 | WP-ID | Title | Owner | Class | Updated | Verify |
 |-------|-------|-------|-------|---------|--------|
 | WP-I0-004 | Double Viewport GUI | assistant | IMPLEMENTATION | 2026-05-02 | run `.\.venv\Scripts\python.exe -m openrepose.cli gui --inbox` from the repo root, exercise the GUI through a portrait import + yaw drag + export. Sign-off closes I0. |
+| WP-I1-025 | Quarterly Governance Audit | assistant | INFRASTRUCTURE | 2026-05-02 | open the GitHub Actions tab → "Quarterly governance audit" → "Run workflow" → confirm green check on the current tree. Optionally run `pytest .product/tests/test_audit_repo.py` locally. Sign-off closes I1-025. |
 
 ## Blocked
 

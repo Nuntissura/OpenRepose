@@ -1,0 +1,75 @@
+# Quarterly Governance Audit
+#
+# Owns: WP-I1-025.
+# Runs scripts/audit-repo.ps1 on a quarterly cron and on demand.
+# Files a GitHub issue when audit fails.
+#
+# Cron: 09:07 UTC on the 1st of January, April, July, October.
+# Off-minute (07) is intentional — avoids fleet-wide :00 spike on GitHub Actions.
+# UTC because GitHub Actions schedules run in UTC; the audit is async, so the
+# operator's local timezone is cosmetic. Manual runs available via the Actions tab.
+
+name: Quarterly governance audit
+
+on:
+  schedule:
+    - cron: "7 9 1 1,4,7,10 *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    name: Run audit-repo.ps1
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run governance audit
+        id: audit
+        shell: pwsh
+        run: |
+          $output = & pwsh -NoProfile -File scripts/audit-repo.ps1 2>&1
+          $exitCode = $LASTEXITCODE
+          $output | Tee-Object -FilePath audit-output.log
+          "exit_code=$exitCode" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          if ($exitCode -ne 0) {
+            $bodyLines = @("Quarterly governance audit detected drift.", "", "``````", $output, "``````")
+            $body = $bodyLines -join "`n"
+            $body | Out-File -FilePath audit-issue-body.md -Encoding utf8
+            exit $exitCode
+          }
+
+      - name: Upload audit log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-output
+          path: |
+            audit-output.log
+            audit-issue-body.md
+          if-no-files-found: ignore
+
+      - name: Open issue on drift
+        if: failure() && steps.audit.outputs.exit_code == '1'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body;
+            try {
+              body = fs.readFileSync('audit-issue-body.md', 'utf8');
+            } catch (err) {
+              body = 'Quarterly governance audit failed but the body file was not written. Check the workflow run logs.';
+            }
+            const today = new Date().toISOString().slice(0, 10);
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Quarterly governance audit: drift detected (${today})`,
+              body: body,
+              labels: ['governance', 'audit-drift']
+            });
