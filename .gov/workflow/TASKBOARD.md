@@ -22,7 +22,8 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I1-027 | Export Folder Picker And Persistence | assistant | READY | IMPLEMENTATION | M | 2026-05-03 |
+
+_(none — WP-I1-027 moved to REVIEW)_
 
 ## Pending Review
 
@@ -30,8 +31,7 @@ Implementation claims to be done; awaiting operator verification.
 
 | WP-ID | Title | Owner | Class | Updated | Verify |
 |-------|-------|-------|-------|---------|--------|
-
-_(none)_
+| WP-I1-027 | Export Folder Picker And Persistence | assistant | IMPLEMENTATION | 2026-05-03 | launch the GUI, open Options, click Browse..., pick a folder, export (single + batch), restart, confirm exports land in the same folder. Sign-off bundled with the rest of the fast-track batch. |
 
 ## Blocked
 

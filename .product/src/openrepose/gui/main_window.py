@@ -152,6 +152,10 @@ class MainWindow(QMainWindow):
         self._toolbar.export_single_clicked.connect(self._on_export_single)
         self._toolbar.export_batch_clicked.connect(self._on_export_batch)
 
+        # Options pane -> persistent settings.
+        self._options.load_from_settings(self._app.settings)
+        self._options.settings_changed.connect(self._on_settings_changed)
+
         # Inspector buttons -> dispatcher commands.
         self._inspector.btn_render_single.clicked.connect(self._on_export_single)
         self._inspector.btn_snapshot_3d.clicked.connect(
@@ -225,6 +229,32 @@ class MainWindow(QMainWindow):
 
     def _on_export_batch(self) -> None:
         self._app.handle_command({"command": "export_batch"})
+
+    def _on_settings_changed(self, payload: dict) -> None:
+        """Persist operator-changed settings to disk + refresh state.json."""
+        self._app.settings.update(
+            export_folder=payload.get("export_folder", ""),
+            single_export_subdir_template=payload.get(
+                "single_export_subdir_template", "{avatar}"
+            ),
+            batch_export_subdir_template=payload.get(
+                "batch_export_subdir_template", "{avatar}/{run_tag}"
+            ),
+        )
+        resolved, default_used = (
+            self._app.settings.export_folder_resolved_with_fallback_flag()
+        )
+        self._app.state.set_settings_status(
+            export_folder=str(resolved),
+            default_used=default_used,
+            settings_path=str(self._app.settings.settings_path),
+        )
+        self._app.state.write()
+        self._app.log.ok(
+            "settings.update",
+            export_folder=str(resolved),
+            default_used=default_used,
+        )
 
     # --- state -> GUI sync ----------------------------------------------
 

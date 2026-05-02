@@ -26,6 +26,11 @@ from .log import Logger
 from .openpose_serialize import serialize_to_string
 from .rig import OpenReposeRigFitError, Rig
 from .rotation import rotate_yaw
+from .settings import (
+    OpenReposeSettingsError,
+    Settings,
+    render_subdir,
+)
 from .state import AppState
 from .yaw_bin import (
     OpenReposeForbiddenTerminologyError,
@@ -71,10 +76,12 @@ class CommandDispatcher:
         *,
         outputs_root: Path | str = Path("outputs"),
         snapshot_handler: object | None = None,
+        settings: "Settings | None" = None,
     ) -> None:
         self.state = state
         self.log = log
         self.outputs_root = Path(outputs_root)
+        self.settings = settings  # operator-configured paths; None = legacy default
         self._lock = threading.Lock()
         self._rig: Rig | None = None
         self._snapshot_handler = snapshot_handler  # set by WP-I0-003 wiring
@@ -104,6 +111,7 @@ class CommandDispatcher:
             OpenReposeForbiddenTerminologyError,
             OpenReposeYawBinError,
             OpenReposeCalibrationError,
+            OpenReposeSettingsError,
             FileNotFoundError,
             NotImplementedError,
         ) as e:
@@ -248,6 +256,14 @@ def _h_export_single(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any
     out_dir_raw = cmd.get("out_dir")
     if isinstance(out_dir_raw, str) and out_dir_raw:
         out_dir = Path(out_dir_raw)
+    elif d.settings is not None:
+        root = d.settings.resolved_export_folder()
+        subdir = render_subdir(
+            d.settings.single_export_subdir_template,
+            avatar=avatar_slug,
+            run_tag="",
+        )
+        out_dir = root / subdir
     else:
         out_dir = d.outputs_root / avatar_slug
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -285,7 +301,16 @@ def _h_export_batch(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]
         out_dir = Path(out_dir_raw)
     else:
         run_tag = datetime.datetime.now(tz=datetime.UTC).strftime("%Y%m%dT%H%M%SZ")
-        out_dir = d.outputs_root / avatar_slug / run_tag
+        if d.settings is not None:
+            root = d.settings.resolved_export_folder()
+            subdir = render_subdir(
+                d.settings.batch_export_subdir_template,
+                avatar=avatar_slug,
+                run_tag=run_tag,
+            )
+            out_dir = root / subdir
+        else:
+            out_dir = d.outputs_root / avatar_slug / run_tag
     out_dir.mkdir(parents=True, exist_ok=True)
 
     written: list[str] = []
@@ -686,6 +711,32 @@ def _h_get_calibration_status(
     return dict(d.state.calibration)
 
 
+# --- settings handler --------------------------------------------------------
+
+
+def _h_dump_settings(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    """Return the effective settings JSON (operator-chosen export folder +
+    subdir templates), the resolved export folder, and whether the default
+    fallback is in use."""
+    if d.settings is None:
+        return {
+            "present": False,
+            "settings": None,
+            "resolved_export_folder": str(d.outputs_root),
+            "default_used": True,
+        }
+    resolved, default_used = (
+        d.settings.export_folder_resolved_with_fallback_flag()
+    )
+    return {
+        "present": True,
+        "settings": d.settings.to_dict(),
+        "settings_path": str(d.settings.settings_path),
+        "resolved_export_folder": str(resolved),
+        "default_used": default_used,
+    }
+
+
 def _mediapipe_version_string() -> str:
     try:
         import mediapipe  # type: ignore[import-untyped]
@@ -709,4 +760,5 @@ _HANDLERS = {
     "dump_calibration": _h_dump_calibration,
     "clear_calibration": _h_clear_calibration,
     "get_calibration_status": _h_get_calibration_status,
+    "dump_settings": _h_dump_settings,
 }

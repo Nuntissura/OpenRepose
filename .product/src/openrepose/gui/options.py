@@ -1,5 +1,5 @@
-"""Options tab. Operator-set configuration: export folders, avatar slug,
-log level, channel toggles. v0.1 keeps it concrete and dense."""
+"""Options tab. Operator-set configuration: export folder root + subdir
+templates, avatar slug, log level, channel toggles."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QFileDialog,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -18,8 +19,9 @@ from PySide6.QtWidgets import (
 
 
 class OptionsPane(QWidget):
-    """Pure form-style options pane; v0.1 has no persistence yet (settings
-    survive only for the running session). Persistence ships in a polish WP."""
+    """Form-style options pane wired to operator settings persistence
+    (WP-I1-027). The Apply button persists changes to disk via the App's
+    Settings instance."""
 
     settings_changed = Signal(dict)
 
@@ -42,14 +44,27 @@ class OptionsPane(QWidget):
         self.run_tag_edit.setPlaceholderText("e.g. 2026-05-02_run01 (auto if blank)")
         form.addRow(QLabel("Run tag"), self.run_tag_edit)
 
-        # Single export folder (operator can use {avatar} and {run_tag} placeholders).
+        # Export folder root with Browse... button. Empty = use default
+        # (~/Desktop/openrepose-output/).
+        self.export_folder_edit = QLineEdit()
+        self.export_folder_edit.setPlaceholderText(
+            "blank = ~/Desktop/openrepose-output/"
+        )
+        self.btn_browse_export = QPushButton("Browse...")
+        self.btn_browse_export.clicked.connect(self._on_browse_export)
+        export_row = QHBoxLayout()
+        export_row.addWidget(self.export_folder_edit, 1)
+        export_row.addWidget(self.btn_browse_export)
+        form.addRow(QLabel("Export folder root"), self._wrap_row(export_row))
+
+        # Subdir templates ({avatar} and {run_tag} placeholders supported).
         self.single_export_edit = QLineEdit()
-        self.single_export_edit.setText("outputs/{avatar}/")
-        form.addRow(QLabel("Single export folder"), self.single_export_edit)
+        self.single_export_edit.setText("{avatar}")
+        form.addRow(QLabel("Single export subdir"), self.single_export_edit)
 
         self.batch_export_edit = QLineEdit()
-        self.batch_export_edit.setText("outputs/{avatar}/{run_tag}/")
-        form.addRow(QLabel("Batch export folder"), self.batch_export_edit)
+        self.batch_export_edit.setText("{avatar}/{run_tag}")
+        form.addRow(QLabel("Batch export subdir"), self.batch_export_edit)
 
         self.angles_edit = QLineEdit()
         self.angles_edit.setPlaceholderText("comma-separated; blank = standard 13")
@@ -111,8 +126,9 @@ class OptionsPane(QWidget):
             {
                 "avatar_slug": self.avatar_slug_edit.text().strip(),
                 "run_tag": self.run_tag_edit.text().strip(),
-                "single_export_folder": self.single_export_edit.text().strip(),
-                "batch_export_folder": self.batch_export_edit.text().strip(),
+                "export_folder": self.export_folder_edit.text().strip(),
+                "single_export_subdir_template": self.single_export_edit.text().strip(),
+                "batch_export_subdir_template": self.batch_export_edit.text().strip(),
                 "angles": self.angles_edit.text().strip(),
                 "projection_mode": self.proj_combo.currentText(),
                 "focal_length": self.focal_edit.text().strip(),
@@ -124,3 +140,22 @@ class OptionsPane(QWidget):
                 "clean_on_close": self.clean_on_close_check.isChecked(),
             }
         )
+
+    def _on_browse_export(self) -> None:
+        """Open a folder picker. Triggered only by operator click on the
+        Browse... button — never by an LLM-driven path."""
+        current = self.export_folder_edit.text().strip()
+        chosen = QFileDialog.getExistingDirectory(
+            self,
+            "Select export folder root",
+            current,
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if chosen:
+            self.export_folder_edit.setText(chosen)
+
+    def load_from_settings(self, settings) -> None:  # noqa: ANN001
+        """Populate the form from a Settings instance."""
+        self.export_folder_edit.setText(str(settings.export_folder or ""))
+        self.single_export_edit.setText(settings.single_export_subdir_template)
+        self.batch_export_edit.setText(settings.batch_export_subdir_template)

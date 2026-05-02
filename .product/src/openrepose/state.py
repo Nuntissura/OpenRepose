@@ -81,6 +81,13 @@ class AppState:
             "last_dump_at": None,
         }
     )
+    settings: dict[str, Any] = field(
+        default_factory=lambda: {
+            "export_folder": None,
+            "default_used": True,
+            "settings_path": None,
+        }
+    )
 
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
@@ -99,6 +106,7 @@ class AppState:
             "errors": list(self.errors),
             "last_command": dict(self.last_command),
             "calibration": dict(self.calibration),
+            "settings": dict(self.settings),
         }
 
     def write(self) -> None:
@@ -221,6 +229,20 @@ class AppState:
     def mark_calibration_dump(self) -> None:
         with self._lock:
             self.calibration["last_dump_at"] = _now()
+
+    def set_settings_status(
+        self,
+        *,
+        export_folder: str | None,
+        default_used: bool,
+        settings_path: str | None,
+    ) -> None:
+        with self._lock:
+            self.settings = {
+                "export_folder": export_folder,
+                "default_used": bool(default_used),
+                "settings_path": settings_path,
+            }
 
     def begin_command(self, command: str) -> None:
         with self._lock:

@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: READY
+- **Status**: REVIEW
 - **Iteration**: I1
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -156,7 +156,20 @@ Decision: settings stored as `<AppConfigLocation>/openrepose/settings.json` (pla
 
 ## Change Ledger
 
-- (filled at REVIEW)
+- **What Became Real**:
+  - `.product/src/openrepose/settings.py` (NEW): `Settings` dataclass + `load()` / `save()` / `update()` / `load_or_default()` + `settings_path()` (cross-platform via `QStandardPaths.AppConfigLocation`) + `default_export_folder()` (`~/Desktop/openrepose-output/` with `~/openrepose-output/` fallback) + `render_subdir()` template helper. Atomic `.tmp + os.replace` save. Plain JSON over QSettings (operator-readable).
+  - `.product/src/openrepose/state.py`: `settings` block (`export_folder`, `default_used`, `settings_path`); `set_settings_status()` helper; `to_dict()` includes the block.
+  - `.product/src/openrepose/app.py`: constructor takes `settings_path` kwarg; loads via `load_or_default()`; resolves export folder + default-used flag; mirrors onto state; logs WARN when the saved path falls back; passes `settings` into the dispatcher.
+  - `.product/src/openrepose/commands.py`: dispatcher gains `settings` kwarg. `_h_export_single` and `_h_export_batch` use `settings.resolved_export_folder() / render_subdir(template, ...)` when no explicit `out_dir` is supplied; explicit `out_dir` still wins (regression-tested). New `_h_dump_settings` handler returns the effective Settings + resolved folder + default-used flag. `OpenReposeSettingsError` added to dispatcher catch list.
+  - `.product/src/openrepose/gui/options.py`: replaced "Single export folder" + "Batch export folder" text fields with **Export folder root** (text + Browse... button via `QFileDialog.getExistingDirectory`) + **Single export subdir** + **Batch export subdir** templates. `load_from_settings()` populates from a `Settings` instance. `_on_apply` emits `settings_changed` with the new field names.
+  - `.product/src/openrepose/gui/main_window.py`: connects `OptionsPane.settings_changed` to `_on_settings_changed`, which calls `app.settings.update(...)`, recomputes the resolved folder, mirrors onto `state.settings`, persists `state.json`, and logs.
+  - `.product/tests/test_settings_store.py` (NEW): 22 tests covering defaults / path resolution / round-trip / atomic save / load semantics (missing / unparseable / non-object / wrong schema_version) / `load_or_default` / resolved-with-fallback / `update()` / template rendering.
+  - `.product/tests/test_export_folder.py` (NEW): 7 tests covering single + batch export honoring `settings.export_folder`, explicit `out_dir` overrides, fallback when path missing, `dump_settings` payload, `state.json` settings block, and persistence across two App instances (App #1 writes settings → App #2 reads them and exports to the saved folder).
+- **What Remains Simulated / Deferred**:
+  - The rest of the OptionsPane fields (avatar slug default, run-tag default, projection mode, log level, channel toggles, etc.) still don't persist. WP-I1-003 owns that surface.
+  - Window geometry persistence — also WP-I1-003.
+  - WARN-on-MediaPipe-version-mismatch in calibration loading — orthogonal followup.
+- **Next Blocking Real Seam**: settings persistence primitive is now available; WP-I1-003 can layer additional fields on top using the same `Settings.update()` pattern.
 
 ## Checkpoint Commit Plan
 
@@ -192,9 +205,13 @@ Decision: settings stored as `<AppConfigLocation>/openrepose/settings.json` (pla
 
 ## Evidence
 
-- (filled at close)
+- **Test Suite Execution**: `target/test-artifacts/WP-I1-027/pytest_results.xml` — 207 passed, 0 failed (full project suite; +29 new from this WP).
+- **Local Audit Run**: `pwsh scripts/audit-repo.ps1` exits 0.
+- **Build Artifacts**: new `settings.py`, new `test_settings_store.py` + `test_export_folder.py`; modified `state.py`, `app.py`, `commands.py`, `gui/options.py`, `gui/main_window.py`.
+- **Operator Sign-off**: PENDING — operator to verify by launching the GUI, opening Options, clicking Browse..., picking a folder, exporting (single + batch), restarting, and confirming the saved folder is reused.
 
 ## Progress Log
 
 - 2026-05-03: WP drafted at status DRAFT. Predecessors satisfied. Awaits operator promotion to READY.
 - 2026-05-03: Operator approved fast-track batch. Status DRAFT -> READY. Kickoff commit follows.
+- 2026-05-03: Implementation complete. Settings primitive + dispatcher integration + GUI Browse... + 29 new tests. 207/207 passing. Audit clean. Status IN-PROGRESS -> REVIEW.

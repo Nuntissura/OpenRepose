@@ -11,6 +11,7 @@ from .channels.http import HttpChannel
 from .channels.inbox import InboxChannel
 from .commands import CommandDispatcher, CommandResult
 from .log import Logger
+from .settings import Settings, load_or_default
 from .state import AppState
 
 
@@ -39,19 +40,49 @@ class App:
         outputs_root: Path | str = Path("outputs"),
         log_dir: Path | str = Path("target/logs"),
         state_path: Path | str | None = None,
+        settings_path: Path | str | None = None,
     ) -> None:
         self.outputs_root = Path(outputs_root)
         if state_path is None:
             state_path = self.outputs_root / ".runtime" / "state.json"
         self.state = AppState(state_path=Path(state_path))
         self.log = Logger(log_dir=log_dir)
+
+        # Load operator settings from disk (or build defaults bound to the
+        # given path). settings_path=None resolves to the cross-platform
+        # AppConfigLocation default; tests pass an explicit tmp path.
+        self.settings: Settings = load_or_default(settings_path)
+        resolved_folder, default_used = (
+            self.settings.export_folder_resolved_with_fallback_flag()
+        )
+        if default_used and self.settings.export_folder:
+            self.log.warn(
+                "settings.export_folder.fallback",
+                reason="saved path does not exist",
+                saved=self.settings.export_folder,
+                fallback=str(resolved_folder),
+            )
+        self.state.set_settings_status(
+            export_folder=str(resolved_folder),
+            default_used=default_used,
+            settings_path=str(self.settings.settings_path),
+        )
+
         self.dispatcher = CommandDispatcher(
-            self.state, self.log, outputs_root=self.outputs_root
+            self.state,
+            self.log,
+            outputs_root=self.outputs_root,
+            settings=self.settings,
         )
         self._http: HttpChannel | None = None
         self._inbox: InboxChannel | None = None
         self.state.write()  # always emit a fresh state.json at startup
-        self.log.ok("app.start", outputs_root=str(self.outputs_root))
+        self.log.ok(
+            "app.start",
+            outputs_root=str(self.outputs_root),
+            export_folder=str(resolved_folder),
+            settings_default=default_used,
+        )
 
     def handle_command(self, command_dict: dict[str, object]) -> CommandResult:
         return self.dispatcher.dispatch(command_dict)
