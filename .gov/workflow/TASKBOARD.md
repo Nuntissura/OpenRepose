@@ -1,19 +1,20 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-02
+Last Updated: 2026-05-02 (I0 closed; WP-I1-025 closed)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
 - WPs in flight (READY + IN-PROGRESS): 0
-- WPs pending review (REVIEW): 2 (WP-I0-004 GUI; WP-I1-025 quarterly governance audit)
+- WPs pending review (REVIEW): 0
 - WPs blocked (BLOCKED): 0
-- WPs draft (DRAFT, eligible to promote when predecessors close): 20
+- WPs draft (DRAFT, eligible to promote): 20
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
-- WPs done (this iteration): 3
+- WPs done (I0): 4 (WP-I0-001/002/003/004) — I0 CLOSED 2026-05-02
+- WPs done (I1): 1 (WP-I1-025)
 - WPs reserved-not-drafted: 3 (WP-I1-019/020/021 joint-manipulation chain — operator deferred to later)
-- Iterations open: I0 (closes when WP-I0-004 reaches DONE), I1 (drafted; opens after I0)
+- Iterations open: I1 (drafted; ready for individual WP promotion)
 
 ## Active
 
@@ -21,7 +22,8 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-_(none — WP-I1-025 moved to REVIEW)_
+
+_(none)_
 
 ## Pending Review
 
@@ -29,8 +31,8 @@ Implementation claims to be done; awaiting operator verification.
 
 | WP-ID | Title | Owner | Class | Updated | Verify |
 |-------|-------|-------|-------|---------|--------|
-| WP-I0-004 | Double Viewport GUI | assistant | IMPLEMENTATION | 2026-05-02 | run `.\.venv\Scripts\python.exe -m openrepose.cli gui --inbox` from the repo root, exercise the GUI through a portrait import + yaw drag + export. Sign-off closes I0. |
-| WP-I1-025 | Quarterly Governance Audit | assistant | INFRASTRUCTURE | 2026-05-02 | open the GitHub Actions tab → "Quarterly governance audit" → "Run workflow" → confirm green check on the current tree. Optionally run `pytest .product/tests/test_audit_repo.py` locally. Sign-off closes I1-025. |
+
+_(none)_
 
 ## Blocked
 
@@ -45,7 +47,7 @@ _(none)_
 
 Drafted now so dependencies, scope, and contracts are settled. Status moves to READY when the named predecessor reaches DONE.
 
-I1 workpackets — all blocked-by I0 closing (WP-I0-004 sign-off). Headless LLM Operation Compliance is mandatory for every IMPLEMENTATION-class WP touching operator-facing or visual features (see `.gov/AGENTS.md`).
+I0 closed 2026-05-02. The I0-blocking constraint on every I1 WP below is satisfied; individual WPs may now be promoted from DRAFT → READY in priority order. WPs that list a separate predecessor (e.g., `WP-I0-004` alone, `WP-I1-001 + DOCUMENTATION WP`, etc.) still need that named predecessor satisfied before promotion. Headless LLM Operation Compliance is mandatory for every IMPLEMENTATION-class WP touching operator-facing or visual features (see `.gov/AGENTS.md`).
 
 | WP-ID | Title | Class | Effort | Priority | Headless | Predecessor |
 |-------|-------|-------|--------|----------|----------|-------------|
@@ -80,6 +82,8 @@ Last 10 workpackets to reach DONE. Files moved from `workpackets/` to `archive/`
 | WP-I0-001 | Rig And Rotation Core | assistant | IMPLEMENTATION | 2026-05-02 |
 | WP-I0-002 | LLM Control Surface | assistant | IMPLEMENTATION | 2026-05-02 |
 | WP-I0-003 | Snapshot Subsystem | assistant | IMPLEMENTATION | 2026-05-02 |
+| WP-I0-004 | Double Viewport GUI | assistant | IMPLEMENTATION | 2026-05-02 |
+| WP-I1-025 | Quarterly Governance Audit | assistant | INFRASTRUCTURE | 2026-05-02 |
 
 ## Cancelled
 
@@ -92,13 +96,19 @@ _(none)_
 
 ## Iteration Notes
 
-### I0 — Initial Scaffold
+### I0 — Initial Scaffold (CLOSED 2026-05-02)
 
 - Repo created 2026-05-02.
 - Governance, product split, target/dist/outputs folders, orstart command, codex, agents, topology, workflow framework, and improved WP template all scaffolded.
 - Spec v0.1 drafted with: yaw terminology lock, output formats, mechanical log format, LLM control surface, snapshot subsystem, operator experience guarantees, Feature 1 (3D-rig yaw exporter) GUI + CLI requirements.
-- Four workpackets opened: WP-I0-001 (rig+rotation core, READY), WP-I0-002 (LLM control surface, DRAFT), WP-I0-003 (snapshot subsystem, DRAFT), WP-I0-004 (double viewport GUI, DRAFT).
-- I0 closes when WP-I0-004 reaches DONE: an operator can launch the GUI, import a frontal portrait, watch both viewports update through 13 yaw angles, export a 13-angle batch, and a separate LLM agent can drive the same workflow through the inbox channel without operator focus theft.
+- Four workpackets shipped: WP-I0-001 (rig+rotation core), WP-I0-002 (LLM control surface), WP-I0-003 (snapshot subsystem), WP-I0-004 (double viewport GUI). All four DONE on 2026-05-02.
+- I0 close criterion met: operator can launch the GUI, import a frontal portrait, watch both viewports update through 13 yaw angles, export a 13-angle batch; a separate LLM agent drives the same workflow through the inbox channel without operator focus theft. 111/111 tests green at close.
+
+### I1 — In Progress
+
+- WP-I1-025 (Quarterly Governance Audit) shipped DONE on 2026-05-02 ahead of the rest of I1 because the audit script is infrastructure scaffolding for the workflow rules introduced this iteration.
+- Workflow Version bumped to 1.1: new IMPLEMENTATION/RESEARCH WPs created from the template must carry a `## Research Notes` section. Existing 1.0 WPs grandfathered.
+- 20 I1 WPs remain at DRAFT awaiting promotion. WP-I1-001 (calibration overlay) requires a separate DOCUMENTATION-class predecessor WP that promotes the Feature 2 spec section before it can start.
 
 ## Iteration Pipeline
 

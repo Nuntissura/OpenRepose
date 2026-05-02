@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-02
 - **Last Updated**: 2026-05-02
-- **Status**: REVIEW
+- **Status**: DONE
 - **Iteration**: I1
 - **Workflow Version**: 1.1
 - **Packet Class**: INFRASTRUCTURE
@@ -143,7 +143,13 @@ Decision: GH Actions cron with `actions/github-script` to open an issue on audit
 
 ## Change Ledger
 
-- (filled at REVIEW)
+- **What Became Real**:
+  - `scripts/audit-repo.ps1` runs three checks against the live tree (hardcoded absolute path patterns with `.gov/doc/` + AGENTS.md "Forbidden:" allowlist; blank-space committed paths via `git ls-files`; missing `## Research Notes` section in IMPLEMENTATION/RESEARCH WPs at Workflow Version >= 1.1). Exit codes 0 / 1 / 2 implemented per spec.
+  - `.github/workflows/quarterly-audit.yml` schedules `cron: '7 9 1 1,4,7,10 *'` (UTC) plus `workflow_dispatch:` on `ubuntu-latest`. On audit failure `actions/github-script@v7` files an issue titled "Quarterly governance audit: drift detected" with the script output in the body. `permissions: issues: write, contents: read`. Workflow opted into Node.js 24 (commit `0a48465`).
+  - `.product/tests/test_audit_repo.py` covers 9 cases: clean tree exits 0; hardcoded path detected; `.gov/doc/` allowlist works; blank-space filename detected; missing Research Notes detected on a 1.1 WP; present Research Notes passes; 1.0 WP grandfathered; DOCUMENTATION-class WP not required to carry Research Notes; combined violations all reported in one run. All 9 pass (junit XML at `target/test-artifacts/WP-I1-025/pytest_results.xml`).
+  - `.gov/templates/WP_TEMPLATE.md` bumped to Workflow Version 1.1 — only newly-created WPs at 1.1+ are subject to the Research Notes audit; the 21 existing 1.0 WPs are grandfathered.
+- **What Remains Simulated**: nothing. The audit ships with no fallbacks. Quarterly cadence will exercise the full GH Actions path on its own schedule; the operator's manual `workflow_dispatch` run on the Actions tab proved the workflow path before sign-off.
+- **Next Blocking Real Seam**: future WP that auto-remediates detected drift (out of scope here; the audit reports, humans / a follow-up WP fix). Future WPs that relax or extend the repo rules must be paired with a same-WP audit-script update.
 
 ## Checkpoint Commit Plan
 
@@ -176,10 +182,16 @@ Decision: GH Actions cron with `actions/github-script` to open an issue on audit
 
 ## Evidence
 
-- (filled at REVIEW)
+- **Test Suite Execution**: `target/test-artifacts/WP-I1-025/pytest_results.xml` — 9 passed, 0 failed (`test_audit_repo.py`).
+- **Local Audit Run**: `pwsh scripts/audit-repo.ps1` exits 0 on the live tree (`audit-repo: OK   no violations`).
+- **Manual workflow_dispatch**: operator confirmed green run on the GitHub Actions "Quarterly governance audit" tab.
+- **Build Artifacts**: `scripts/audit-repo.ps1`, `.github/workflows/quarterly-audit.yml`, `.product/tests/test_audit_repo.py`, `.gov/templates/WP_TEMPLATE.md` (Workflow Version bump to 1.1).
+- **Proof Artifact**: `target/test-artifacts/WP-I1-025/`
+- **Operator Sign-off**: 2026-05-02: APPROVED by operator after manual workflow_dispatch run + inspection.
 
 ## Progress Log
 
 - 2026-05-02: WP drafted and promoted directly to READY (operator authorized infrastructure work in same turn). Pre-work commit + push to follow before any scripts/ or .github/ file is created.
 - 2026-05-02: Pre-work commit `8e1c00a` pushed to origin/main with WP file + taskboard row only — Work-Start Protocol demonstrated.
 - 2026-05-02: Implementation complete in same session — `scripts/audit-repo.ps1` (3 checks, exit codes 0/1/2), `.github/workflows/quarterly-audit.yml` (cron `7 9 1 1,4,7,10 *` UTC + `workflow_dispatch` + issue-on-failure via `actions/github-script@v7`), `.product/tests/test_audit_repo.py` (9 cases). Bumped `.gov/templates/WP_TEMPLATE.md` Workflow Version to 1.1 so existing WPs are grandfathered and only newly-created ones must carry Research Notes. Local audit run on the live tree: `audit-repo: OK   no violations`. Status moved to REVIEW.
+- 2026-05-02: junit XML produced (`target/test-artifacts/WP-I1-025/pytest_results.xml`, 9 passed). Operator sign-off APPROVED after manual workflow_dispatch green confirmation. Status REVIEW -> DONE. WP archived to `.gov/workflow/archive/`.

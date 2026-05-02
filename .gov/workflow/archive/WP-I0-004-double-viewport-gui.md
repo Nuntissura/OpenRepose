@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-02
 - **Last Updated**: 2026-05-02
-- **Status**: REVIEW
+- **Status**: DONE
 - **Iteration**: I0
 - **Workflow Version**: 1.0
 - **Packet Class**: IMPLEMENTATION
@@ -217,10 +217,11 @@ Build the operator-facing PySide6 GUI: main window with toolbar (yaw slider + bi
   - `target/test-artifacts/WP-I0-004/gui_smoke.py` — the smoke runner itself.
 - **Build Artifacts**: `gui/` package added under `.product/src/openrepose/`; PySide6 + pytest-qt in `pyproject.toml`.
 - **Proof Artifact**: `target/test-artifacts/WP-I0-004/`
-- **Operator Sign-off**: PENDING — operator to verify (1) `gui_smoke_full_window.png` shows all 8 panes grabbed from the live window (font corruption is offscreen-platform artifact only), (2) 111/111 tests pass, (3) the no-focus-steal test confirms zero raise_/activateWindow calls during 50 LLM commands.
+- **Operator Sign-off**: 2026-05-02: APPROVED by operator after inspection of `gui_smoke_full_window.png`, the full 111/111 test pass, and the no-focus-steal evidence.
 
 ## Progress Log
 
 - `2026-05-02`: WP drafted, status DRAFT, blocked by WP-I0-001, WP-I0-002, WP-I0-003.
 - `2026-05-02`: predecessors functionally complete (I0-001 DONE, I0-002 + I0-003 in REVIEW). Promoted DRAFT -> IN-PROGRESS per the autonomous-chain directive.
 - `2026-05-02`: implementation done. 111/111 pytest passing including 17 new GUI tests. Manual offscreen-Qt smoke produced 8 live-widget snapshots (no placeholders) confirming the widget provider hooks into MainWindow correctly. Status -> REVIEW. After operator sign-off this WP closes I0.
+- `2026-05-02`: operator sign-off APPROVED. Status REVIEW -> DONE. WP archived to `.gov/workflow/archive/`. I0 closed.
