@@ -6,7 +6,7 @@ Live status of all OpenRepose workpackets. Update in the same session as any wor
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 0
+- WPs in flight (READY + IN-PROGRESS): 1 (WP-I1-025 quarterly governance audit)
 - WPs pending review (REVIEW): 1
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote when predecessors close): 20
@@ -21,7 +21,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-_(none — full I0 chain in REVIEW, awaiting operator sign-off)_
+| WP-I1-025 | Quarterly Governance Audit | assistant | READY | INFRASTRUCTURE | S | 2026-05-02 |
 
 ## Pending Review
 
