@@ -1,13 +1,13 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-02 (I0 closed; WP-I1-025 closed)
+Last Updated: 2026-05-02 (I0 closed; WP-I1-025 closed; WP-I1-026 spec drafted, in REVIEW)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
 - WPs in flight (READY + IN-PROGRESS): 0
-- WPs pending review (REVIEW): 0
+- WPs pending review (REVIEW): 1 (WP-I1-026 Feature 2 calibration spec)
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 20
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
@@ -31,8 +31,7 @@ Implementation claims to be done; awaiting operator verification.
 
 | WP-ID | Title | Owner | Class | Updated | Verify |
 |-------|-------|-------|-------|---------|--------|
-
-_(none)_
+| WP-I1-026 | Feature 2 Calibration Overlay Spec | assistant | DOCUMENTATION | 2026-05-02 | read the new "Feature 2: Per-Avatar Calibration Overlay" section in `.gov/spec/openrepose_v0_1.md` (between Feature 1 and the Project-Wide Principle section); confirm the deformation-algorithm choice (TPS via `scipy.interpolate.RBFInterpolator`) and the marker schema. Sign-off unblocks WP-I1-001. |
 
 ## Blocked
 
@@ -51,7 +50,7 @@ I0 closed 2026-05-02. The I0-blocking constraint on every I1 WP below is satisfi
 
 | WP-ID | Title | Class | Effort | Priority | Headless | Predecessor |
 |-------|-------|-------|--------|----------|----------|-------------|
-| WP-I1-001 | Per-avatar calibration overlay | IMPLEMENTATION | L | High (fixes WP-I0-003 diagnostic) | yes | I0 + DOCUMENTATION WP |
+| WP-I1-001 | Per-avatar calibration overlay | IMPLEMENTATION | L | High (fixes WP-I0-003 diagnostic) | yes | I0 (DONE) + WP-I1-026 (REVIEW) |
 | WP-I1-002 | Orbital camera in 3D viewport | IMPLEMENTATION | S | Polish | n/a | WP-I0-004 |
 | WP-I1-003 | Settings persistence | IMPLEMENTATION | S | Polish | yes | WP-I0-004 |
 | WP-I1-004 | Extended keyboard shortcuts | IMPLEMENTATION | XS | Polish | n/a | WP-I0-004 |
@@ -108,7 +107,8 @@ _(none)_
 
 - WP-I1-025 (Quarterly Governance Audit) shipped DONE on 2026-05-02 ahead of the rest of I1 because the audit script is infrastructure scaffolding for the workflow rules introduced this iteration.
 - Workflow Version bumped to 1.1: new IMPLEMENTATION/RESEARCH WPs created from the template must carry a `## Research Notes` section. Existing 1.0 WPs grandfathered.
-- 20 I1 WPs remain at DRAFT awaiting promotion. WP-I1-001 (calibration overlay) requires a separate DOCUMENTATION-class predecessor WP that promotes the Feature 2 spec section before it can start.
+- WP-I1-026 (Feature 2 Calibration Overlay Spec, DOCUMENTATION) drafted 2026-05-02; in REVIEW. On sign-off, WP-I1-001 (calibration overlay IMPLEMENTATION) becomes promotable from DRAFT.
+- 20 I1 WPs remain at DRAFT awaiting promotion.
 
 ## Iteration Pipeline
 

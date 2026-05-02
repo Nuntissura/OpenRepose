@@ -371,6 +371,166 @@ These are targets, not gates. v0.1 ships when the feature is functionally comple
 - **Allowed Temporary Fallbacks**: synthetic body z values for hips/elbows/wrists if MediaPipe Pose fails on the input (with explicit label in the manifest).
 - **Promotion Guard**: fallbacks must be removed before the spec is promoted from `DRAFT` to `STABLE`.
 
+## Feature 2: Per-Avatar Calibration Overlay
+
+### Purpose
+
+MediaPipe FaceMesh fits a canonical 3D face mesh trained on average human proportions; on stylized avatars it normalizes oversized eyes toward average size, narrow jaws toward average width, and extra-wide-thin mouths toward average lip placement. The WP-I0-003 diagnostic confirmed this on the Aeri master: detected eye width was ~22% of face width when the actual photograph showed ~30%; mouth corners detected within eye-corner verticals when the prompt specifies they extend past. Rotated wireframes inherit the bias and look "off" relative to the input portrait.
+
+The calibration overlay solves this by letting the operator mark a small set of reference points on the master portrait. OpenRepose computes a 2D thin-plate-spline (TPS) deformation field that maps detected landmark positions to operator-marked positions. The field is applied to MediaPipe's face and body landmark coordinates **before** rotation, so every rotated wireframe inherits the operator-corrected proportions and the avatar's stylized geometry stays locked at every yaw angle.
+
+This is a per-avatar contract: one calibration captures one subject's true proportions; cross-avatar reuse is unsupported (each avatar gets its own calibration JSON).
+
+### Inputs
+
+- The active avatar's master portrait (the same image previously imported via `import_portrait`).
+- MediaPipe FaceMesh + Pose detections from the master (already produced as part of rig fitting).
+- Operator-marked reference points: 2D pixel coordinates in master-portrait space, identified by anatomical name from the Marker Schema below.
+
+### Marker Schema
+
+Reference points are identified by anatomical name from a fixed vocabulary. Naming follows the her-anatomy convention (Yaw Terminology Lock); `_left` and `_right` are anchored to the avatar's anatomy, not the viewer's frame.
+
+Required (must be marked for the calibration to be considered `complete`):
+
+- `eye_outer_left` — outer corner of the avatar's left eye.
+- `eye_outer_right` — outer corner of the avatar's right eye.
+- `mouth_corner_left` — left corner of the mouth.
+- `mouth_corner_right` — right corner of the mouth.
+- `jaw_corner_left` — point where the jaw line turns up from the chin on the avatar's left.
+- `jaw_corner_right` — point where the jaw line turns up from the chin on the avatar's right.
+
+Optional (improve calibration quality if marked, default to MediaPipe positions if skipped):
+
+- `brow_outer_left` — outer end of the avatar's left brow.
+- `brow_outer_right` — outer end of the avatar's right brow.
+- `nose_tip` — tip of the nose.
+- `chin_bottom` — lowest point on the chin contour.
+
+Each marker carries the operator's pixel position and the corresponding MediaPipe-detected position for the same feature (the deformation source). A calibration is `complete` when all required markers are present, `partial` when one or more required markers are missing, `none` when no markers exist or no calibration is loaded. Partial calibrations are still applied (defaulting to MediaPipe positions for missing required markers); the partial flag is reflected in `state.json` so the operator and any LLM agent can see the state.
+
+The marker name vocabulary is fixed; operators do not invent new names. Future feature WPs may extend it (e.g., adding hand-corner markers when WP-I1-018 ships) by amending this spec section.
+
+### Deformation Algorithm
+
+The deformation is a thin-plate spline (TPS) computed on landmark coordinates only. The source image is **not** warped; only landmark XY coordinates pass through the deformation function.
+
+- Source points: MediaPipe-detected positions for each marked feature.
+- Destination points: operator-marked pixel positions for the same features.
+- Implicit corner clamps: 4 fixed anchor points at the image corners are added to both source and destination sets (with identical positions in source and destination) to suppress TPS overshoot in unmarked regions far from any marker. Operators do not see or interact with the corner clamps.
+- Implementation: `scipy.interpolate.RBFInterpolator(source_xy, destination_xy, kernel="thin_plate_spline")`. The 2D problem may be implemented as one vector-valued interpolator or as two scalar interpolators (one per axis); both produce the same field within float precision.
+- The deformation is z-agnostic. MediaPipe FaceMesh and Pose z-coordinates are passed through unchanged. Calibration corrects 2D image-space proportions; depth remains as detected.
+
+The algorithm is locked in this spec; alternative algorithms (piecewise-affine, RBF with other kernels, learned warps) are out of scope for v0.1 and require a new spec section to introduce.
+
+### Application Flow
+
+When a calibration JSON exists for the active avatar:
+
+1. After MediaPipe FaceMesh + Pose produce raw 3D landmarks (`Rig.from_portrait`), the calibration is loaded.
+2. The TPS field is computed once (cached on the rig) from the marker source/destination pairs plus the 4 corner clamps.
+3. Each face landmark's (x, y) is replaced with `field.apply(x, y)`. Z is unchanged. Same for body landmarks (the same field applies; the operator's marks are face-region but the field extrapolates smoothly into the body region with the corner clamps preventing runaway).
+4. The corrected rig flows into rotation, projection, and OpenPose serialization unchanged. Rotated wireframes at every yaw angle inherit the calibrated proportions.
+
+When no calibration JSON exists, the rig pipeline is exactly as in Feature 1 (no calibration applied; equivalent to identity field). Loading an empty or invalid calibration JSON is a hard error logged and rejected; the rig pipeline does not silently fall back.
+
+### Persistence
+
+Calibration is stored at `outputs/<avatar-slug>/calibration.json` (one file per avatar). Schema:
+
+```json
+{
+  "schema_version": 1,
+  "avatar_slug": "aeri",
+  "image_path": "outputs/aeri/master.png",
+  "image_size": [1024, 1024],
+  "mediapipe_version": "0.10.21",
+  "completeness": "complete",
+  "markers": [
+    {
+      "name": "eye_outer_left",
+      "operator_xy": [412, 487],
+      "mediapipe_xy": [428, 491]
+    }
+  ],
+  "created_at": "2026-05-02T19:33:11+02:00",
+  "updated_at": "2026-05-02T19:36:47+02:00"
+}
+```
+
+Loading a calibration whose `mediapipe_version` differs from the currently installed MediaPipe emits a `WARN` with the version delta and continues. Landmark indices are stable across MediaPipe FaceMesh minor versions, but the warn is on so the operator can re-mark if the rotated output looks off after a MediaPipe upgrade.
+
+Calibration JSONs are gitignored (they live under `outputs/`, which is gitignored wholesale). The operator is responsible for backing up `outputs/` if calibrations should survive a workspace clean.
+
+### GUI Requirements
+
+A new "Calibration" tab in the right dock (alongside Inspector / Options / Log / Help):
+
+- Master portrait display, full size (scrollable if needed); dim crosshair cursor over the image.
+- MediaPipe-detected positions for the 6 required + 4 optional markers shown as small filled dots in dim color (per-marker color), labeled with the anatomical name on hover.
+- Click to place an operator marker for the named feature currently selected from a marker-name dropdown (or the next unmarked required feature, whichever the dropdown is focused on). Operator markers shown as larger ring markers in bright color, with the anatomical name label always visible.
+- Drag an existing operator marker to move it.
+- Right-click an operator marker to delete it.
+- Buttons: `[Save]` writes the calibration JSON. `[Clear]` deletes the calibration JSON for the active avatar (with a confirmation toast in the log pane — no modal dialog). `[Re-detect]` re-runs MediaPipe on the master if the operator has just changed it.
+- Completeness indicator: `complete` (green), `partial: N/6 required missing` (amber), `none` (dim). Updates as markers are placed or removed.
+- The Calibration tab is operator-facing only. LLM agents use the Command Surface below.
+
+The Calibration tab does not call `raise_()`, `activateWindow()`, `showNormal()`, `setForegroundWindow()`, or any focus-stealing API in response to LLM-driven calibration changes (operator's dock tab updates silently when an LLM command mutates the calibration). No modal dialogs.
+
+### Command Surface
+
+The LLM Control Surface gains four commands (HTTP and inbox channels both accept them):
+
+- `set_calibration_points` — payload `{ "markers": [{ "name": "eye_outer_left", "operator_xy": [x, y] }, ...], "merge": true|false }`. With `merge: true` (default), supplied markers update or insert; existing markers not in the payload are kept. With `merge: false`, the payload replaces the entire marker set. Always recomputes the TPS field and re-applies to the active rig if loaded.
+- `dump_calibration` — returns the active avatar's calibration JSON in the response payload. Sets `state.calibration.last_dump_at`.
+- `clear_calibration` — deletes the active avatar's calibration JSON, drops the cached TPS field, and re-runs the rig pipeline with no calibration.
+- `get_calibration_status` — returns `{ "active_avatar": "<slug>", "completeness": "complete|partial|none", "missing_required": [...], "field_cached": true|false }`. Read-only; does not mutate state.
+
+All four commands are non-interactive: no modal dialogs, no confirmation prompts when invoked by the LLM. Operator-side `[Clear]` may emit a confirmation toast in the log pane (still no modal).
+
+Future calibration extensions (per-feature mixing, hand markers, etc.) will register additional commands; the four above are the minimum surface for v0.1's calibration overlay.
+
+### State File Reflection
+
+`outputs/.runtime/state.json` gains a `calibration` block:
+
+```json
+{
+  "calibration": {
+    "active_avatar": "aeri",
+    "completeness": "complete",
+    "marker_count": 6,
+    "missing_required": [],
+    "field_cached": true,
+    "loaded_from": "outputs/aeri/calibration.json",
+    "last_dump_at": "2026-05-02T19:33:11+02:00"
+  }
+}
+```
+
+When no avatar is loaded or no calibration exists for the active avatar, the block reports `completeness: "none"` and the per-field defaults (`marker_count: 0`, `missing_required: []`, `field_cached: false`, `loaded_from: null`).
+
+### Snapshot Target
+
+A new snapshot target `calibration_overlay` produces a PNG under `outputs/.runtime/snapshots/<timestamp>_calibration_overlay.png` showing the master portrait with operator markers (bright, large) overlaid on MediaPipe-detected positions (dim, small) for visual diff. Composes into `full_window` exactly like the other dock-pane snapshot targets. Honors all the no-focus-hijack rules in the Snapshot Subsystem section.
+
+### Out Of Scope For v0.1
+
+- 3D calibration. Only 2D image-space deformation in v0.1; depth (z) is passed through unchanged.
+- Per-feature-group calibration mixing (e.g., calibrate eyes with one field, mouth with another). Listed as an I2+ theme.
+- Animated or per-yaw calibration. Calibration is static once marked; the same field applies at every yaw angle.
+- Cross-avatar calibration reuse. One calibration per avatar; calibrations are not transferable.
+- Image warping of the source portrait. Only landmark coordinates are transformed.
+- Auto-marking. Operator marks all required features by hand; a future RESEARCH WP may explore detecting stylized features automatically.
+
+### Reality Boundary For v0.1
+
+- **Real Seam**: real per-avatar calibration JSON written by the operator (or by an LLM via `set_calibration_points`) and applied to MediaPipe landmark coordinates in the rig pipeline. The rotated wireframes reflect the operator's marks, not MediaPipe's average-face fit.
+- **User-Visible Win**: operator marks 6-10 reference points on the master portrait once. Subsequent batch exports across all 13 yaw angles produce wireframes whose eye corners, mouth corners, and jaw outline all match the avatar's actual geometry.
+- **Proof Target**: a side-by-side overlay of the 0deg wireframe against the master portrait shows eye corners landing within 5px of operator-marked positions and mouth corners landing past the eye-corner verticals. Sampled rotated wireframes (`her-right 15`, `her-right 45`, `her-right 90`) maintain the calibration through rotation.
+- **Allowed Temporary Fallbacks**: partial calibration (one or more required markers missing) defaults to MediaPipe positions for the missing markers and labels the calibration as `partial` in `state.json`. No other fallbacks.
+- **Promotion Guard**: do not promote the spec from `DRAFT` to `STABLE` until the diagnostic overlay (probe_facemesh_fidelity-style script) shows `mouth_corners_extend_past_eyes == True` after calibration is applied to the Aeri master.
+
 ## Project-Wide Principle: Headless LLM Operation
 
 Every operator-facing or visually interactive feature in OpenRepose must be fully usable by an LLM agent running in the background. This applies to every feature in this spec and every feature added in future spec versions.
@@ -399,7 +559,7 @@ The roadmap below points each spec area at the workpacket(s) that author or impl
 
 Feature WPs (operator-facing; Headless Compliance required):
 
-- **WP-I1-001 Per-avatar calibration overlay** — operator marks reference points (eye outer corners, mouth corners, jaw corners, optional brow tips) on the master portrait; OpenRepose computes a 2D deformation field that maps FaceMesh-detected positions to operator-marked positions and applies it to every rotated wireframe. Mitigates the documented FaceMesh bias toward average human proportions seen in WP-I0-003. Commands: `set_calibration_points`, `dump_calibration`, `clear_calibration`. New snapshot target: `calibration_overlay`.
+- **WP-I1-001 Per-avatar calibration overlay** — operator marks reference points (eye outer corners, mouth corners, jaw corners, optional brow tips) on the master portrait; OpenRepose computes a 2D deformation field that maps FaceMesh-detected positions to operator-marked positions and applies it to every rotated wireframe. Mitigates the documented FaceMesh bias toward average human proportions seen in WP-I0-003. Commands: `set_calibration_points`, `dump_calibration`, `clear_calibration`, `get_calibration_status`. New snapshot target: `calibration_overlay`. Full contract specified in section "Feature 2: Per-Avatar Calibration Overlay" above (authored by WP-I1-026).
 - **WP-I1-007 Pitch / roll rotation extension** — extends the rig to full pose: yaw + pitch + roll. Locked terminology mirrors the yaw lock (`chin-up N`, `chin-down N`, `lean-left N`, `lean-right N` per the predecessor DOCUMENTATION WP). Commands: `set_pitch`, `set_roll`, `set_pose`. State file extended with a pose block.
 - **WP-I1-009 Identity-export profiles** — locked face/body identity exports for downstream face-swap and img2img conditioning. Command: `export_identity_profile`. New snapshot target: `identity_profile`.
 - **WP-I1-010 Multi-angle automation** — extends `export_batch` with operator-defined prompt-seed lists. State file records the queue.
