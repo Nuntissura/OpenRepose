@@ -70,6 +70,17 @@ class AppState:
             "status": None,
         }
     )
+    calibration: dict[str, Any] = field(
+        default_factory=lambda: {
+            "active_avatar": None,
+            "completeness": "none",
+            "marker_count": 0,
+            "missing_required": [],
+            "field_cached": False,
+            "loaded_from": None,
+            "last_dump_at": None,
+        }
+    )
 
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
@@ -87,6 +98,7 @@ class AppState:
             "snapshots": list(self.snapshots),
             "errors": list(self.errors),
             "last_command": dict(self.last_command),
+            "calibration": dict(self.calibration),
         }
 
     def write(self) -> None:
@@ -183,6 +195,32 @@ class AppState:
                 }
             )
             self._cap_array("errors")
+
+    def set_calibration_status(
+        self,
+        *,
+        active_avatar: str | None,
+        completeness: str,
+        marker_count: int,
+        missing_required: tuple[str, ...] | list[str] = (),
+        field_cached: bool = False,
+        loaded_from: str | None = None,
+    ) -> None:
+        """Update the `calibration` block. Preserves `last_dump_at`."""
+        with self._lock:
+            self.calibration = {
+                "active_avatar": active_avatar,
+                "completeness": completeness,
+                "marker_count": int(marker_count),
+                "missing_required": list(missing_required),
+                "field_cached": bool(field_cached),
+                "loaded_from": loaded_from,
+                "last_dump_at": self.calibration.get("last_dump_at"),
+            }
+
+    def mark_calibration_dump(self) -> None:
+        with self._lock:
+            self.calibration["last_dump_at"] = _now()
 
     def begin_command(self, command: str) -> None:
         with self._lock:

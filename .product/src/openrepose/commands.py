@@ -12,6 +12,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .calibration import (
+    ALL_MARKER_NAMES,
+    MEDIAPIPE_FACEMESH_INDEX_BY_MARKER,
+    Calibration,
+    Marker,
+    OpenReposeCalibrationError,
+    calibration_path,
+    load as load_calibration,
+    save as save_calibration,
+)
 from .log import Logger
 from .openpose_serialize import serialize_to_string
 from .rig import OpenReposeRigFitError, Rig
@@ -93,6 +103,7 @@ class CommandDispatcher:
             OpenReposeRigFitError,
             OpenReposeForbiddenTerminologyError,
             OpenReposeYawBinError,
+            OpenReposeCalibrationError,
             FileNotFoundError,
             NotImplementedError,
         ) as e:
@@ -142,8 +153,26 @@ def _h_import_portrait(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, A
     d.state.write()
     d.log.ok("rig.fitting", portrait=str(p), avatar_slug=avatar_slug or "")
 
-    rig = Rig.from_portrait(p)
+    # Auto-load per-avatar calibration if one exists for this avatar slug.
+    # Spec "Application Flow": calibration is applied during Rig.from_portrait
+    # before rotation. When no calibration JSON exists, the rig pipeline is
+    # equivalent to the identity field.
+    cal = None
+    cal_loaded_from: str | None = None
+    if avatar_slug:
+        cal_p = calibration_path(d.outputs_root, avatar_slug)
+        cal = load_calibration(cal_p)
+        if cal is not None:
+            cal_loaded_from = str(cal_p)
+
+    rig = Rig.from_portrait(p, calibration=cal)
     d._rig = rig
+    _refresh_calibration_state(
+        d.state,
+        active_avatar=avatar_slug,
+        calibration=cal,
+        loaded_from=cal_loaded_from,
+    )
 
     # Compute openpose-mapped counts for the state snapshot.
     face_70 = rig.openpose_face_70()
@@ -391,6 +420,277 @@ def _now_iso() -> str:
     )
 
 
+# --- calibration handlers ----------------------------------------------------
+
+
+def _refresh_calibration_state(
+    state: AppState,
+    *,
+    active_avatar: str | None,
+    calibration: Calibration | None,
+    loaded_from: str | None,
+) -> None:
+    """Mirror the active calibration onto state.calibration."""
+    if calibration is None:
+        state.set_calibration_status(
+            active_avatar=active_avatar,
+            completeness="none",
+            marker_count=0,
+            missing_required=(),
+            field_cached=False,
+            loaded_from=None,
+        )
+    else:
+        state.set_calibration_status(
+            active_avatar=active_avatar,
+            completeness=calibration.completeness,
+            marker_count=calibration.marker_count,
+            missing_required=calibration.missing_required,
+            field_cached=calibration.completeness != "none",
+            loaded_from=loaded_from,
+        )
+
+
+def _h_set_calibration_points(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Update operator marker positions for the active avatar.
+
+    Payload (per spec):
+        markers: [{name, operator_xy: [x, y], mediapipe_xy?: [x, y]}, ...]
+        merge:   bool (default True). True: supplied markers update / insert;
+                 existing markers not in the payload are kept. False: payload
+                 replaces the entire marker set.
+
+    When `mediapipe_xy` is omitted on a marker, the dispatcher derives it
+    from the active rig's raw FaceMesh detection at the canonical landmark
+    index for that anatomical name.
+    """
+    avatar_slug = d.state.avatar_slug
+    if not avatar_slug:
+        raise OpenReposeCommandError(
+            "set_calibration_points requires an active avatar (send "
+            "import_portrait with avatar_slug first)"
+        )
+    raw_markers = cmd.get("markers")
+    if not isinstance(raw_markers, list):
+        raise OpenReposeCommandError(
+            "set_calibration_points requires 'markers' as a list"
+        )
+    merge = cmd.get("merge", True)
+    if not isinstance(merge, bool):
+        raise OpenReposeCommandError("'merge' must be a boolean")
+
+    # Source for derived mediapipe_xy lookups.
+    rig = d._rig
+    raw_face: Any = None
+    if rig is not None:
+        raw_face = (
+            rig.raw_face_mesh if rig.raw_face_mesh is not None else rig.face_mesh
+        )
+
+    parsed: list[Marker] = []
+    for i, raw in enumerate(raw_markers):
+        if not isinstance(raw, dict):
+            raise OpenReposeCommandError(f"marker {i} must be an object")
+        name = raw.get("name")
+        if name not in ALL_MARKER_NAMES:
+            raise OpenReposeCommandError(
+                f"marker {i} has unknown name {name!r}; allowed: "
+                f"{sorted(ALL_MARKER_NAMES)}"
+            )
+        op_xy = raw.get("operator_xy")
+        if not (isinstance(op_xy, list) and len(op_xy) == 2):
+            raise OpenReposeCommandError(
+                f"marker {i} requires 'operator_xy' as [x, y]"
+            )
+        mp_xy_raw = raw.get("mediapipe_xy")
+        if mp_xy_raw is None:
+            if raw_face is None:
+                raise OpenReposeCommandError(
+                    f"marker {i} missing 'mediapipe_xy' and no rig is loaded "
+                    "to derive it from"
+                )
+            idx = MEDIAPIPE_FACEMESH_INDEX_BY_MARKER[name]
+            if idx >= raw_face.shape[0]:
+                raise OpenReposeCommandError(
+                    f"marker {name!r} maps to FaceMesh index {idx} which is "
+                    f"out of range (face_mesh has {raw_face.shape[0]} points)"
+                )
+            mp_xy = (float(raw_face[idx, 0]), float(raw_face[idx, 1]))
+        else:
+            if not (isinstance(mp_xy_raw, list) and len(mp_xy_raw) == 2):
+                raise OpenReposeCommandError(
+                    f"marker {i} 'mediapipe_xy' must be [x, y] when supplied"
+                )
+            mp_xy = (float(mp_xy_raw[0]), float(mp_xy_raw[1]))
+        parsed.append(
+            Marker(
+                name=name,
+                operator_xy=(float(op_xy[0]), float(op_xy[1])),
+                mediapipe_xy=mp_xy,
+            )
+        )
+
+    cal_p = calibration_path(d.outputs_root, avatar_slug)
+    existing = load_calibration(cal_p)
+
+    if merge and existing is not None:
+        merged_by_name: dict[str, Marker] = {m.name: m for m in existing.markers}
+        for m in parsed:
+            merged_by_name[m.name] = m
+        merged = tuple(merged_by_name.values())
+        new_cal = Calibration(
+            avatar_slug=existing.avatar_slug or avatar_slug,
+            image_path=existing.image_path or (d.state.portrait or ""),
+            image_size=existing.image_size,
+            mediapipe_version=existing.mediapipe_version,
+            markers=merged,
+            created_at=existing.created_at,
+            updated_at=existing.updated_at,
+        )
+    else:
+        portrait = d.state.portrait or ""
+        image_size: tuple[int, int] = (0, 0)
+        if rig is not None:
+            image_size = rig.portrait_size
+        elif existing is not None:
+            image_size = existing.image_size
+        new_cal = Calibration(
+            avatar_slug=avatar_slug,
+            image_path=portrait,
+            image_size=image_size,
+            mediapipe_version=_mediapipe_version_string(),
+            markers=tuple(parsed),
+            created_at=existing.created_at if existing is not None else "",
+            updated_at="",
+        )
+
+    save_calibration(new_cal, cal_p)
+
+    if rig is not None:
+        d._rig = rig.with_calibration(new_cal)
+
+    _refresh_calibration_state(
+        d.state,
+        active_avatar=avatar_slug,
+        calibration=new_cal,
+        loaded_from=str(cal_p),
+    )
+    d.state.write()
+    d.log.ok(
+        "calibration.set",
+        avatar=avatar_slug,
+        marker_count=new_cal.marker_count,
+        completeness=new_cal.completeness,
+        merge=merge,
+    )
+    return {
+        "avatar_slug": avatar_slug,
+        "marker_count": new_cal.marker_count,
+        "completeness": new_cal.completeness,
+        "missing_required": list(new_cal.missing_required),
+        "loaded_from": str(cal_p),
+    }
+
+
+def _h_dump_calibration(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Return the active avatar's calibration JSON in the response payload."""
+    avatar_slug = d.state.avatar_slug
+    if not avatar_slug:
+        raise OpenReposeCommandError(
+            "dump_calibration requires an active avatar"
+        )
+    cal_p = calibration_path(d.outputs_root, avatar_slug)
+    cal = load_calibration(cal_p)
+    if cal is None:
+        d.log.ok("calibration.dump", avatar=avatar_slug, present=False)
+        return {
+            "avatar_slug": avatar_slug,
+            "present": False,
+            "calibration": None,
+        }
+    d.state.mark_calibration_dump()
+    d.state.write()
+    d.log.ok(
+        "calibration.dump",
+        avatar=avatar_slug,
+        present=True,
+        marker_count=cal.marker_count,
+    )
+    return {
+        "avatar_slug": avatar_slug,
+        "present": True,
+        "calibration": {
+            "schema_version": 1,
+            "avatar_slug": cal.avatar_slug,
+            "image_path": cal.image_path,
+            "image_size": list(cal.image_size),
+            "mediapipe_version": cal.mediapipe_version,
+            "completeness": cal.completeness,
+            "markers": [
+                {
+                    "name": m.name,
+                    "operator_xy": list(m.operator_xy),
+                    "mediapipe_xy": list(m.mediapipe_xy),
+                }
+                for m in cal.markers
+            ],
+            "created_at": cal.created_at,
+            "updated_at": cal.updated_at,
+        },
+        "loaded_from": str(cal_p),
+    }
+
+
+def _h_clear_calibration(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Delete the active avatar's calibration JSON, drop the cached field,
+    re-fit the rig with no calibration."""
+    avatar_slug = d.state.avatar_slug
+    if not avatar_slug:
+        raise OpenReposeCommandError(
+            "clear_calibration requires an active avatar"
+        )
+    cal_p = calibration_path(d.outputs_root, avatar_slug)
+    deleted = False
+    if cal_p.exists():
+        cal_p.unlink()
+        deleted = True
+
+    if d._rig is not None:
+        d._rig = d._rig.with_calibration(None)
+
+    _refresh_calibration_state(
+        d.state,
+        active_avatar=avatar_slug,
+        calibration=None,
+        loaded_from=None,
+    )
+    d.state.write()
+    d.log.ok("calibration.clear", avatar=avatar_slug, deleted=deleted)
+    return {"avatar_slug": avatar_slug, "deleted": deleted}
+
+
+def _h_get_calibration_status(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Read-only status for the active calibration. Mirrors state.calibration."""
+    return dict(d.state.calibration)
+
+
+def _mediapipe_version_string() -> str:
+    try:
+        import mediapipe  # type: ignore[import-untyped]
+
+        return str(getattr(mediapipe, "__version__", "unknown"))
+    except Exception:
+        return "unknown"
+
+
 _HANDLERS = {
     "import_portrait": _h_import_portrait,
     "set_yaw": _h_set_yaw,
@@ -401,4 +701,8 @@ _HANDLERS = {
     "dump_rig": _h_dump_rig,
     "dump_state": _h_dump_state,
     "clear_outputs": _h_clear_outputs,
+    "set_calibration_points": _h_set_calibration_points,
+    "dump_calibration": _h_dump_calibration,
+    "clear_calibration": _h_clear_calibration,
+    "get_calibration_status": _h_get_calibration_status,
 }

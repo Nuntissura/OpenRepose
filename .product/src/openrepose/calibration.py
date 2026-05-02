@@ -43,6 +43,27 @@ OPTIONAL_MARKERS: tuple[str, ...] = (
 
 ALL_MARKER_NAMES: frozenset[str] = frozenset(REQUIRED_MARKERS + OPTIONAL_MARKERS)
 
+# Anatomical-name -> MediaPipe FaceMesh landmark index (478-point model with
+# refine_landmarks=True). Indices follow MediaPipe's anatomical-left/right
+# convention (matches our her-anatomy yaw lock: `_left` = avatar's own left).
+# Used by the dispatcher to derive `mediapipe_xy` for a marker when the
+# operator/LLM only supplies `operator_xy`.
+#
+# These are well-cited canonical FaceMesh landmark IDs; tune in a future polish
+# WP if a specific avatar's stylization needs different anchors.
+MEDIAPIPE_FACEMESH_INDEX_BY_MARKER: dict[str, int] = {
+    "eye_outer_left": 263,
+    "eye_outer_right": 33,
+    "mouth_corner_left": 291,
+    "mouth_corner_right": 61,
+    "jaw_corner_left": 397,
+    "jaw_corner_right": 172,
+    "brow_outer_left": 285,
+    "brow_outer_right": 55,
+    "nose_tip": 4,
+    "chin_bottom": 152,
+}
+
 
 class OpenReposeCalibrationError(ValueError):
     """Raised on invalid marker name, malformed JSON, or bad shape input."""

@@ -19,8 +19,9 @@ where the nose tip (closest to camera) lands at the most-negative z.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
@@ -30,6 +31,9 @@ from .openpose_schema import (
     map_face_mesh_to_openpose,
     map_pose_to_body18,
 )
+
+if TYPE_CHECKING:
+    from .calibration import Calibration
 
 
 class OpenReposeRigFitError(RuntimeError):
@@ -57,13 +61,20 @@ class Rig:
     Attributes:
         portrait_size: (width, height) of the source portrait in pixels.
         face_mesh: (478, 3) array. MediaPipe FaceMesh world coordinates
-            (x in pixels, y in pixels, z in width-scaled units).
-        body_kps: (33, 3) array of MediaPipe Pose world coordinates.
+            (x in pixels, y in pixels, z in width-scaled units). Calibrated
+            (via the per-avatar TPS field) when `calibration` is set,
+            otherwise identical to `raw_face_mesh`.
+        body_kps: (33, 3) array of MediaPipe Pose world coordinates. Same
+            calibration semantics as `face_mesh`.
         body_conf: (33,) array of per-keypoint visibilities in [0, 1].
-        head_anchor: (3,) world coordinate of the rotation pivot. Computed
-            as the synthesized neck (mean of shoulders) when shoulders are
-            present, else falls back to the nose.
+        head_anchor: (3,) world coordinate of the rotation pivot.
         fit_metrics: telemetry recorded at fit time.
+        raw_face_mesh: pre-calibration FaceMesh coords (for re-applying a
+            different calibration without re-running MediaPipe). When None,
+            no calibration was ever applied and `face_mesh` is the raw
+            detection.
+        raw_body_kps: pre-calibration Pose coords (same semantics).
+        calibration: the active per-avatar calibration record, or None.
     """
 
     portrait_size: tuple[int, int]
@@ -72,10 +83,23 @@ class Rig:
     body_conf: np.ndarray
     head_anchor: np.ndarray
     fit_metrics: FitMetrics
+    raw_face_mesh: np.ndarray | None = None
+    raw_body_kps: np.ndarray | None = None
+    calibration: "Calibration | None" = None
 
     @classmethod
-    def from_portrait(cls, portrait_path: str | Path) -> "Rig":
-        """Fit a Rig to the portrait at `portrait_path`."""
+    def from_portrait(
+        cls,
+        portrait_path: str | Path,
+        *,
+        calibration: "Calibration | None" = None,
+    ) -> "Rig":
+        """Fit a Rig to the portrait at `portrait_path`.
+
+        When `calibration` is supplied, the TPS deformation field is computed
+        from its markers (plus 4 implicit corner clamps) and applied to face
+        and body landmark XY coordinates before head_anchor is computed.
+        """
         path = Path(portrait_path)
         if not path.exists():
             raise OpenReposeRigFitError(f"portrait not found: {path}")
@@ -96,29 +120,27 @@ class Rig:
                 f"MediaPipe FaceMesh detected no face on {path}"
             )
 
-        # Head anchor / rotation pivot: synthesized neck (mean of MediaPipe
-        # Pose anatomical-left shoulder index 11 and anatomical-right
-        # shoulder index 12) when both are detected. Otherwise fall back to
-        # the MediaPipe Pose nose (index 0), or finally the face-mesh nose
-        # tip (FaceMesh index 4). The pivot must sit on the body's vertical
-        # axis so the unified yaw rotates head and body together about a
-        # single line.
-        MP_POSE_LEFT_SHOULDER = 11
-        MP_POSE_RIGHT_SHOULDER = 12
-        MP_POSE_NOSE = 0
-        if (
-            body_conf[MP_POSE_LEFT_SHOULDER] > 0.3
-            and body_conf[MP_POSE_RIGHT_SHOULDER] > 0.3
-        ):
-            head_anchor = 0.5 * (
-                body_kps[MP_POSE_LEFT_SHOULDER] + body_kps[MP_POSE_RIGHT_SHOULDER]
-            )
-        elif body_conf[MP_POSE_NOSE] > 0.3:
-            head_anchor = body_kps[MP_POSE_NOSE].copy()
-        else:
-            head_anchor = (
-                face_mesh[4].copy() if face_mesh.shape[0] > 4 else np.zeros(3)
-            )
+        raw_face_mesh = face_mesh.copy()
+        raw_body_kps = body_kps.copy()
+
+        # Apply per-avatar calibration to landmark XY before head_anchor so
+        # the synthesized neck reflects the operator's marks. Z passes
+        # through unchanged.
+        if calibration is not None:
+            from .calibration import compute_field
+
+            cal_field = compute_field(calibration, image_size=(w, h))
+            if cal_field is not None:
+                face_mesh = face_mesh.copy()
+                body_kps = body_kps.copy()
+                face_mesh[:, :2] = cal_field.apply(
+                    face_mesh[:, :2].astype(np.float64)
+                )
+                body_kps[:, :2] = cal_field.apply(
+                    body_kps[:, :2].astype(np.float64)
+                )
+
+        head_anchor = _compute_head_anchor(face_mesh, body_kps, body_conf)
 
         return cls(
             portrait_size=(w, h),
@@ -136,6 +158,57 @@ class Rig:
                 body_partial=partial,
                 body_partial_missing=tuple(missing),
             ),
+            raw_face_mesh=raw_face_mesh,
+            raw_body_kps=raw_body_kps,
+            calibration=calibration,
+        )
+
+    def with_calibration(self, new_calibration: "Calibration | None") -> "Rig":
+        """Return a new Rig with `new_calibration` applied to the cached raw
+        landmarks. Cheap: no MediaPipe re-run, just a TPS field rebuild and
+        coordinate transform. Falls back to `face_mesh` / `body_kps` if no
+        raw cache is present (Rigs constructed directly without going
+        through `from_portrait`)."""
+        from .calibration import compute_field
+
+        raw_face = (
+            self.raw_face_mesh
+            if self.raw_face_mesh is not None
+            else self.face_mesh
+        )
+        raw_body = (
+            self.raw_body_kps
+            if self.raw_body_kps is not None
+            else self.body_kps
+        )
+
+        face_mesh = raw_face.copy()
+        body_kps = raw_body.copy()
+
+        if new_calibration is not None:
+            cal_field = compute_field(
+                new_calibration, image_size=self.portrait_size
+            )
+            if cal_field is not None:
+                face_mesh[:, :2] = cal_field.apply(
+                    face_mesh[:, :2].astype(np.float64)
+                )
+                body_kps[:, :2] = cal_field.apply(
+                    body_kps[:, :2].astype(np.float64)
+                )
+
+        head_anchor = _compute_head_anchor(
+            face_mesh, body_kps, self.body_conf
+        )
+
+        return replace(
+            self,
+            face_mesh=face_mesh,
+            body_kps=body_kps,
+            head_anchor=head_anchor,
+            raw_face_mesh=raw_face,
+            raw_body_kps=raw_body,
+            calibration=new_calibration,
         )
 
     def openpose_face_70(self) -> np.ndarray:
@@ -145,6 +218,34 @@ class Rig:
     def openpose_body_18(self) -> tuple[np.ndarray, np.ndarray]:
         """Return (body_18 xyz, body_18 confidences) mapped from MediaPipe Pose."""
         return map_pose_to_body18(self.body_kps, self.body_conf)
+
+
+# --- helpers ----------------------------------------------------------------
+
+
+def _compute_head_anchor(
+    face_mesh: np.ndarray,
+    body_kps: np.ndarray,
+    body_conf: np.ndarray,
+) -> np.ndarray:
+    """Synthesized neck (mean of shoulders) when both are detected; else
+    fall back to MediaPipe Pose nose, then FaceMesh nose tip. The pivot
+    must sit on the body's vertical axis so unified yaw rotates head and
+    body together about a single line."""
+    MP_POSE_LEFT_SHOULDER = 11
+    MP_POSE_RIGHT_SHOULDER = 12
+    MP_POSE_NOSE = 0
+    if (
+        body_conf[MP_POSE_LEFT_SHOULDER] > 0.3
+        and body_conf[MP_POSE_RIGHT_SHOULDER] > 0.3
+    ):
+        return 0.5 * (
+            body_kps[MP_POSE_LEFT_SHOULDER]
+            + body_kps[MP_POSE_RIGHT_SHOULDER]
+        )
+    if body_conf[MP_POSE_NOSE] > 0.3:
+        return body_kps[MP_POSE_NOSE].copy()
+    return face_mesh[4].copy() if face_mesh.shape[0] > 4 else np.zeros(3)
 
 
 # --- internal MediaPipe runners ---------------------------------------------
