@@ -4,7 +4,7 @@
 
 - **Owner**: TBD (operator)
 - **Date Opened**: 2026-05-02
-- **Status**: IN-PROGRESS
+- **Status**: REVIEW
 - **Iteration**: I1
 - **Workflow Version**: 1.0
 - **Packet Class**: IMPLEMENTATION
@@ -131,7 +131,20 @@ Operator-controlled visibility toggles for body part groups. Lets the operator s
 
 ## Change Ledger
 
-- (filled at REVIEW)
+- **What Became Real**:
+  - `openpose_schema.py`: `BODY_GROUPS` (5: face/body_torso/arms/legs/hands), `BODY_18_INDICES_BY_GROUP` (group→indices map), `default_body_part_visibility()` helper, `apply_body_part_visibility(body18, face70, mask)` helper that zeros suppressed indices and validates unknown groups.
+  - `openpose_serialize.py`: `serialize()` and `serialize_to_string()` accept optional `body_part_visibility` kwarg; mask applied via the schema helper before flatten.
+  - `render/draw_openpose.py`: `render_openpose()` accepts optional `body_part_visibility`; mask applied via the schema helper before draw.
+  - `state.py`: new `body_part_visibility` block defaulting to all-true.
+  - `commands.py`: 2 new handlers — `set_body_part_visibility` (accepts any subset of group flags; validates names + booleans; rejects empty payload) and `get_body_part_visibility` (read-only). `_h_export_single` and `_h_export_batch` now pass `dict(d.state.body_part_visibility)` into the serializer. `_h_snapshot` passes the mask into `do_snapshot` so `openpose_viewport` and `full_window` reflect the active flags.
+  - `snapshot.py`: `snapshot()` and `_render` accept optional `body_part_visibility`; threaded into the openpose path.
+  - `gui/options.py`: 5 inline checkboxes wired to `body_part_visibility_changed(group, bool)` signal that fires immediately on toggle. New `load_body_part_visibility()` syncs from state.
+  - `gui/main_window.py`: connects the new signal to `_on_body_part_visibility_changed`, which dispatches `set_body_part_visibility` per toggle. Initial sync on construction.
+  - `test_body_part_visibility.py` (NEW): 18 tests — schema layer (defaults, identity-fast-return, face-off zeros face_70 + body face indices, legs-off zeros only leg indices, unknown group raises, float conf array support); dispatcher commands (read defaults, single + multi flag updates, unknown group rejected, non-bool rejected, empty payload rejected); end-to-end (legs-off export zeros only leg keypoints in JSON, face-off export zeros face_70 + body face indices, default-all-true regression); state.json block.
+- **What Remains Simulated / Deferred**:
+  - `hands` flag is reserved for WP-I1-018 (hand detection). v0.1 has no hand keypoints to suppress; the flag is wired through state + commands + GUI for forward compatibility but has no observable effect on the JSON / preview yet.
+  - WP-I1-029 (per-marker visibility) layers on top of these group flags with documented precedence; that's the next WP.
+- **Next Blocking Real Seam**: WP-I1-029 can compose against this layer.
 
 ## Checkpoint Commit Plan
 
@@ -158,9 +171,13 @@ Operator-controlled visibility toggles for body part groups. Lets the operator s
 
 ## Evidence
 
-- (filled at REVIEW)
+- **Test Suite Execution**: `target/test-artifacts/WP-I1-017/pytest_results.xml` — 225 passed, 0 failed (full suite; +18 new from this WP).
+- **Local Audit Run**: `pwsh scripts/audit-repo.ps1` exits 0.
+- **Build Artifacts**: modifications to `openpose_schema.py`, `openpose_serialize.py`, `render/draw_openpose.py`, `snapshot.py`, `state.py`, `commands.py`, `gui/options.py`, `gui/main_window.py`; new `test_body_part_visibility.py`.
+- **Operator Sign-off**: PENDING — operator to verify by toggling body-part checkboxes in Options and inspecting an exported JSON.
 
 ## Progress Log
 
 - 2026-05-02: WP drafted, status DRAFT.
 - 2026-05-02: Enhanced with full template sections (Files Touched, Test Plan, Risks, Rollback, Exit Criteria, etc.) for session-survivability.
+- 2026-05-03: Operator approved fast-track batch (slot 2). Status DRAFT -> IN-PROGRESS. Implementation complete: schema helper + serializer + renderer + state + 2 commands + Options checkboxes + 18 tests. 225/225 passing. Audit clean. Status -> REVIEW.

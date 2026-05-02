@@ -27,6 +27,7 @@ from ..openpose_schema import (
     BODY_R_EYE,
     BODY_R_SHOULDER,
     MP_POSE_TO_BODY18,
+    apply_body_part_visibility,
     map_face_mesh_to_openpose,
 )
 from ..openpose_serialize import _project_body_18
@@ -85,10 +86,14 @@ def render_openpose(
     rotated: RotatedRig,
     canvas_width: int | None = None,
     canvas_height: int | None = None,
+    *,
+    body_part_visibility: dict[str, bool] | None = None,
 ) -> np.ndarray:
     """Render the rotated rig as an OpenPose-style wireframe.
 
     Returns a (H, W, 3) BGR uint8 numpy array with a black background.
+    `body_part_visibility` (WP-I1-017) suppresses entire body-part groups
+    in the preview the same way the serializer suppresses them in JSON.
     """
     w, h = rotated.portrait_size
     if canvas_width is None:
@@ -101,6 +106,15 @@ def render_openpose(
     # Body skeleton.
     body18, _conf18 = _project_body_18(rotated.body_kps_world, rotated.body_visible)
     body18_visible = (np.abs(body18) > 0).any(axis=1)
+
+    # Face visibility (also masked by body_part_visibility group "face").
+    face70 = map_face_mesh_to_openpose(rotated.face_mesh_world)
+    face70_visible = _face_visibility_from_478(rotated.face_mesh_visible)
+
+    # Apply per-body-part visibility mask (WP-I1-017).
+    body18_visible, face70_visible = apply_body_part_visibility(
+        body18_visible, face70_visible, body_part_visibility
+    )
 
     for (a, b), color in zip(LIMB_PAIRS, LIMB_COLORS_BGR, strict=True):
         if not body18_visible[a] or not body18_visible[b]:
@@ -117,8 +131,6 @@ def render_openpose(
         cv2.circle(canvas, p, KEYPOINT_RADIUS, KEYPOINT_COLOR_BGR, -1, lineType=cv2.LINE_AA)
 
     # Face landmarks as small white dots.
-    face70 = map_face_mesh_to_openpose(rotated.face_mesh_world)
-    face70_visible = _face_visibility_from_478(rotated.face_mesh_visible)
     for i in range(face70.shape[0]):
         if not face70_visible[i]:
             continue

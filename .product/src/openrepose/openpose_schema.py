@@ -120,6 +120,81 @@ assert len(MP_FACEMESH_TO_OPENPOSE_70) == OPENPOSE_FACE_COUNT, "face map length 
 assert len(MP_POSE_TO_BODY18) == OPENPOSE_BODY_COUNT, "body map length mismatch"
 
 
+# --- per-body-part visibility (WP-I1-017) -----------------------------------
+
+# Coarse-grained visibility groups operator can toggle on/off. The `face`
+# group covers BOTH the face landmarks present in body_18 AND the entire
+# face_70 array. The `hands` group is reserved for WP-I1-018 hand detection;
+# in v0.1 it has no body_18 indices to suppress (hand_*_keypoints_2d in the
+# OpenPose JSON are already null/zeros). Naming follows the spec.
+BODY_GROUPS: tuple[str, ...] = (
+    "face",
+    "body_torso",
+    "arms",
+    "legs",
+    "hands",
+)
+
+BODY_18_INDICES_BY_GROUP: dict[str, tuple[int, ...]] = {
+    "face": (BODY_NOSE, BODY_R_EYE, BODY_L_EYE, BODY_R_EAR, BODY_L_EAR),
+    "body_torso": (
+        BODY_NECK,
+        BODY_R_SHOULDER,
+        BODY_L_SHOULDER,
+        BODY_R_HIP,
+        BODY_L_HIP,
+    ),
+    "arms": (BODY_R_ELBOW, BODY_R_WRIST, BODY_L_ELBOW, BODY_L_WRIST),
+    "legs": (BODY_R_KNEE, BODY_R_ANKLE, BODY_L_KNEE, BODY_L_ANKLE),
+    "hands": (),
+}
+
+
+def default_body_part_visibility() -> dict[str, bool]:
+    """All groups visible. The default state.json `body_part_visibility` block."""
+    return {g: True for g in BODY_GROUPS}
+
+
+def apply_body_part_visibility(
+    body18_visible,  # numpy bool / float array of shape (18,)
+    face70_visible,  # numpy bool array of shape (70,)
+    mask: dict[str, bool] | None,
+):
+    """Apply group flags to (body18_visible, face70_visible).
+
+    Returns new arrays with suppressed groups zeroed; original arrays
+    unchanged. If `mask` is None or all-true, returns the inputs as-is.
+    Unknown group names raise ValueError so callers can surface a
+    structured error.
+    """
+    if mask is None:
+        return body18_visible, face70_visible
+    # Validate keys first so an early-return on "all true" still rejects
+    # bogus group names.
+    for group in mask:
+        if group not in BODY_GROUPS:
+            raise ValueError(
+                f"unknown body_part group: {group!r}; allowed: {BODY_GROUPS}"
+            )
+    if all(mask.get(g, True) for g in BODY_GROUPS):
+        return body18_visible, face70_visible
+    import numpy as np
+
+    body18 = np.asarray(body18_visible).copy()
+    face70 = np.asarray(face70_visible).copy()
+    for group, visible in mask.items():
+        if visible:
+            continue
+        if group == "face":
+            face70[:] = False if face70.dtype == bool else 0
+            for idx in BODY_18_INDICES_BY_GROUP["face"]:
+                body18[idx] = False if body18.dtype == bool else 0
+        else:
+            for idx in BODY_18_INDICES_BY_GROUP[group]:
+                body18[idx] = False if body18.dtype == bool else 0
+    return body18, face70
+
+
 def map_face_mesh_to_openpose(mp_mesh_xyz):
     """Take a (478, 3) MediaPipe FaceMesh array and return (70, 3) in OpenPose order.
 

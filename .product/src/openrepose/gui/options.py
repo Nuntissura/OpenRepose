@@ -24,6 +24,7 @@ class OptionsPane(QWidget):
     Settings instance."""
 
     settings_changed = Signal(dict)
+    body_part_visibility_changed = Signal(str, bool)
 
     def __init__(self) -> None:
         super().__init__()
@@ -86,6 +87,23 @@ class OptionsPane(QWidget):
         # OpenPose schema (read-only label).
         schema_label = QLabel("body_18 + face_70 + hands_off (locked for v0.1)")
         form.addRow(QLabel("OpenPose schema"), schema_label)
+
+        # Per-body-part visibility (WP-I1-017). Each checkbox fires
+        # set_body_part_visibility immediately on toggle.
+        self.body_part_checks: dict[str, QCheckBox] = {}
+        bpv_row = QHBoxLayout()
+        for group in ("face", "body_torso", "arms", "legs", "hands"):
+            cb = QCheckBox(group)
+            cb.setChecked(True)
+            cb.toggled.connect(
+                lambda checked, g=group: self.body_part_visibility_changed.emit(
+                    g, bool(checked)
+                )
+            )
+            self.body_part_checks[group] = cb
+            bpv_row.addWidget(cb)
+        bpv_row.addStretch(1)
+        form.addRow(QLabel("Body part visibility"), self._wrap_row(bpv_row))
 
         # LLM control surface toggles.
         self.http_check = QCheckBox("Enable HTTP localhost channel")
@@ -159,3 +177,10 @@ class OptionsPane(QWidget):
         self.export_folder_edit.setText(str(settings.export_folder or ""))
         self.single_export_edit.setText(settings.single_export_subdir_template)
         self.batch_export_edit.setText(settings.batch_export_subdir_template)
+
+    def load_body_part_visibility(self, bpv: dict) -> None:  # noqa: ANN001
+        """Sync checkboxes from state without firing the toggled signal."""
+        for group, cb in self.body_part_checks.items():
+            cb.blockSignals(True)
+            cb.setChecked(bool(bpv.get(group, True)))
+            cb.blockSignals(False)

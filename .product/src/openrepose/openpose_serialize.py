@@ -34,6 +34,7 @@ from .openpose_schema import (
     MP_POSE_TO_BODY18,
     OPENPOSE_BODY_COUNT,
     OPENPOSE_FACE_COUNT,
+    apply_body_part_visibility,
     map_face_mesh_to_openpose,
 )
 from .rotation import RotatedRig
@@ -43,6 +44,8 @@ def serialize(
     rotated: RotatedRig,
     canvas_width: int | None = None,
     canvas_height: int | None = None,
+    *,
+    body_part_visibility: dict[str, bool] | None = None,
 ) -> dict[str, Any]:
     """Serialize one RotatedRig to the OpenPose people-array JSON shape.
 
@@ -61,6 +64,13 @@ def serialize(
     body_18, body_18_conf = _project_body_18(
         rotated.body_kps_world,
         rotated.body_visible,
+    )
+
+    # Apply per-body-part visibility mask (WP-I1-017). Body group flags
+    # zero confidence on the corresponding body_18 indices; the `face`
+    # group additionally zeros the entire face_70 visibility array.
+    body_18_conf, face_visible_70 = apply_body_part_visibility(
+        body_18_conf, face_visible_70, body_part_visibility
     )
 
     pose_kps_flat = _flatten_with_visibility(body_18, body_18_conf)
@@ -89,10 +99,16 @@ def serialize_to_string(
     canvas_height: int | None = None,
     *,
     indent: int | None = None,
+    body_part_visibility: dict[str, bool] | None = None,
 ) -> str:
     """Convenience: serialize then `json.dumps`."""
     return json.dumps(
-        serialize(rotated, canvas_width=canvas_width, canvas_height=canvas_height),
+        serialize(
+            rotated,
+            canvas_width=canvas_width,
+            canvas_height=canvas_height,
+            body_part_visibility=body_part_visibility,
+        ),
         indent=indent,
         ensure_ascii=False,
     )

@@ -154,7 +154,11 @@ class MainWindow(QMainWindow):
 
         # Options pane -> persistent settings.
         self._options.load_from_settings(self._app.settings)
+        self._options.load_body_part_visibility(self._app.state.body_part_visibility)
         self._options.settings_changed.connect(self._on_settings_changed)
+        self._options.body_part_visibility_changed.connect(
+            self._on_body_part_visibility_changed
+        )
 
         # Inspector buttons -> dispatcher commands.
         self._inspector.btn_render_single.clicked.connect(self._on_export_single)
@@ -229,6 +233,12 @@ class MainWindow(QMainWindow):
 
     def _on_export_batch(self) -> None:
         self._app.handle_command({"command": "export_batch"})
+
+    def _on_body_part_visibility_changed(self, group: str, visible: bool) -> None:
+        """Operator toggled a body-part group checkbox; dispatch the command."""
+        self._app.handle_command(
+            {"command": "set_body_part_visibility", group: visible}
+        )
 
     def _on_settings_changed(self, payload: dict) -> None:
         """Persist operator-changed settings to disk + refresh state.json."""

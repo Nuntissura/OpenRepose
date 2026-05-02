@@ -88,6 +88,15 @@ class AppState:
             "settings_path": None,
         }
     )
+    body_part_visibility: dict[str, bool] = field(
+        default_factory=lambda: {
+            "face": True,
+            "body_torso": True,
+            "arms": True,
+            "legs": True,
+            "hands": True,
+        }
+    )
 
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
@@ -107,6 +116,7 @@ class AppState:
             "last_command": dict(self.last_command),
             "calibration": dict(self.calibration),
             "settings": dict(self.settings),
+            "body_part_visibility": dict(self.body_part_visibility),
         }
 
     def write(self) -> None:

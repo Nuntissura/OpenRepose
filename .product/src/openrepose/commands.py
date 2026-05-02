@@ -23,6 +23,7 @@ from .calibration import (
     save as save_calibration,
 )
 from .log import Logger
+from .openpose_schema import BODY_GROUPS
 from .openpose_serialize import serialize_to_string
 from .rig import OpenReposeRigFitError, Rig
 from .rotation import rotate_yaw
@@ -272,7 +273,11 @@ def _h_export_single(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any
     out_json = out_dir / f"{avatar_slug}_yaw_{safe_bin}.json"
 
     rotated = rotate_yaw(d._rig, bin_obj)
-    payload = serialize_to_string(rotated, indent=None)
+    payload = serialize_to_string(
+        rotated,
+        indent=None,
+        body_part_visibility=dict(d.state.body_part_visibility),
+    )
     out_json.write_text(payload + "\n", encoding="utf-8")
 
     d.state.add_export(type_="single", out_dir=str(out_dir), files=[str(out_json)])
@@ -314,12 +319,15 @@ def _h_export_batch(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]
     out_dir.mkdir(parents=True, exist_ok=True)
 
     written: list[str] = []
+    bpv = dict(d.state.body_part_visibility)
     for label in angles:
         bin_obj = parse_bin(label)  # validates each label
         safe_bin = bin_obj.label.replace(" ", "-")
         out_json = out_dir / f"{avatar_slug}_yaw_{safe_bin}.json"
         rotated = rotate_yaw(d._rig, bin_obj)
-        payload = serialize_to_string(rotated, indent=None)
+        payload = serialize_to_string(
+            rotated, indent=None, body_part_visibility=bpv
+        )
         out_json.write_text(payload + "\n", encoding="utf-8")
         written.append(str(out_json))
 
@@ -378,6 +386,7 @@ def _h_snapshot(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
         state=d.state,
         portrait_path=portrait_path,
         calibration=calibration,
+        body_part_visibility=dict(d.state.body_part_visibility),
     )
     d.log.ok("viewport.snapshot", target=target, out=str(out))
     return {"target": target, "out_path": str(out)}
@@ -714,6 +723,53 @@ def _h_get_calibration_status(
 # --- settings handler --------------------------------------------------------
 
 
+# --- body part visibility handlers ------------------------------------------
+
+
+def _h_set_body_part_visibility(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Set one or more body-part group flags. Payload:
+        {"face": bool, "body_torso": bool, "arms": bool, "legs": bool, "hands": bool}
+    Any subset is accepted; unmentioned flags are kept. Unknown group names raise.
+    """
+    updates: dict[str, bool] = {}
+    for k, v in cmd.items():
+        if k in ("command",):
+            continue
+        if k not in BODY_GROUPS:
+            raise OpenReposeCommandError(
+                f"unknown body_part group {k!r}; allowed: {BODY_GROUPS}"
+            )
+        if not isinstance(v, bool):
+            raise OpenReposeCommandError(
+                f"body_part group {k!r} requires a boolean; got {type(v).__name__}"
+            )
+        updates[k] = v
+    if not updates:
+        raise OpenReposeCommandError(
+            "set_body_part_visibility requires at least one group flag"
+        )
+
+    new_bpv = dict(d.state.body_part_visibility)
+    new_bpv.update(updates)
+    with d.state._lock:
+        d.state.body_part_visibility = new_bpv
+    d.state.write()
+    d.log.ok(
+        "body_part.set",
+        **{k: bool(v) for k, v in updates.items()},
+    )
+    return {"body_part_visibility": dict(new_bpv), "updated": updates}
+
+
+def _h_get_body_part_visibility(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Read-only state.body_part_visibility."""
+    return {"body_part_visibility": dict(d.state.body_part_visibility)}
+
+
 def _h_dump_settings(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     """Return the effective settings JSON (operator-chosen export folder +
     subdir templates), the resolved export folder, and whether the default
@@ -760,5 +816,7 @@ _HANDLERS = {
     "dump_calibration": _h_dump_calibration,
     "clear_calibration": _h_clear_calibration,
     "get_calibration_status": _h_get_calibration_status,
+    "set_body_part_visibility": _h_set_body_part_visibility,
+    "get_body_part_visibility": _h_get_body_part_visibility,
     "dump_settings": _h_dump_settings,
 }
