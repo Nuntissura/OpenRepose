@@ -342,6 +342,8 @@ def _h_snapshot(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
 
     snapshots_root = d.outputs_root / ".runtime" / "snapshots"
     manifest_path = d.outputs_root / ".runtime" / "snapshots.jsonl"
+    portrait_path = d.state.portrait
+    calibration = d._rig.calibration if d._rig is not None else None
     out = do_snapshot(
         target,
         rotated=rotated,
@@ -349,6 +351,8 @@ def _h_snapshot(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
         snapshots_root=snapshots_root,
         manifest_path=manifest_path,
         state=d.state,
+        portrait_path=portrait_path,
+        calibration=calibration,
     )
     d.log.ok("viewport.snapshot", target=target, out=str(out))
     return {"target": target, "out_path": str(out)}

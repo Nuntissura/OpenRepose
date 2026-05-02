@@ -23,12 +23,14 @@ import cv2
 
 from .render.compose import compose_full_window
 from .render.draw_3d import render_3d_viewport
+from .render.draw_calibration import render_calibration_overlay
 from .render.draw_openpose import render_openpose
 from .render.widget_grab import render_widget_or_placeholder
 
 if TYPE_CHECKING:
     import numpy as np
 
+    from .calibration import Calibration
     from .rotation import RotatedRig
     from .state import AppState
 
@@ -41,6 +43,7 @@ VALID_TARGETS = (
     "status_bar",
     "toolbar",
     "full_window",
+    "calibration_overlay",
 )
 
 
@@ -56,14 +59,19 @@ def snapshot(
     snapshots_root: Path | str = Path("outputs/.runtime/snapshots"),
     manifest_path: Path | str = Path("outputs/.runtime/snapshots.jsonl"),
     state: "AppState | None" = None,
+    portrait_path: str | Path | None = None,
+    calibration: "Calibration | None" = None,
 ) -> Path:
     """Render `target` to a PNG. Returns the absolute output path.
 
     Targets that need a rotated rig (3d_viewport, openpose_viewport,
-    full_window) require `rotated` to be non-None. Targets that grab GUI
-    widgets (inspector_pane, log_pane, options_pane, status_bar,
-    toolbar) work whether or not the GUI exists; the widget_grab module
-    falls back to a placeholder when widgets are not registered.
+    full_window) require `rotated` to be non-None. The
+    calibration_overlay target uses `portrait_path` and `calibration`
+    (rendering on a fallback canvas with a label when either is missing
+    so it never crashes). Widget-grab targets (inspector_pane, log_pane,
+    options_pane, status_bar, toolbar) work whether or not the GUI
+    exists; the widget_grab module falls back to a placeholder when
+    widgets are not registered.
     """
     if target not in VALID_TARGETS:
         raise OpenReposeSnapshotError(
@@ -72,7 +80,7 @@ def snapshot(
 
     out = _resolve_out_path(target, out_path, snapshots_root)
 
-    image = _render(target, rotated)
+    image = _render(target, rotated, portrait_path, calibration)
     out.parent.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(out), image)
 
@@ -90,7 +98,12 @@ def snapshot(
     return out
 
 
-def _render(target: str, rotated: "RotatedRig | None") -> "np.ndarray":
+def _render(
+    target: str,
+    rotated: "RotatedRig | None",
+    portrait_path: str | Path | None,
+    calibration: "Calibration | None",
+) -> "np.ndarray":
     if target == "3d_viewport":
         if rotated is None:
             raise OpenReposeSnapshotError("3d_viewport requires a rotated rig")
@@ -99,6 +112,8 @@ def _render(target: str, rotated: "RotatedRig | None") -> "np.ndarray":
         if rotated is None:
             raise OpenReposeSnapshotError("openpose_viewport requires a rotated rig")
         return render_openpose(rotated)
+    if target == "calibration_overlay":
+        return render_calibration_overlay(portrait_path, calibration)
     if target == "full_window":
         panes: dict[str, "np.ndarray"] = {}
         if rotated is not None:
