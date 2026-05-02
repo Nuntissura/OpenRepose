@@ -22,8 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-
-_(none — WP-I1-027 moved to REVIEW)_
+| WP-I1-017 | Per-Body-Part Visibility Toggles | assistant | IN-PROGRESS | IMPLEMENTATION | S | 2026-05-03 |
 
 ## Pending Review
 
