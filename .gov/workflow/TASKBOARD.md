@@ -22,8 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-
-_(none — WP-I1-029 moved to REVIEW)_
+| WP-I1-023 | Frame Reframing (Robust Rerender) | assistant | IN-PROGRESS | IMPLEMENTATION | M | 2026-05-03 |
 
 ## Pending Review
 
