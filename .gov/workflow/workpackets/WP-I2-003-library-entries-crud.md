@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: IN-PROGRESS
+- **Status**: REVIEW
 - **Iteration**: I2
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -58,13 +58,13 @@ Implement CRUD on `library_entries` and the M-to-N `entry_tags` relation. Includ
 
 ## Definition Of Done
 
-- [ ] CRUD on library_entries works against real Postgres (pytest-postgresql fixture).
-- [ ] tags + entry_tags M-to-N work; tag deduplication on conflict.
-- [ ] smart-tag extraction produces expected `auto:` tags from a sample workflow.
-- [ ] Filesystem layout `outputs/library/<entry-uuid>/{openpose.json,openpose.png,generated.png,workflow.json,metadata.json,portrait.png}` created on register.
-- [ ] Row-level lock on update/delete; conflict raises structured error.
-- [ ] pytest zero failures; audit clean.
-- [ ] **Manual Impact**: Yes — `feature-3-library-postgresql.md` references the entries+tags primitives; extend with operator-facing notes on the smart-tag extractor and the storage layout when this WP lands.
+- [x] CRUD on library_entries works against real Postgres (pytest-postgresql fixture).
+- [x] tags + entry_tags M-to-N work; tag deduplication on conflict.
+- [x] smart-tag extraction produces expected `auto:` tags from a sample workflow.
+- [x] Filesystem layout `outputs/library/<entry-uuid>/{openpose.json,openpose.png,generated.png,workflow.json,metadata.json,portrait.png}` created on register.
+- [x] Row-level lock on update/delete; conflict raises structured error.
+- [x] pytest zero failures; audit clean.
+- [x] **Manual Impact**: Yes — extended `.gov/doc/manual/feature-3-library-postgresql.md` with the smart-tag extractor table (auto:model / sampler / scheduler / lora / custom_node / cfg / steps / seed) and the per-entry filesystem layout; status bullets now reflect WP-I2-001/002/003 in REVIEW.
 
 ## Headless LLM Operation Compliance
 
@@ -72,13 +72,29 @@ Implement CRUD on `library_entries` and the M-to-N `entry_tags` relation. Includ
 
 ## Change Ledger
 
-- (filled at REVIEW)
+- **What Became Real**:
+  - `.product/src/openrepose/library/__init__.py` — package facade exporting CRUD + tags + smart-tags + storage helpers.
+  - `library/entries.py` — `LibraryEntry` dataclass; `create_entry/get_entry/list_entries/update_entry/delete_entry`. Update + delete acquire `SELECT … FOR UPDATE NOWAIT`; conflict surfaces `LibraryEntryLockedError` (preserves the structured-error contract from the spec). Update validates field whitelist, completeness, and JSONB-encodes `metadata` + `comfyui_workflow`.
+  - `library/tags.py` — `add_tags/remove_tags/list_entry_tags/set_entry_tags`. Tag normalization (lowercase + strip), `INSERT … ON CONFLICT DO NOTHING` upsert, `set_entry_tags(replace=True, preserve_auto=True)` keeps `auto:` tags by default per spec.
+  - `library/smart_tags.py` — `extract_smart_tags(metadata, workflow)`. Recognises ComfyUI API + editor formats. Extracts `auto:model/sampler/scheduler/lora/custom_node/cfg/steps/seed` with stable ordering and dedup. Slugifier strips unsafe chars + lowercases.
+  - `library/storage.py` — `EntryFiles` dataclass; `ensure_entry_dir`, `write_entry_files` (atomic .tmp+rename for every payload; selective writing of only the fields the caller supplies), `relative_to_root` helper for the DB-stored relative paths.
+  - `.gov/doc/manual/feature-3-library-postgresql.md` — updated with current implementation status + smart-tag table + storage layout sections (Manual Impact: Yes).
+  - 31 new tests:
+    - `test_smart_tags.py` (10) — slugifier edge cases; API + editor workflow shapes; lora dedup; metadata fallback; cfg=0 not dropped; workflow model overrides metadata model.
+    - `test_library_storage.py` (7) — entry-dir creation; partial writes; atomic .tmp behavior; overwrite; relative-to-root posix output and out-of-root fallback.
+    - `test_library_entries.py` (14) — CRUD round-trip, validation, list filters, update field whitelist, completeness validation, delete cascades to tags, set_entry_tags add vs replace + preserve_auto, lock collision (`LibraryEntryLockedError` from a parallel session), tag normalization + dedup.
+- **What Remains Simulated**: nothing within scope. `prompts` / `story_beats` / `notes` row helpers ship in WP-I2-004 alongside the LLM commands that need them; no half-built code left.
+- **Next Blocking Real Seam**: WP-I2-004 wires `register_library_entry`, `update_library_entry`, `delete_library_entry`, `library_search`, `get_library_entry`, `set_library_tags`, `dump_library_schema` against this data layer + the `LibraryPool`.
 
 ## Evidence
 
-- (filled at close)
+- **Test Suite Execution**: `pytest .product/tests --junitxml=target/test-artifacts/WP-I2-003/pytest_results.xml -q` → **437 passed** in 590s (baseline before this WP: 406 + 31 new = 437). Pre-existing Windows-only `PermissionError` warning in `test_state_write_atomic_no_par0` fixture-cleanup race is unchanged from baseline.
+- **Targeted suites**: smart-tags + storage (no DB) → 17/17 in 1.07s; library_entries (DB) → 14/14 in 60s.
+- **Audit**: `powershell scripts/audit-repo.ps1` → `audit-repo: OK   no violations` (160 tracked files, +7 new for this WP).
+- **Operator Sign-off**: pending (operator overnight handoff).
 
 ## Progress Log
 
 - 2026-05-03: WP drafted at DRAFT.
 - 2026-05-03: Promoted DRAFT → READY → IN-PROGRESS (kickoff commit). Owner: assistant. Operator overnight autonomous I2 sequence.
+- 2026-05-03: Implementation + tests + manual update landed; full suite 437/437; audit clean. Status → REVIEW.

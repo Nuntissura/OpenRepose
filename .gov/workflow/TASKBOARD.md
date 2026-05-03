@@ -1,12 +1,12 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (overnight I2 sequence: WP-I2-002 + WP-I2-001 → REVIEW; WP-I2-003 IN-PROGRESS — entries CRUD + tags + smart-tag extractor)
+Last Updated: 2026-05-03 (overnight I2 sequence: WP-I2-001/002/003 → REVIEW; WP-I2-004 next — LLM commands + library_search)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 1 (WP-I2-003 IN-PROGRESS — entries CRUD + tags)
+- WPs in flight (READY + IN-PROGRESS): 0 (WP-I2-003 → REVIEW)
 - WPs pending review (REVIEW): 0
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 21 + 8 new I2 WPs (drafting in this session)
@@ -22,7 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I2-003 | Library entries CRUD + tags + smart-tag extractor | assistant | IN-PROGRESS | IMPLEMENTATION | M | 2026-05-03 |
+_(none — WP-I2-003 → REVIEW)_
 
 ## Pending Review
 
@@ -32,6 +32,7 @@ Implementation claims to be done; awaiting operator verification.
 |-------|-------|-------|-------|---------|--------|
 | WP-I2-002 | Settings extension: library config (schema 1→2) | assistant | INFRASTRUCTURE | 2026-05-03 | dump_settings + Options pane Library section + v1→v2 migration |
 | WP-I2-001 | PostgreSQL setup + migration runner | assistant | INFRASTRUCTURE | 2026-05-03 | docker-compose + 001_library_initial.sql + LibraryPool/Migrator + state.library + integration tests via ephemeral PG |
+| WP-I2-003 | Library entries CRUD + tags + smart-tag extractor | assistant | IMPLEMENTATION | 2026-05-03 | openrepose.library package (entries/tags/smart_tags/storage); 31 new tests; manual extended |
 
 ## Blocked
 
