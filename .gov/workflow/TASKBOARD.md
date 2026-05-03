@@ -6,7 +6,7 @@ Live status of all OpenRepose workpackets. Update in the same session as any wor
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 0 (WP-I2-004 → REVIEW)
+- WPs in flight (READY + IN-PROGRESS): 2 (WP-I2-005 + WP-I2-006 IN-PROGRESS in parallel)
 - WPs pending review (REVIEW): 0
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 21 + 8 new I2 WPs (drafting in this session)
@@ -22,7 +22,8 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-_(none — WP-I2-004 → REVIEW)_
+| WP-I2-005 | ComfyUI bridge custom node | assistant | IN-PROGRESS | IMPLEMENTATION | M | 2026-05-03 |
+| WP-I2-006 | Library tab GUI | assistant | IN-PROGRESS | IMPLEMENTATION | L | 2026-05-03 |
 
 ## Pending Review
 
