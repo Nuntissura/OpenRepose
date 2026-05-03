@@ -196,6 +196,13 @@ class AppState:
                 "current_card_id": None,
                 "queue_depth": 0,
             },
+            # WP-I3-007: requirements + target tree state.
+            "targets": {
+                "project": None,
+                "groups": [],
+                "active_task": None,
+                "active_card": None,
+            },
             # WP-I3-006: AMood batch state.
             "amood": {
                 "active_batch_id": None,
@@ -493,6 +500,32 @@ class AppState:
                     "abandoned_count": int(abandoned_count),
                     "current_card_id": current_card_id,
                     "queue_depth": int(queue_depth),
+                },
+            }
+
+    # --- WP-I3-007: requirements + target tree --------------------------
+
+    def set_targets_state(
+        self,
+        *,
+        project: dict[str, Any] | None,
+        groups: list[dict[str, Any]] | None = None,
+        active_task: dict[str, Any] | None = None,
+        active_card: dict[str, Any] | None = None,
+    ) -> None:
+        """Replace the `state.library.targets` block. Called by target /
+        requirements handlers after each command tick (WP-I3-007).
+
+        Pass `project=None` to clear (e.g. when no project is active).
+        """
+        with self._lock:
+            self.library = {
+                **self.library,
+                "targets": {
+                    "project": project,
+                    "groups": list(groups) if groups else [],
+                    "active_task": active_task,
+                    "active_card": active_card,
                 },
             }
 

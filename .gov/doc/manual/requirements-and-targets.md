@@ -215,6 +215,35 @@ requirements:
 
 The round-trip importer parses this markdown into rows; the exporter renders rows back to markdown. Diff before save = trust.
 
+### v0.1 canonical form (round-trippable)
+
+`project_render_markdown` and `project_import_markdown` (added in WP-I3-007) round-trip a **markdown-native canonical form** — `### <RULE-ID>` blocks with `key: value` lines — instead of the fenced-YAML projection above. Both forms encode the same data; the markdown-native form is what `project_render_markdown` emits and what `project_import_markdown` parses byte-stably.
+
+```markdown
+# Project: exposure-120
+
+- name: Exposure 120
+- status: active
+
+## Sets
+
+| slug | name | expected_card_count | target_per_card | ordering |
+|------|------|---------------------|-----------------|----------|
+| SF | Standing frontal pussy exposure | 20 | 8 | 1 |
+
+## Requirements
+
+### EXP120-RES-001
+
+- kind: hard_output
+- severity: auto-route
+- short: 1080x1440 exact
+- machine_check_fn: (width = 1080 AND height = 1440)
+- auto_route_to: intermediate_evidence
+```
+
+`project_render_markdown(project_id=...)` → returns `markdown` byte-stable; `project_import_markdown(project_id=..., markdown_text=...)` parses and replaces project-scope rules + target tree atomically. The `'custom'` kind is rejected at parse time in v0.1 — author it directly via `project_add_requirement`. Operator natural-prose authoring (the section-headed "## Hard Output Requirement" form above) is one-way reference material; v0.1 only round-trips the canonical form.
+
 ## Where requirements surface {#completeness}
 
 - **Project pane**: requirements checklist + target-tree progress (`SF: 24/160 promoted`, `SR: 8/160`, total `47/960`).

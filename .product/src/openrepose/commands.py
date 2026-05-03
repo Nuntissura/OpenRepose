@@ -70,6 +70,31 @@ from .library.amood import (
 from .library.amood import (
     create_card as amood_create_card,
 )
+from .library.requirements import (
+    CanonicalMarkdownError,
+    OpenReposeRequirementsError,
+    create_rule,
+    dump_rules,
+    get_rule_with_inheritance,
+    parse_markdown,
+    render_markdown,
+    update_rule,
+)
+from .library.requirements.markdown_io import (
+    ParsedProject,
+    ParsedRequirement,
+    ParsedTargetGroup,
+    project_to_dict as parsed_project_to_dict,
+)
+from .library.targets import (
+    card_summary as target_card_summary,
+    group_summary as target_group_summary,
+    list_groups as target_list_groups,
+    project_summary as target_project_summary,
+    set_target_tree as target_set_tree,
+    state_targets_block,
+    target_recount as target_recount_fn,
+)
 from .library.intake import (
     IntakeOutputError,
     LibraryRunError,
@@ -238,6 +263,8 @@ class CommandDispatcher:
             AmoodVariantError,
             AmoodTsvError,
             AcceptedSetAuditError,
+            CanonicalMarkdownError,
+            OpenReposeRequirementsError,
             FileNotFoundError,
             NotImplementedError,
         ) as e:
@@ -2503,6 +2530,345 @@ def _h_amood_import_tsv(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, 
     return {"schema": schema, **result}
 
 
+# ===========================================================================
+# WP-I3-007 — requirements editor + target tree commands
+# Spec: .gov/spec/openrepose_requirements_v0_1.md
+# ===========================================================================
+
+
+def _resolve_project_id(d: CommandDispatcher, cmd: dict[str, Any]) -> tuple[str, str | None]:
+    """Resolve project_id from command (accepting either id or slug). Returns
+    (project_id, project_slug). Raises OpenReposeRequirementsError if neither
+    resolves. project_slug may be None when only id was supplied."""
+    pid = cmd.get("project_id")
+    slug = cmd.get("project_slug")
+    if not pid and not slug:
+        raise OpenReposeRequirementsError(
+            "command requires 'project_id' or 'project_slug'",
+            rule_id="REQ-001",
+        )
+    pool = _ensure_pool(d)
+    with pool.connection() as conn, conn.cursor() as cur:
+        if pid:
+            cur.execute("SELECT id, slug FROM library_projects WHERE id = %s", (pid,))
+        else:
+            cur.execute("SELECT id, slug FROM library_projects WHERE slug = %s", (slug,))
+        row = cur.fetchone()
+    if row is None:
+        raise OpenReposeRequirementsError(
+            f"project not found ({'id='+pid if pid else 'slug='+slug})",
+            rule_id="REQ-001",
+        )
+    return str(row[0]), row[1]
+
+
+def _refresh_targets_state(d: CommandDispatcher, project_id: str, project_slug: str | None) -> None:
+    pool = _ensure_pool(d)
+    with pool.connection() as conn:
+        block = state_targets_block(conn, project_id=project_id, project_slug=project_slug)
+    d.state.set_targets_state(
+        project=block["project"],
+        groups=block["groups"],
+        active_task=block.get("active_task"),
+        active_card=block.get("active_card"),
+    )
+
+
+def _h_project_set_target_tree(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    project_id, project_slug = _resolve_project_id(d, cmd)
+    groups = cmd.get("groups")
+    if not isinstance(groups, list):
+        raise OpenReposeRequirementsError(
+            "'groups' must be a list (may be empty)",
+            rule_id="REQ-001",
+        )
+    pool = _ensure_pool(d)
+    with pool.connection() as conn:
+        result = target_set_tree(conn, project_id=project_id, groups=groups)
+    _refresh_targets_state(d, project_id, project_slug)
+    return {
+        "project_id": project_id,
+        "groups_created": len(result["groups"]),
+        "cards_created": len(result["cards"]),
+        "groups": result["groups"],
+    }
+
+
+def _h_project_add_requirement(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    project_id, _ = _resolve_project_id(d, cmd)
+    rule_id = cmd.get("rule_id")
+    name = cmd.get("name")
+    short = cmd.get("short")
+    severity = cmd.get("severity")
+    kind = cmd.get("kind")
+    if not isinstance(rule_id, str) or not rule_id:
+        raise OpenReposeRequirementsError("project_add_requirement requires 'rule_id'", rule_id="REQ-001")
+    if not isinstance(name, str) or not name:
+        raise OpenReposeRequirementsError("project_add_requirement requires 'name'", rule_id="REQ-001")
+    if not isinstance(short, str) or not short:
+        raise OpenReposeRequirementsError("project_add_requirement requires 'short'", rule_id="REQ-001")
+    if not isinstance(severity, str):
+        raise OpenReposeRequirementsError("project_add_requirement requires 'severity'", rule_id="REQ-001")
+    pool = _ensure_pool(d)
+    with pool.connection() as conn:
+        rule = create_rule(
+            conn,
+            rule_id=rule_id,
+            scope_type=cmd.get("scope_type", "project"),
+            scope_id=cmd.get("scope_id", project_id),
+            name=name,
+            short=short,
+            severity=severity,
+            kind=kind,
+            manual_link=cmd.get("manual_link"),
+            machine_check_fn=cmd.get("machine_check_fn"),
+            auto_route_to=cmd.get("auto_route_to"),
+            accept_terms=cmd.get("accept_terms"),
+            reject_terms=cmd.get("reject_terms"),
+        )
+    return {"rule": rule.to_dict()}
+
+
+def _h_project_set_requirement(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    """Upsert a rule. If a row with the given (rule_id, scope_type, scope_id)
+    exists, update its mutable fields; otherwise create. Lower-scope override
+    semantics per REQ-001 are realized at read time via
+    `get_rule_with_inheritance`; this command only writes.
+    """
+    rule_id = cmd.get("rule_id")
+    scope_type = cmd.get("scope_type")
+    scope_id = cmd.get("scope_id")
+    if not isinstance(rule_id, str) or not rule_id:
+        raise OpenReposeRequirementsError("project_set_requirement requires 'rule_id'", rule_id="REQ-001")
+    if not isinstance(scope_type, str):
+        raise OpenReposeRequirementsError("project_set_requirement requires 'scope_type'", rule_id="REQ-001")
+    if not scope_id:
+        raise OpenReposeRequirementsError("project_set_requirement requires 'scope_id'", rule_id="REQ-001")
+    pool = _ensure_pool(d)
+    with pool.connection() as conn:
+        existing = dump_rules(conn, scope_type=scope_type, scope_id=scope_id, rule_id=rule_id)
+        if existing:
+            rule = update_rule(
+                conn,
+                rule_uuid=existing[0].id,
+                name=cmd.get("name"),
+                short=cmd.get("short"),
+                severity=cmd.get("severity"),
+                kind=cmd.get("kind"),
+                manual_link=cmd.get("manual_link"),
+                machine_check_fn=cmd.get("machine_check_fn"),
+                auto_route_to=cmd.get("auto_route_to"),
+                accept_terms=cmd.get("accept_terms"),
+                reject_terms=cmd.get("reject_terms"),
+            )
+            return {"rule": rule.to_dict(), "created": False}
+        rule = create_rule(
+            conn,
+            rule_id=rule_id,
+            scope_type=scope_type,
+            scope_id=scope_id,
+            name=cmd.get("name") or rule_id,
+            short=cmd.get("short") or "",
+            severity=cmd.get("severity") or "info",
+            kind=cmd.get("kind"),
+            manual_link=cmd.get("manual_link"),
+            machine_check_fn=cmd.get("machine_check_fn"),
+            auto_route_to=cmd.get("auto_route_to"),
+            accept_terms=cmd.get("accept_terms"),
+            reject_terms=cmd.get("reject_terms"),
+        )
+        return {"rule": rule.to_dict(), "created": True}
+
+
+def _h_project_dump_requirements(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    project_id, _ = _resolve_project_id(d, cmd)
+    scope_type = cmd.get("scope_type")
+    scope_id = cmd.get("scope_id")
+    rule_id = cmd.get("rule_id")
+    pool = _ensure_pool(d)
+    with pool.connection() as conn:
+        if scope_type and scope_id and rule_id:
+            rules = get_rule_with_inheritance(
+                conn,
+                rule_id=rule_id,
+                scope_type=scope_type,
+                scope_id=scope_id,
+                project_id=project_id,
+            )
+        else:
+            rules = dump_rules(conn, scope_type=scope_type, scope_id=scope_id, rule_id=rule_id)
+    return {
+        "project_id": project_id,
+        "count": len(rules),
+        "rules": [r.to_dict() for r in rules],
+    }
+
+
+def _h_project_render_markdown(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    project_id, project_slug = _resolve_project_id(d, cmd)
+    pool = _ensure_pool(d)
+    with pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT slug, name, status FROM library_projects WHERE id = %s",
+            (project_id,),
+        )
+        prow = cur.fetchone()
+        if prow is None:
+            raise OpenReposeRequirementsError(
+                f"project {project_id} not found", rule_id="REQ-001"
+            )
+        slug, name, status = prow
+
+        groups = target_list_groups(conn, project_id=project_id)
+        rules = dump_rules(conn, scope_type="project", scope_id=project_id)
+
+    project = ParsedProject(slug=slug, name=name, status=status)
+    project.groups = [
+        ParsedTargetGroup(
+            slug=g.group_slug,
+            name=g.group_name,
+            expected_card_count=g.expected_card_count,
+            target_per_card=g.target_per_card,
+            ordering=g.ordering,
+        )
+        for g in groups
+    ]
+    project.requirements = [
+        ParsedRequirement(
+            rule_id=r.rule_id,
+            kind=r.kind or "custom",
+            severity=r.severity,
+            short=r.short,
+            machine_check_fn=r.machine_check_fn,
+            auto_route_to=r.auto_route_to,
+            accept_terms=r.accept_terms,
+            reject_terms=r.reject_terms,
+        )
+        for r in rules
+        if r.kind != "custom"  # v0.1: 'custom' kind not round-trippable
+    ]
+    md = render_markdown(project)
+    return {
+        "project_id": project_id,
+        "markdown": md,
+        "byte_count": len(md.encode("utf-8")),
+        "structured": parsed_project_to_dict(project),
+    }
+
+
+def _h_project_import_markdown(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    project_id, project_slug = _resolve_project_id(d, cmd)
+    md = cmd.get("markdown_text") or cmd.get("markdown")
+    if not isinstance(md, str) or not md:
+        raise OpenReposeRequirementsError(
+            "project_import_markdown requires 'markdown_text'",
+            rule_id="REQ-001",
+        )
+    try:
+        parsed = parse_markdown(md)
+    except CanonicalMarkdownError as e:
+        raise OpenReposeRequirementsError(
+            f"markdown parse failed: {e}",
+            rule_id="REQ-001",
+        ) from e
+
+    pool = _ensure_pool(d)
+    with pool.connection() as conn:
+        # Markdown is operator-authoritative for project metadata: update
+        # name + status from the parsed header so a subsequent
+        # project_render_markdown round-trips byte-stable. Slug stays
+        # immutable (it's the lookup key).
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE library_projects SET name = %s, status = %s WHERE id = %s",
+                (parsed.name, parsed.status, project_id),
+            )
+        # Replace target tree.
+        target_set_tree(
+            conn,
+            project_id=project_id,
+            groups=[
+                {
+                    "slug": g.slug,
+                    "name": g.name,
+                    "expected_card_count": g.expected_card_count,
+                    "target_per_card": g.target_per_card,
+                    "ordering": g.ordering,
+                }
+                for g in parsed.groups
+            ],
+        )
+        # Replace project-scope rules: drop existing project-scope rules,
+        # insert from markdown. Higher-scope (task/batch/card) rules survive.
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM library_rules WHERE scope_type = 'project' AND scope_id = %s",
+                (project_id,),
+            )
+        for r in parsed.requirements:
+            create_rule(
+                conn,
+                rule_id=r.rule_id,
+                scope_type="project",
+                scope_id=project_id,
+                name=r.rule_id,
+                short=r.short,
+                severity=r.severity,
+                kind=r.kind,
+                machine_check_fn=r.machine_check_fn,
+                auto_route_to=r.auto_route_to,
+                accept_terms=r.accept_terms,
+                reject_terms=r.reject_terms,
+            )
+        conn.commit()
+
+    _refresh_targets_state(d, project_id, project_slug)
+    return {
+        "project_id": project_id,
+        "groups_imported": len(parsed.groups),
+        "requirements_imported": len(parsed.requirements),
+    }
+
+
+def _h_target_summary(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    scope_type = cmd.get("scope_type", "project")
+    scope_id = cmd.get("scope_id")
+    if scope_type == "project" and scope_id is None:
+        # Convenience: accept project_slug or project_id at the top level too.
+        scope_id, _ = _resolve_project_id(d, cmd)
+    if scope_id is None:
+        raise OpenReposeRequirementsError(
+            "target_summary requires 'scope_id'", rule_id="REQ-001"
+        )
+    pool = _ensure_pool(d)
+    with pool.connection() as conn:
+        if scope_type == "project":
+            summary = target_project_summary(conn, project_id=scope_id)
+        elif scope_type == "group":
+            summary = target_group_summary(conn, group_id=scope_id)
+        elif scope_type == "card":
+            summary = target_card_summary(conn, target_card_id=scope_id)
+        else:
+            raise OpenReposeRequirementsError(
+                f"target_summary scope_type must be project|group|card; got {scope_type!r}",
+                rule_id="REQ-001",
+            )
+    return {"summary": summary.to_dict()}
+
+
+def _h_target_recount(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    scope_type = cmd.get("scope_type", "project")
+    scope_id = cmd.get("scope_id")
+    if scope_type == "project" and scope_id is None:
+        scope_id, _ = _resolve_project_id(d, cmd)
+    if scope_id is None:
+        raise OpenReposeRequirementsError("target_recount requires 'scope_id'", rule_id="REQ-001")
+    pool = _ensure_pool(d)
+    with pool.connection() as conn:
+        summary = target_recount_fn(conn, scope_type=scope_type, scope_id=scope_id)
+    return {"summary": summary.to_dict()}
+
+
 _HANDLERS = {
     "import_portrait": _h_import_portrait,
     "set_yaw": _h_set_yaw,
@@ -2562,4 +2928,13 @@ _HANDLERS = {
     "accepted_set_audit":     _h_accepted_set_audit,
     "amood_export_tsv":       _h_amood_export_tsv,
     "amood_import_tsv":       _h_amood_import_tsv,
+    # Requirements + target tree commands (WP-I3-007).
+    "project_set_target_tree":   _h_project_set_target_tree,
+    "project_add_requirement":   _h_project_add_requirement,
+    "project_set_requirement":   _h_project_set_requirement,
+    "project_dump_requirements": _h_project_dump_requirements,
+    "project_render_markdown":   _h_project_render_markdown,
+    "project_import_markdown":   _h_project_import_markdown,
+    "target_summary":            _h_target_summary,
+    "target_recount":            _h_target_recount,
 }
