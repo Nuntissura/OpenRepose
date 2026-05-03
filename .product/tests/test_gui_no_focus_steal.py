@@ -80,7 +80,11 @@ def test_widget_provider_registered_after_window_construction(app_and_window) ->
 
     _app, window = app_and_window
     assert _widget_provider is not None
-    for target in ("inspector_pane", "log_pane", "options_pane", "status_bar", "toolbar"):
+    for target in (
+        "inspector_pane", "log_pane", "options_pane", "status_bar", "toolbar",
+        # WP-I3-008 — Triage tab targets.
+        "intake_triage_view", "task_summary_view", "library_card_with_pose",
+    ):
         widget = _widget_provider(target)
         assert widget is not None, f"no widget registered for target={target!r}"
 
@@ -99,8 +103,40 @@ def test_snapshot_with_real_widgets_does_not_steal_focus(app_and_window, monkeyp
     )
 
     app, _window = app_and_window
-    for target in ("inspector_pane", "log_pane", "toolbar", "status_bar", "options_pane"):
+    for target in (
+        "inspector_pane", "log_pane", "toolbar", "status_bar", "options_pane",
+        # WP-I3-008 — Triage tab targets via real widget grab.
+        "intake_triage_view", "task_summary_view", "library_card_with_pose",
+    ):
         r = app.handle_command({"command": "snapshot", "target": target})
         assert r.status == "ok", r.payload
 
     assert counts == {"raise_": 0, "activateWindow": 0}
+
+
+def test_triage_module_has_no_focus_calls() -> None:
+    """String-grep guard: gui.triage.pane source must not call
+    the focus-affecting APIs forbidden by Operator Experience Guarantees.
+
+    Tokens look like a method call (`name(`) or an import line (`import X` /
+    `from ... import X`) so the docstring's prose mention of these names
+    does not false-positive.
+    """
+    from pathlib import Path
+    import re
+
+    triage_pane_src = (
+        Path(__file__).parent.parent / "src" / "openrepose" / "gui" / "triage" / "pane.py"
+    ).read_text(encoding="utf-8")
+
+    call_tokens = ["raise_(", "activateWindow(", "showNormal(", "setForegroundWindow("]
+    for token in call_tokens:
+        assert token not in triage_pane_src, (
+            f"gui/triage/pane.py contains forbidden call {token!r}; remove it"
+        )
+
+    # No QMessageBox import (docstring mention is fine; an import is not).
+    import_pat = re.compile(r"(^|\n)\s*(import\s+\S*QMessageBox|from\s+\S+\s+import\s+[^#\n]*QMessageBox)")
+    assert not import_pat.search(triage_pane_src), (
+        "gui/triage/pane.py imports QMessageBox; modal dialogs are forbidden"
+    )

@@ -275,3 +275,25 @@ When a project has `library_rules` rows at `severity=auto-route`, every `intake_
 ## Safety boundary {#safety-boundary}
 
 DB CHECK constraints refuse promotion when `primary_rejection_reason ∈ {juvenile_coded, coercion_coded, hidden_camera_coded}`. No override path. Rule citations `SAFE-001`, `SAFE-002`, `SAFE-003`. This is an integrity gate at the storage layer, not an enforcement of legal/consent paperwork (the operator still owns those obligations per Adult Production Boundary).
+
+## Triage tab {#triage-tab}
+
+The Triage tab (added in WP-I3-008) is a read-only view of the same state surface an LLM agent reads through `state.json`. Operator triage actions stay LLM-driven in v0.1; this tab gives the operator visibility while an agent works.
+
+Three regions, each independently snapshot-grabbable:
+
+| Region | What it shows | State block read | Snapshot target |
+|--------|---------------|------------------|-----------------|
+| Project (left) | project slug + total target_promoted + promoted + gap + forecast_ok + count_satisfied + per-group rows (slug, promoted/target, stable_cards, complete_cards, expected/created cards) | `state.library.targets` | `intake_triage_view` (full tab) |
+| Active task (top right) | task slug + per-status counters (pending / triaging / soft_accepted / promoted / rejected / diagnostic / abandoned / queue_depth) + forecast line | `state.library.intake` + `state.library.targets.active_task` | `task_summary_view` |
+| Active card (bottom right) | card slug + target_promoted + stability_target + promoted + stable + complete + AMood batch summary + last 5 dedupe warnings | `state.library.targets.active_card` + `state.library.amood` | `library_card_with_pose` |
+
+Snapshot invocation (LLM-side):
+
+```json
+{"command": "snapshot", "target": "task_summary_view"}
+```
+
+The dispatcher prefers a live widget grab when the GUI is up, falls back to a headless pure-OpenCV render driven by `state.library` when the GUI is down. Both paths produce the same target name and the same on-disk PNG shape, so an LLM agent never has to know which is in use.
+
+Operator-side triage actions (click-to-soft_accept, click-to-reject, click-to-promote) are intentionally absent in v0.1; they land in a future GUI polish WP after WP-I3-010 verifies the LLM-driven path end-to-end.

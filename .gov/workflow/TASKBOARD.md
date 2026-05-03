@@ -1,13 +1,13 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-04 (Sweep B finale: WP-I3-008 Triage GUI tab + 3 snapshot targets opened IN-PROGRESS. WP-I3-007 + WP-I3-009 still pending operator sign-off in REVIEW. Sweep B handoff doc at `.gov/doc/handoff-2026-05-03-i3-implementation-phase-2.md`.)
+Last Updated: 2026-05-04 (Sweep B finale shipped: WP-I3-008 Triage GUI tab + 3 snapshot targets at REVIEW. All three Sweep B WPs (-007/-008/-009) now pending operator sign-off. Only WP-I3-010 end-to-end EXP120 verification remains to close I3 v0.1.)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 1 (WP-I3-008 Triage GUI tab + snapshot targets)
-- WPs pending review (REVIEW): 2 (WP-I3-009 audit-script extension; WP-I3-007 requirements editor + target tree)
+- WPs in flight (READY + IN-PROGRESS): 0
+- WPs pending review (REVIEW): 3 (WP-I3-009 audit-script extension; WP-I3-007 requirements editor + target tree; WP-I3-008 triage GUI tab + snapshot targets)
 - WPs done (I3): 5 (WP-I3-001 spec lock; WP-I3-002 stance primitives; WP-I3-003 PG schema migrations; WP-I3-004 intake/project/task command surface; WP-I3-005 default-staging ComfyUI bridge; WP-I3-006 AMood data-model commands)
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 19 (18 I1 backlog + WP-I3-011 future OpenRepose AMood GPT + Claude wrappers)
@@ -24,7 +24,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I3-008 | Triage GUI tab + 3 snapshot targets | assistant | IN-PROGRESS | IMPLEMENTATION | M | 2026-05-04 |
+_(none)_
 
 ## Pending Review
 
@@ -34,6 +34,7 @@ Implementation claims to be done; awaiting operator verification.
 |-------|-------|-------|-------|---------|--------|
 | WP-I3-009 | Audit script extension (rule registry coverage) | assistant | INFRASTRUCTURE | 2026-05-03 | `pwsh scripts/audit-repo.ps1` clean (8 OK, 1 SKIP) on HEAD; negative test in `target/test-artifacts/WP-I3-009/`. |
 | WP-I3-007 | Requirements editor + target tree commands | assistant | IMPLEMENTATION | 2026-05-03 | 29/29 pytest passing in 5:13 (incl. EXP120 byte-stable round-trip + counter rollup + inheritance); audit clean. Evidence in `target/test-artifacts/WP-I3-007/`. |
+| WP-I3-008 | Triage GUI tab + 3 snapshot targets | assistant | IMPLEMENTATION | 2026-05-04 | 35/35 pytest passing in 23.61s (triage pane + 14 snapshot targets parametrized + GUI no-focus-steal + headless render); audit clean. Evidence in `target/test-artifacts/WP-I3-008/`. |
 
 ## Blocked
 

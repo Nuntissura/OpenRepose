@@ -82,6 +82,69 @@ def test_viewport_targets_require_rig(app: App) -> None:
         assert r.status == "error"
 
 
+# ---------------------------------------------------------------------------
+# WP-I3-008 — Triage snapshot targets
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "target",
+    ["intake_triage_view", "task_summary_view", "library_card_with_pose"],
+)
+def test_triage_snapshot_targets_work_without_rig(app: App, target: str) -> None:
+    """Triage targets are state-driven; no rig required."""
+    r = app.handle_command({"command": "snapshot", "target": target})
+    assert r.status == "ok", r.payload
+    out = Path(r.payload["out_path"])
+    assert out.exists()
+    assert out.stat().st_size > 100
+
+
+def test_triage_snapshot_reflects_intake_state(app: App) -> None:
+    """task_summary_view should be larger / different bytes when state has data."""
+    r1 = app.handle_command({"command": "snapshot", "target": "task_summary_view"})
+    out1 = Path(r1.payload["out_path"])
+    bytes_empty = out1.read_bytes()
+
+    app.state.set_intake_state(
+        active_task_id="11111111-2222-3333-4444-555555555555",
+        active_task_slug="T-EXP120-001",
+        pending_count=12,
+        promoted_count=4,
+        queue_depth=12,
+    )
+    r2 = app.handle_command({"command": "snapshot", "target": "task_summary_view"})
+    out2 = Path(r2.payload["out_path"])
+    bytes_seeded = out2.read_bytes()
+    assert bytes_empty != bytes_seeded, "task_summary_view did not reflect intake state"
+
+
+def test_triage_snapshot_explicit_card(app: App, tmp_path: Path) -> None:
+    """library_card_with_pose accepts an explicit triage_card payload."""
+    card = {
+        "slug": "SF-15", "card_id": "abc123", "target_promoted": 8,
+        "stability_target": 4, "promoted": 2, "stable": False, "complete": False,
+    }
+    # Direct call into the snapshot module so we can pass triage_card directly.
+    from openrepose.snapshot import snapshot
+
+    out = snapshot(
+        target="library_card_with_pose",
+        rotated=None,
+        triage_card=card,
+        triage_pose_path=None,
+        snapshots_root=tmp_path / "snaps",
+        manifest_path=tmp_path / "manifest.jsonl",
+    )
+    assert out.exists()
+    assert out.stat().st_size > 100
+
+
+def test_triage_snapshot_unknown_target_rejected(app: App) -> None:
+    r = app.handle_command({"command": "snapshot", "target": "triage_typo"})
+    assert r.status == "error"
+
+
 def test_full_window_includes_viewports_when_rig_loaded(app: App, aeri_master: Path) -> None:
     app.handle_command(
         {"command": "import_portrait", "path": str(aeri_master), "avatar_slug": "aeri"}

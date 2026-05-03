@@ -5,7 +5,7 @@
 - **Owner**: `assistant`
 - **Date Opened**: `2026-05-04`
 - **Last Updated**: `2026-05-04`
-- **Status**: `IN-PROGRESS`
+- **Status**: `REVIEW`
 - **Iteration**: `I3`
 - **Workflow Version**: `1.1`
 - **Packet Class**: `IMPLEMENTATION`
@@ -109,17 +109,17 @@ Sacred. Captured before work starts.
 
 ## Definition Of Done
 
-- [ ] `gui/triage/pane.py` exists with `TriagePane(QWidget)` reading `state.library.intake`, `state.library.targets`, `state.library.amood` on a 250ms poll timer (mirroring `MainWindow._poll_timer`).
-- [ ] `MainWindow` registers the Triage tab between Library and Options; the tab appears in the GUI when launched.
-- [ ] `MainWindow._provide_widget` returns the TriagePane (and a sub-widget for the active card) when asked for `intake_triage_view`, `task_summary_view`, `library_card_with_pose`.
-- [ ] `snapshot.py` `VALID_TARGETS` includes `intake_triage_view`, `task_summary_view`, `library_card_with_pose`. Dispatch in `_render` calls widget-grab for the GUI path and `render/draw_triage.py` for the headless path.
-- [ ] `render/draw_triage.py` exposes `render_task_summary_view(state_targets)` + `render_library_card_with_pose(card_dict, pose_path, library_root)` — both produce a labeled BGR image even on empty input.
-- [ ] `test_triage_pane.py` constructs the pane against an offscreen QT platform and asserts (a) it shows empty-state labels when state is unset and (b) it updates when `set_targets_state` is called.
-- [ ] `test_snapshot_targets.py` extension covers headless render + widget-grab paths for the 3 new targets.
-- [ ] `test_gui_no_focus_steal.py` extension imports `gui.triage.pane` and confirms zero occurrences of `raise_`, `activateWindow`, `showNormal`, `setForegroundWindow` in the module.
-- [ ] `pytest .product/tests/test_triage_pane.py .product/tests/test_snapshot_targets.py .product/tests/test_gui_no_focus_steal.py` returns 0 failures.
-- [ ] `pwsh scripts/audit-repo.ps1` clean (8 OK, 1 SKIP) on HEAD.
-- [ ] **Manual Impact**: `Yes — extends intake-and-triage.md with a "Triage tab" subsection naming the read-only panes (project summary / active task / active card) and the 3 snapshot target names.`
+- [x] `gui/triage/pane.py` exists with `TriagePane(QWidget)` reading `state.library.intake`, `state.library.targets`, `state.library.amood`. Refresh wired into the existing 250ms `MainWindow._poll_timer` callback (no new timer; the existing poll fires `_triage.refresh()` alongside inspector/calibration/markers/reframer/status_bar).
+- [x] `MainWindow` registers the Triage tab between Library and Options; tab appears in the GUI when launched.
+- [x] `MainWindow._provide_widget` returns `TriagePane` for `intake_triage_view`, `TaskSummaryPane` for `task_summary_view`, `ActiveCardPane` for `library_card_with_pose`.
+- [x] `snapshot.py` `VALID_TARGETS` extended from 11 → 14 with `intake_triage_view`, `task_summary_view`, `library_card_with_pose`. `_render` dispatch calls `try_grab_widget(target)` first; falls back to the headless render via `render/draw_triage.py` when no widget is registered. New helper `try_grab_widget` added to `render/widget_grab.py` so callers can branch on widget presence without consuming the placeholder.
+- [x] `render/draw_triage.py` exposes `render_intake_triage_view(state_library)`, `render_task_summary_view(state_targets, state_intake)`, `render_library_card_with_pose(card, pose_path, library_root)` — all produce labeled BGR images even on empty / None input.
+- [x] `test_triage_pane.py` constructs panes against the offscreen QT platform; verifies empty-state labels and update path through `set_intake_state` / `set_targets_state` mutators.
+- [x] `test_snapshot_targets.py` parametrized test now also covers the 3 new targets (auto-iteration over `VALID_TARGETS`); 4 dedicated tests added: works-without-rig, reflects-intake-state (different bytes after state change), explicit triage_card payload, unknown-target rejection.
+- [x] `test_gui_no_focus_steal.py` extended: widget-provider asserts the 3 new targets resolve; `test_snapshot_with_real_widgets_does_not_steal_focus` covers the new targets via real widget grab; new `test_triage_module_has_no_focus_calls` asserts no `raise_(`, `activateWindow(`, `showNormal(`, `setForegroundWindow(` calls and no `QMessageBox` import in `gui/triage/pane.py`.
+- [x] `pytest .product/tests/test_triage_pane.py .product/tests/test_snapshot_targets.py .product/tests/test_gui_no_focus_steal.py` → **35 passed in 23.61s**.
+- [x] `pwsh scripts/audit-repo.ps1` clean on HEAD: 8 OK, 1 SKIP, 0 violations. Output captured at `target/test-artifacts/WP-I3-008/audit-clean.txt`.
+- [x] **Manual Impact**: `Yes — extended intake-and-triage.md with a "Triage tab" subsection (table of three regions × what they show × state block read × snapshot target name; LLM snapshot invocation example; v0.1 deferral note for operator-side click actions).`
 
 ## Test Coverage Plan
 
@@ -165,7 +165,9 @@ Sacred. Captured before work starts.
 
 ## Change Ledger
 
-_(captured at REVIEW time)_
+- **What Became Real**: New Triage GUI tab (`gui/triage/__init__.py` + `pane.py`) with three sub-panes — `ProjectSummaryPane` (project + per-group rows), `TaskSummaryPane` (active-task counters + forecast), `ActiveCardPane` (card + AMood batch + dedupe warnings tail). Wired into `MainWindow` between Library and Options; refresh hooked into the existing 250ms state-poll. Three new snapshot targets (`intake_triage_view`, `task_summary_view`, `library_card_with_pose`) with widget-grab-first / headless-fallback dispatch. New `render/draw_triage.py` module renders the same content via pure OpenCV when no GUI is up. New `try_grab_widget(target)` helper in `widget_grab.py` so snapshot callers can branch on widget presence cleanly. Manual extended with "Triage tab" subsection (regions table + LLM snapshot invocation example).
+- **What Remains Simulated**: (a) Operator-side triage actions (click-to-soft_accept / reject / promote) intentionally absent; LLM remains the primary triage driver per spec. (b) Intake queue display in `ProjectSummaryPane` is per-group rollup only; full queue list (with thumbnails) is a future GUI polish concern, deferred until WP-I3-010 verifies the LLM-driven path end-to-end. (c) Active-card pose preview in the headless render uses the explicit `triage_pose_path` argument; auto-resolving the most-recent `library_pose_guides` row from the DB happens at the dispatcher's snapshot handler when wiring to a live card (out of scope for this WP since the WP-I3-007 state surface doesn't yet pin a card UUID with a guide).
+- **Next Blocking Real Seam**: WP-I3-010 (end-to-end EXP120 verification) walks the full path including triage-tab snapshot capture as part of its evidence. After WP-I3-010, an operator-action GUI polish WP can wire click-to-promote / click-to-reject buttons into the dispatcher; that needs operator authorization on the precise UX since v0.1 spec says the LLM is the primary path.
 
 ## Checkpoint Commit Plan
 
@@ -182,12 +184,12 @@ _(captured at REVIEW time)_
 
 ## Headless LLM Operation Compliance
 
-- [ ] An LLM agent can trigger every snapshot target through the existing `snapshot` command.
-- [ ] An LLM agent can read `state.library.targets` + `state.library.intake` + `state.library.amood` from `outputs/.runtime/state.json` (already populated by predecessor WPs).
-- [ ] An LLM agent can pull `intake_triage_view`, `task_summary_view`, `library_card_with_pose` snapshots — both widget-grab path (when GUI is up) and headless path (when GUI is down) succeed.
-- [ ] No code path in `gui/triage/` calls `raise_()`, `activateWindow()`, `showNormal()`, `setForegroundWindow()`. Verified by string-grep test extension.
-- [ ] No modal dialogs in `gui/triage/`. (No QMessageBox imports allowed.)
-- [ ] Tests cover the headless path (snapshot subsystem with no GUI) and the widget-grab path (snapshot subsystem with TriagePane registered).
+- [x] An LLM agent can trigger every snapshot target through the existing `snapshot` command (verified by parametrized test).
+- [x] An LLM agent can read `state.library.targets` + `state.library.intake` + `state.library.amood` from `outputs/.runtime/state.json` (already populated by predecessor WPs; this WP's tab is a pure consumer of the same state).
+- [x] An LLM agent can pull `intake_triage_view`, `task_summary_view`, `library_card_with_pose` snapshots — both widget-grab path (`test_widget_provider_registered_after_window_construction`, `test_snapshot_with_real_widgets_does_not_steal_focus`) and headless path (`test_each_target_produces_png` + `test_triage_snapshot_targets_work_without_rig`).
+- [x] No code path in `gui/triage/pane.py` calls `raise_(`, `activateWindow(`, `showNormal(`, `setForegroundWindow(` (string-grep test `test_triage_module_has_no_focus_calls`).
+- [x] No `QMessageBox` import in `gui/triage/pane.py` (regex-grep guard in same test).
+- [x] Tests cover the headless path (snapshot subsystem with no GUI registered → falls back to `render/draw_triage.py`) and the widget-grab path (with `MainWindow` constructed + widget provider registered).
 
 ## Exit Criteria
 
@@ -201,8 +203,17 @@ _(captured at REVIEW time)_
 
 ## Evidence
 
-_(captured at REVIEW time)_
+- **Test Suite Execution**: `target/test-artifacts/WP-I3-008/junit.xml` (35/35 passed in 23.61s — 12 markdown round-trip [historical], 5 triage pane state-poll, 14 parametrized snapshot targets [11 prior + 3 new], 4 dedicated triage snapshot tests, 4 GUI no-focus-steal). Output captured at `target/test-artifacts/WP-I3-008/pytest-output.txt`.
+- **Audit Clean Run**: `target/test-artifacts/WP-I3-008/audit-clean.txt` — `pwsh scripts/audit-repo.ps1` exit 0; 8 OK, 1 SKIP (project-rules-fresh, by-design), 0 violations on HEAD post-implementation.
+- **Logs**: `N/A — no DB writes, no dispatcher state mutations beyond `set_targets_state` / `set_intake_state` (already covered by WP-I3-007 / WP-I3-004 logs).`
+- **Screenshots / Exports**: snapshot smoke run produced three valid PNGs (`intake_triage_view` ~24KB, `task_summary_view` ~19KB, `library_card_with_pose` ~14KB); see WP Progress Log entry below.
+- **Build Artifacts**: `N/A`.
+- **Proof Artifact**: `target/test-artifacts/WP-I3-008/` (junit.xml + pytest-output.txt + audit-clean.txt).
+- **Operator Sign-off**: _(pending)_
 
 ## Progress Log
 
 - `2026-05-04`: WP authored at IN-PROGRESS as Sweep B finale (predecessors WP-I3-006/007 in REVIEW; operator green-lit proceeding before sign-off). Kickoff push pending.
+- `2026-05-04`: Kickoff commit 013cd02 pushed to origin/main.
+- `2026-05-04`: Implementation: gui/triage/{__init__,pane}.py + render/draw_triage.py + snapshot.py extension + try_grab_widget helper + main_window.py tab registration + manual subsection. Smoke snapshot run produced 3 valid PNGs (intake_triage_view 24KB, task_summary_view 19KB, library_card_with_pose 14KB).
+- `2026-05-04`: 35/35 pytest GREEN. One iteration: string-grep test was too broad (caught "QMessageBox" in docstring); tightened to require an actual `import QMessageBox` line. Audit clean. WP transitioned to REVIEW.

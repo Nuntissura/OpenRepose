@@ -31,6 +31,7 @@ from .status_bar import StatusBar
 from .tools_pane import ToolsPane
 from .style import DARK_QSS
 from .toolbar import Toolbar
+from .triage import TriagePane
 from .viewport_3d import Viewport3D
 from .viewport_openpose import ViewportOpenPose
 
@@ -129,9 +130,12 @@ class MainWindow(QMainWindow):
         self._markers = self._tools.markers
         self._reframer = self._tools.reframer
         self._library = LibraryPane(self._app)
+        # WP-I3-008: Triage tab between Library and Options.
+        self._triage = TriagePane(self._app.state)
         self._tabs.addTab(self._inspector, "Inspector")
         self._tabs.addTab(self._tools, "Tools")
         self._tabs.addTab(self._library, "Library")
+        self._tabs.addTab(self._triage, "Triage")
         self._tabs.addTab(self._options, "Options")
         self._tabs.addTab(self._log_pane, "Log")
         self._tabs.addTab(self._help_pane, "Help")
@@ -252,6 +256,10 @@ class MainWindow(QMainWindow):
             "options": self._options,
             "status_bar": self._status_bar,
             "toolbar": self._toolbar,
+            # WP-I3-008 — Triage tab + sub-panes.
+            "intake_triage_view": self._triage,
+            "task_summary_view": self._triage.task_summary_pane,
+            "library_card_with_pose": self._triage.active_card_pane,
         }.get(target)
 
     # --- operator actions (each dispatches into App, never bypasses) ----
@@ -360,6 +368,8 @@ class MainWindow(QMainWindow):
         self._markers.refresh()
         # Sync reframer pane (LLM commands can mutate state.frame).
         self._reframer.load_frame(self._app.state.frame)
+        # WP-I3-008 — Triage tab reads state.library.intake / targets / amood.
+        self._triage.refresh()
         # Update status bar.
         self._status_bar.refresh()
         # Render viewports if a rig is loaded.

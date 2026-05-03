@@ -50,17 +50,28 @@ def render_widget_or_placeholder(
     If a widget is registered for `target`, calls `QWidget.grab()` and
     converts to BGR. Otherwise returns a labeled placeholder.
     """
+    grabbed = try_grab_widget(target)
+    if grabbed is not None:
+        return grabbed
+    return _placeholder(target, canvas_size=canvas_size)
+
+
+def try_grab_widget(target: str) -> np.ndarray | None:
+    """Same as `render_widget_or_placeholder` but returns None when no
+    widget is registered (instead of a placeholder).
+
+    Used by snapshot targets that have a headless renderer fallback the
+    caller wants to invoke instead of a generic "[no GUI]" placeholder.
+    """
     widget = None
     if _widget_provider is not None:
         widget = _widget_provider(target)
-
     if widget is None:
-        return _placeholder(target, canvas_size=canvas_size)
-
+        return None
     try:
         return _grab_widget_to_bgr(widget)
     except Exception as e:  # noqa: BLE001
-        return _placeholder(target, canvas_size=canvas_size, note=f"grab error: {e}")
+        return _placeholder(target, note=f"grab error: {e}")
 
 
 def render_widget_to_png(target: str, out_path: Path | str) -> Path:

@@ -26,7 +26,12 @@ from .render.draw_3d import render_3d_viewport
 from .render.draw_calibration import render_calibration_overlay
 from .render.draw_library import render_library_entry, render_library_search_results
 from .render.draw_openpose import render_openpose
-from .render.widget_grab import render_widget_or_placeholder
+from .render.draw_triage import (
+    render_intake_triage_view,
+    render_library_card_with_pose,
+    render_task_summary_view,
+)
+from .render.widget_grab import render_widget_or_placeholder, try_grab_widget
 
 if TYPE_CHECKING:
     import numpy as np
@@ -47,6 +52,10 @@ VALID_TARGETS = (
     "calibration_overlay",
     "library_entry",
     "library_search_results",
+    # WP-I3-008 — Triage tab snapshot targets.
+    "intake_triage_view",
+    "task_summary_view",
+    "library_card_with_pose",
 )
 
 
@@ -71,6 +80,8 @@ def snapshot(
     library_entry: dict | None = None,
     library_search_results: list | None = None,
     library_root: Path | str | None = None,
+    triage_card: dict | None = None,
+    triage_pose_path: str | Path | None = None,
 ) -> Path:
     """Render `target` to a PNG. Returns the absolute output path.
 
@@ -97,6 +108,9 @@ def snapshot(
         library_entry=library_entry,
         library_search_results=library_search_results,
         library_root=library_root,
+        state=state,
+        triage_card=triage_card,
+        triage_pose_path=triage_pose_path,
     )
     out.parent.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(out), image)
@@ -128,6 +142,9 @@ def _render(
     library_entry: dict | None = None,
     library_search_results: list | None = None,
     library_root: Path | str | None = None,
+    state: "AppState | None" = None,
+    triage_card: dict | None = None,
+    triage_pose_path: str | Path | None = None,
 ) -> "np.ndarray":
     if target == "3d_viewport":
         if rotated is None:
@@ -150,6 +167,37 @@ def _render(
     if target == "library_search_results":
         return render_library_search_results(
             library_search_results or [], library_root or Path("outputs/library")
+        )
+    # WP-I3-008 — Triage targets. Each tries the widget-grab path first
+    # (so a live GUI's pixel-accurate render is preferred when available);
+    # falls back to the headless renderer driven by AppState.library when
+    # the GUI is not registered.
+    if target == "intake_triage_view":
+        grabbed = try_grab_widget(target)
+        if grabbed is not None:
+            return grabbed
+        state_library = state.library if state is not None else None
+        return render_intake_triage_view(state_library)
+    if target == "task_summary_view":
+        grabbed = try_grab_widget(target)
+        if grabbed is not None:
+            return grabbed
+        if state is not None:
+            return render_task_summary_view(
+                state.library.get("targets"),
+                state.library.get("intake"),
+            )
+        return render_task_summary_view(None, None)
+    if target == "library_card_with_pose":
+        grabbed = try_grab_widget(target)
+        if grabbed is not None:
+            return grabbed
+        if triage_card is None and state is not None:
+            triage_card = (state.library.get("targets") or {}).get("active_card")
+        return render_library_card_with_pose(
+            triage_card,
+            triage_pose_path,
+            library_root or Path("outputs/library"),
         )
     if target == "full_window":
         panes: dict[str, "np.ndarray"] = {}
