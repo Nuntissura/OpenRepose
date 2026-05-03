@@ -122,7 +122,10 @@ def test_polling_passes_marker_visibility_to_viewport(
     assert captured
     last = captured[-1]
     assert last["marker_visibility"] is not None
-    assert last["marker_visibility"]["body_18"] == {"4": False}
+    # Operator's explicit override on body_18[4] is present. Other entries
+    # are the auto-uncheck-undetected entries from WP-I1-029 import-time
+    # population — assert containment, not exact equality.
+    assert last["marker_visibility"]["body_18"].get("4") is False
 
 
 def test_polling_passes_frame_to_viewport(
@@ -173,5 +176,5 @@ def test_polling_passes_all_three_blocks_combined(
     qtbot.wait(350)
     last = captured[-1]
     assert last["body_part_visibility"]["arms"] is False
-    assert last["marker_visibility"]["face_70"] == {"12": False}
+    assert last["marker_visibility"]["face_70"].get("12") is False
     assert last["frame"]["scale"] == 1.5

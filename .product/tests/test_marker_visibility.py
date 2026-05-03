@@ -314,3 +314,123 @@ def test_state_json_has_marker_visibility_block(app: App) -> None:
     state = json.loads(app.state.state_path.read_text(encoding="utf-8"))
     assert "marker_visibility" in state
     assert state["marker_visibility"] == {"body_18": {}, "face_70": {}}
+
+
+# --- WP-I1-029 follow-up: auto-uncheck undetected on import ----------------
+
+
+def test_import_auto_unchecks_undetected_body_keypoints(
+    app: App, aeri_master: Path
+) -> None:
+    """Aeri master is a bust portrait — MediaPipe Pose does not detect
+    knees / ankles. After import, those body_18 indices should be
+    explicitly False in marker_visibility, AND detected_markers should
+    record the per-index detection truth."""
+    r = app.handle_command(
+        {
+            "command": "import_portrait",
+            "path": str(aeri_master),
+            "avatar_slug": "aeri",
+        }
+    )
+    assert r.status == "ok", r.payload
+
+    mv_body = app.state.marker_visibility["body_18"]
+    det_body = app.state.detected_markers["body_18"]
+
+    # detected_markers must enumerate every body_18 index.
+    assert len(det_body) == 18
+    # At least one undetected (lower-body keypoints) on a bust portrait.
+    undetected = [k for k, v in det_body.items() if not v]
+    assert undetected, "expected at least one undetected body_18 index on aeri master"
+    # Every undetected index must be auto-unchecked in marker_visibility.
+    for idx in undetected:
+        assert mv_body.get(idx) is False, (
+            f"body_18[{idx}] is undetected but not auto-unchecked"
+        )
+    # Detected keypoints (e.g., shoulders, neck) must NOT be auto-unchecked.
+    detected_idxs = [k for k, v in det_body.items() if v]
+    for idx in detected_idxs:
+        assert mv_body.get(idx) is not False, (
+            f"body_18[{idx}] is detected but auto-unchecked"
+        )
+
+
+def test_import_preserves_existing_operator_overrides(
+    app: App, aeri_master: Path
+) -> None:
+    """Operator-set overrides take priority over the auto-uncheck logic."""
+    # Pre-set: explicitly set a typically-detected keypoint to False.
+    app.handle_command(
+        {
+            "command": "set_marker_visibility",
+            "schema": "body_18",
+            "index": 2,  # right shoulder
+            "visible": False,
+        }
+    )
+    app.handle_command(
+        {
+            "command": "import_portrait",
+            "path": str(aeri_master),
+            "avatar_slug": "aeri",
+        }
+    )
+    # The operator's explicit False on body_18[2] survives.
+    assert app.state.marker_visibility["body_18"]["2"] is False
+
+
+def test_state_has_detected_markers_block(app: App) -> None:
+    """detected_markers is a top-level state field with default empty dicts."""
+    app.handle_command({"command": "dump_state"})
+    state = json.loads(app.state.state_path.read_text(encoding="utf-8"))
+    assert "detected_markers" in state
+    assert state["detected_markers"] == {"body_18": {}, "face_70": {}}
+
+
+def test_render_skips_origin_keypoint_even_if_visibility_forced(
+    app: App, aeri_master: Path, tmp_path: Path
+) -> None:
+    """Defensive render: forcing visible=True on a body_18 keypoint that
+    MediaPipe never detected (coord at origin) must NOT produce a stray
+    dot in the rendered preview at (0, 0)."""
+    import cv2
+    import numpy as np
+
+    app.handle_command(
+        {
+            "command": "import_portrait",
+            "path": str(aeri_master),
+            "avatar_slug": "aeri",
+        }
+    )
+    # Find an undetected body_18 index (knee/ankle on bust portrait).
+    det = app.state.detected_markers["body_18"]
+    undetected_idx = next(int(k) for k, v in det.items() if not v)
+    # Force it to visible=True via per-marker override.
+    app.handle_command(
+        {
+            "command": "set_marker_visibility",
+            "schema": "body_18",
+            "index": undetected_idx,
+            "visible": True,
+        }
+    )
+    # Snapshot the openpose viewport with no canvas border (so the only
+    # near-origin pixels would be a stray dot).
+    app.settings.update(canvas_border_color="")
+    out_path = tmp_path / "no_stray.png"
+    r = app.handle_command(
+        {
+            "command": "snapshot",
+            "target": "openpose_viewport",
+            "out_path": str(out_path),
+        }
+    )
+    assert r.status == "ok"
+    img = cv2.imread(str(out_path))
+    # Top-left 20x20 corner should be all-black (no stray keypoint dot).
+    corner = img[0:20, 0:20]
+    assert (corner == [0, 0, 0]).all(), (
+        "expected no stray keypoint dot at origin (defensive render failed)"
+    )

@@ -100,6 +100,9 @@ class AppState:
     marker_visibility: dict[str, dict[str, bool]] = field(
         default_factory=lambda: {"body_18": {}, "face_70": {}}
     )
+    detected_markers: dict[str, dict[str, bool]] = field(
+        default_factory=lambda: {"body_18": {}, "face_70": {}}
+    )
     frame: dict[str, Any] = field(
         default_factory=lambda: {
             "scale": 1.0,
@@ -131,6 +134,9 @@ class AppState:
             "body_part_visibility": dict(self.body_part_visibility),
             "marker_visibility": {
                 k: dict(v) for k, v in self.marker_visibility.items()
+            },
+            "detected_markers": {
+                k: dict(v) for k, v in self.detected_markers.items()
             },
             "frame": dict(self.frame),
         }

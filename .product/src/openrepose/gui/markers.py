@@ -113,10 +113,19 @@ class MarkersPane(QWidget):
     # --- public update path ----------------------------------------------
 
     def refresh(self) -> None:
-        """Sync checkbox state from app.state.marker_visibility."""
+        """Sync checkbox state from app.state.marker_visibility.
+
+        WP-I1-029 fix: also annotate undetected markers (per state.
+        detected_markers) with a "(no detection)" suffix and a dim text
+        color so the operator knows that ticking that checkbox will not
+        produce a real keypoint until the marker is placed manually.
+        """
         mv = self._app.state.marker_visibility
+        det = self._app.state.detected_markers
         body_overrides = mv.get("body_18", {})
         face_overrides = mv.get("face_70", {})
+        body_detected = det.get("body_18", {})
+        face_detected = det.get("face_70", {})
         self._suppress_signals = True
         try:
             for i in range(OPENPOSE_BODY_COUNT):
@@ -129,6 +138,12 @@ class MarkersPane(QWidget):
                 )
                 if item.checkState() != state:
                     item.setCheckState(state)
+                # detected_markers may be empty before any rig load; default
+                # to "detected" so we don't annotate every row prematurely.
+                ok = body_detected.get(str(i), True)
+                self._apply_detection_annotation(
+                    item, body_index=i, detected=ok
+                )
             for i in range(OPENPOSE_FACE_COUNT):
                 item = self._face_list.item(i)
                 desired = face_overrides.get(str(i), True)
@@ -139,8 +154,36 @@ class MarkersPane(QWidget):
                 )
                 if item.checkState() != state:
                     item.setCheckState(state)
+                ok = face_detected.get(str(i), True)
+                self._apply_detection_annotation(
+                    item, body_index=None, detected=ok
+                )
         finally:
             self._suppress_signals = False
+
+    def _apply_detection_annotation(
+        self, item: QListWidgetItem, *, body_index: int | None, detected: bool
+    ) -> None:
+        """Append/strip a "(no detection)" suffix on the row + dim color when
+        the keypoint was not detected at the last rig fit."""
+        from PySide6.QtGui import QBrush, QColor
+
+        text = item.text()
+        suffix = "  — no detection"
+        has_suffix = text.endswith(suffix)
+        if detected:
+            if has_suffix:
+                item.setText(text[: -len(suffix)])
+            # Restore body limb color if applicable; face rows stay default.
+            if body_index is not None:
+                b, g, r = BODY_18_COLOR_BY_INDEX[body_index]
+                item.setForeground(QBrush(QColor(r, g, b)))
+        else:
+            if not has_suffix:
+                item.setText(text + suffix)
+            # Dim the text — operator can still tick it but the row is
+            # visibly de-emphasized.
+            item.setForeground(QBrush(QColor(120, 120, 120)))
 
     # --- builders --------------------------------------------------------
 

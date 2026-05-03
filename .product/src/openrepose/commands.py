@@ -188,6 +188,20 @@ def _h_import_portrait(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, A
         calibration=cal,
         loaded_from=cal_loaded_from,
     )
+    # WP-I1-029 fix: auto-uncheck undetected markers in the Markers tab
+    # so the operator's checkbox state matches reality. Existing operator
+    # overrides take priority — we only fill in entries that the operator
+    # has not explicitly set. detected_markers is populated unconditionally
+    # so the GUI can show "no detection" indicators next to undetected rows.
+    auto_uncheck, detected = _compute_marker_detection(rig)
+    new_mv = _copy_marker_visibility(d.state.marker_visibility)
+    for schema, defaults in auto_uncheck.items():
+        existing = new_mv.setdefault(schema, {})
+        for idx_key, visible in defaults.items():
+            existing.setdefault(idx_key, visible)
+    with d.state._lock:
+        d.state.marker_visibility = new_mv
+        d.state.detected_markers = detected
 
     # Compute openpose-mapped counts for the state snapshot.
     face_70 = rig.openpose_face_70()
@@ -799,6 +813,67 @@ def _copy_marker_visibility(mv: dict) -> dict:
     """Defensive copy: state holds the canonical dict; serializers/renderers
     get their own copy so accidental mutation does not leak across calls."""
     return {schema: dict(overrides) for schema, overrides in mv.items()}
+
+
+def _compute_marker_detection(rig: Rig) -> tuple[dict, dict]:
+    """Inspect the rig and decide which body_18 / face_70 markers MediaPipe
+    actually detected. Returns (auto_uncheck, detected) where:
+
+    - auto_uncheck: marker_visibility-shaped dict with explicit False for
+      undetected indices (operator overrides take priority over these).
+    - detected: full marker_detection map {schema: {idx: bool}} that the
+      GUI Markers tab consumes to show "no detection" indicators.
+
+    Body_18 detection: per-keypoint MediaPipe Pose visibility >= 0.3
+    (matching the existing rig.py threshold). The synthesized neck
+    (BODY_NECK = 1) is detected if both shoulders are detected.
+
+    Face_70 detection: MediaPipe FaceMesh either returns all 478 points or
+    none at all, so face_70 is all-detected when rig.face_mesh has rows
+    and all-undetected otherwise.
+    """
+    from .openpose_schema import (
+        BODY_L_SHOULDER,
+        BODY_NECK,
+        BODY_R_SHOULDER,
+        MP_POSE_TO_BODY18,
+        OPENPOSE_BODY_COUNT,
+        OPENPOSE_FACE_COUNT,
+    )
+
+    auto_uncheck: dict[str, dict[str, bool]] = {"body_18": {}, "face_70": {}}
+    detected: dict[str, dict[str, bool]] = {"body_18": {}, "face_70": {}}
+
+    body_conf = rig.body_conf
+    threshold = 0.3
+    for op_idx in range(OPENPOSE_BODY_COUNT):
+        if op_idx == BODY_NECK:
+            l_mp = MP_POSE_TO_BODY18[BODY_L_SHOULDER]
+            r_mp = MP_POSE_TO_BODY18[BODY_R_SHOULDER]
+            ok = (
+                0 <= l_mp < body_conf.shape[0]
+                and 0 <= r_mp < body_conf.shape[0]
+                and body_conf[l_mp] >= threshold
+                and body_conf[r_mp] >= threshold
+            )
+        else:
+            mp_idx = MP_POSE_TO_BODY18[op_idx]
+            ok = (
+                mp_idx >= 0
+                and 0 <= mp_idx < body_conf.shape[0]
+                and body_conf[mp_idx] >= threshold
+            )
+        detected["body_18"][str(op_idx)] = bool(ok)
+        if not ok:
+            auto_uncheck["body_18"][str(op_idx)] = False
+
+    face_present = rig.face_mesh.shape[0] > 0
+    for op_idx in range(OPENPOSE_FACE_COUNT):
+        detected["face_70"][str(op_idx)] = bool(face_present)
+        if not face_present:
+            auto_uncheck["face_70"][str(op_idx)] = False
+
+    return auto_uncheck, detected
 
 
 def _h_set_marker_visibility(

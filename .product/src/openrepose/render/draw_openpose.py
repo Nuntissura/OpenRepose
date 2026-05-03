@@ -168,6 +168,14 @@ def render_openpose(
         body18_visible, face70_visible, marker_visibility
     )
 
+    # WP-I1-029 defensive: even if a per-marker override forces visible=True
+    # on a keypoint that MediaPipe never detected (coord at the origin),
+    # do not draw a stray dot at (0, 0). The Markers tab's "no detection"
+    # indicator + the auto-uncheck-on-import logic in commands.py keep
+    # this case rare; this is the last-line safety net.
+    body18_at_origin = (np.abs(body18) < 1.0).all(axis=1)
+    body18_visible = body18_visible & ~body18_at_origin
+
     # Frame reframing (WP-I1-023): scale + offset coords; line widths and
     # dot sizes are canvas-pixel constants and stay invariant.
     head_anchor_xy = (
@@ -184,6 +192,11 @@ def render_openpose(
         head_anchor_xy,
         (canvas_width, canvas_height),
     )
+
+    # Same defensive check on face_70 — if FaceMesh wasn't detected the
+    # coords are zeros; do not draw stray face dots at origin.
+    face70_at_origin = (np.abs(face70_xy) < 1.0).all(axis=1)
+    face70_visible = face70_visible & ~face70_at_origin
 
     for (a, b), color in zip(LIMB_PAIRS, LIMB_COLORS_BGR, strict=True):
         if not body18_visible[a] or not body18_visible[b]:
