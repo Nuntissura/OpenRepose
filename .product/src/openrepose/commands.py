@@ -287,6 +287,8 @@ def _h_export_single(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any
         frame=dict(d.state.frame),
     )
     out_json.write_text(payload + "\n", encoding="utf-8")
+    # Note: PNG output alongside JSON is WP-I1-030's job; this WP only adds
+    # the canvas-border kwarg plumbing on the snapshot + viewport path.
 
     d.state.add_export(type_="single", out_dir=str(out_dir), files=[str(out_json)])
     d.state.write()
@@ -391,6 +393,9 @@ def _h_snapshot(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     manifest_path = d.outputs_root / ".runtime" / "snapshots.jsonl"
     portrait_path = d.state.portrait
     calibration = d._rig.calibration if d._rig is not None else None
+    border_color = (
+        d.settings.canvas_border_color if d.settings is not None else None
+    )
     out = do_snapshot(
         target,
         rotated=rotated,
@@ -403,6 +408,7 @@ def _h_snapshot(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
         body_part_visibility=dict(d.state.body_part_visibility),
         marker_visibility=_copy_marker_visibility(d.state.marker_visibility),
         frame=dict(d.state.frame),
+        canvas_border_color=border_color,
     )
     d.log.ok("viewport.snapshot", target=target, out=str(out))
     return {"target": target, "out_path": str(out)}

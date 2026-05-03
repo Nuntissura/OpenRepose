@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -25,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..openpose_schema import OPENPOSE_BODY_COUNT, OPENPOSE_FACE_COUNT
+from ..render.draw_openpose import BODY_18_COLOR_BY_INDEX
 
 if TYPE_CHECKING:
     from ..app import App
@@ -149,6 +151,12 @@ class MarkersPane(QWidget):
             item = QListWidgetItem(f"{i:>2d}  {name}")
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
             item.setCheckState(Qt.CheckState.Checked)
+            # WP-I1-032: color the row text to match the OpenPose limb color
+            # so the operator can match a Markers row to the colored skeleton
+            # in the live preview. BODY_18_COLOR_BY_INDEX is BGR; QColor takes
+            # RGB.
+            b, g, r = BODY_18_COLOR_BY_INDEX[i]
+            item.setForeground(QBrush(QColor(r, g, b)))
             lw.addItem(item)
         return lw
 

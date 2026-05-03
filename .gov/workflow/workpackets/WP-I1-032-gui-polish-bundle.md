@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: READY
+- **Status**: REVIEW
 - **Iteration**: I1
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -175,7 +175,25 @@ Decision: 4 fixes bundled. Settings extension reuses WP-I1-027's primitive (no s
 
 ## Change Ledger
 
-- (filled at REVIEW)
+- **What Became Real**:
+  - `settings.py`: `Settings` gains `last_portrait_dir: str = ""` and `canvas_border_color: str = "#ffffff"` fields. `to_dict()` / `update()` / `load()` updated. Backward compatible (defaults applied when loading older settings.json).
+  - `gui/calibration.py`: `_ClickablePortrait` overrides `sizeHint()` and `minimumSizeHint()` to return constant small sizes (DOCK_WIDTH_CAP=320 x 360); size policy switched from Expanding/Expanding to Ignored/Expanding so the dock width is no longer dictated by the master portrait pixmap. Fixes the calibration-tab-grow regression.
+  - `gui/main_window.py`: `_on_open` reads `settings.last_portrait_dir` for the QFileDialog initial directory; on success persists the chosen folder via `settings.update(last_portrait_dir=...)`. Errors swallowed with a WARN so a failed-persist doesn't break the import flow.
+  - `render/draw_openpose.py`: `BODY_18_COLOR_BY_INDEX` derived from existing `LIMB_PAIRS` + `LIMB_COLORS_BGR` (color of first limb that includes each keypoint). `_hex_to_bgr()` helper. `render_openpose()` accepts `canvas_border_color` kwarg; draws a 2px rectangle around the canvas perimeter when color is valid; skips when None / empty / invalid.
+  - `snapshot.py`: signature gains `canvas_border_color` kwarg threaded into `render_openpose` for `openpose_viewport` + `full_window`.
+  - `commands.py`: `_h_snapshot` reads `app.settings.canvas_border_color` and passes to `do_snapshot`. (Note: PNG output alongside JSON in `_h_export_*` is WP-I1-030's job; this WP only adds the kwarg plumbing.)
+  - `gui/viewport_openpose.py`: `update_rig` accepts `canvas_border_color` kwarg; threaded into `render_openpose` so live preview reflects the operator's chosen border color.
+  - `gui/main_window.py`: state-poll loop passes `app.settings.canvas_border_color` to `_viewport_openpose.update_rig`.
+  - `gui/options.py`: new "Canvas border" row with a color swatch + "Pick color..." button that opens `QColorDialog` (operator-triggered only). New `canvas_border_color_changed(str)` signal; `load_canvas_border_color()` syncs from Settings on construction.
+  - `gui/main_window.py`: connects `canvas_border_color_changed` to `app.settings.update(canvas_border_color=...)`.
+  - `gui/markers.py`: each body_18 list item's text foreground is set to `QBrush(QColor(*BODY_18_COLOR_BY_INDEX[i]))` (BGR→RGB conversion). Operator can match a row to the colored skeleton in the live preview.
+  - Tests: extended `test_settings_store.py` (3 new tests for last_portrait_dir + canvas_border_color round-trip / defaults / update). New `test_canvas_border.py` (12 tests: hex→BGR helper edge cases, BODY_18_COLOR_BY_INDEX shape + values, end-to-end render with white border / empty color / invalid color). Extended `test_calibration_gui.py` with `test_calibration_portrait_sizehint_constrained` (regression guard for the dock-grow bug) and `test_markers_body_18_rows_colored_per_openpose_limb`. Fixed `test_viewport_openpose_live_state.py` spy signature to accept the new `canvas_border_color` kwarg.
+- **What Remains Simulated / Deferred**:
+  - PNG output alongside JSON on export — WP-I1-030 (still DRAFT).
+  - Configurable border thickness — out of scope; default 2px.
+  - Multi-color border (gradient / dashed) — out of scope.
+  - Last-used folder for OTHER pickers (only File→Open portrait remembered; export folder Browse uses Settings.export_folder which is its own field).
+- **Next Blocking Real Seam**: WP-I1-030 (export PNG + pretty JSON + slug sanitization) is the next sensible polish; WP-I1-031 (Tools tab reorganization) is also unblocked.
 
 ## Checkpoint Commit Plan
 
@@ -203,8 +221,12 @@ Decision: 4 fixes bundled. Settings extension reuses WP-I1-027's primitive (no s
 
 ## Evidence
 
-- (filled at close)
+- **Test Suite Execution**: `target/test-artifacts/WP-I1-032/pytest_results.xml` — 295 passed, 0 failed (full suite; +14 new from this WP).
+- **Local Audit Run**: `pwsh scripts/audit-repo.ps1` exits 0.
+- **Build Artifacts**: edits to `settings.py`, `render/draw_openpose.py`, `snapshot.py`, `commands.py`, `gui/calibration.py`, `gui/main_window.py`, `gui/options.py`, `gui/viewport_openpose.py`, `gui/markers.py`; new `test_canvas_border.py`; extensions to `test_settings_store.py`, `test_calibration_gui.py`, `test_viewport_openpose_live_state.py`.
+- **Operator Sign-off**: PENDING — operator to verify by switching to Calibration tab (no dock grow), opening File→Open at the last folder, dragging the frame scale slider with a visible white border on the canvas, inspecting the Markers tab body_18 rows colored per OpenPose limb.
 
 ## Progress Log
 
 - 2026-05-03: WP drafted directly at READY. Operator authorized "polish bundle first" so kickoff commit follows immediately. Operator surfaced 4 issues during GUI inspection earlier this session; this WP bundles them.
+- 2026-05-03: Implementation complete. All four fixes landed: calibration sizing fix (sizeHint override + Ignored size policy), last_portrait_dir + canvas_border_color settings persistence, render_openpose canvas border + dispatch + viewport plumbing, Markers tab body_18 colored text. 295/295 passing. Audit clean. Status IN-PROGRESS -> REVIEW.

@@ -182,6 +182,16 @@ class MainWindow(QMainWindow):
             lambda: self._app.handle_command({"command": "reset_frame"})
         )
 
+        # WP-I1-032: canvas border color persists via Settings.
+        self._options.load_canvas_border_color(
+            self._app.settings.canvas_border_color
+        )
+        self._options.canvas_border_color_changed.connect(
+            lambda hex_str: self._app.settings.update(
+                canvas_border_color=str(hex_str)
+            )
+        )
+
         # Inspector buttons -> dispatcher commands.
         self._inspector.btn_render_single.clicked.connect(self._on_export_single)
         self._inspector.btn_snapshot_3d.clicked.connect(
@@ -222,10 +232,12 @@ class MainWindow(QMainWindow):
     # --- operator actions (each dispatches into App, never bypasses) ----
 
     def _on_open(self) -> None:
+        # WP-I1-032: open at the last-used portrait folder if remembered.
+        initial_dir = self._app.settings.last_portrait_dir or ""
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Open portrait",
-            "",
+            initial_dir,
             "Image files (*.png *.jpg *.jpeg)",
         )
         if not path:
@@ -234,6 +246,15 @@ class MainWindow(QMainWindow):
         self._app.handle_command(
             {"command": "import_portrait", "path": path, "avatar_slug": slug}
         )
+        # Persist the chosen folder for next launch.
+        try:
+            self._app.settings.update(last_portrait_dir=str(Path(path).parent))
+        except Exception:  # noqa: BLE001
+            # Don't let a settings-persist hiccup break the import flow.
+            self._app.log.warn(
+                "settings.last_portrait_dir.persist_failed",
+                reason="settings.update raised",
+            )
 
     def _on_reload(self) -> None:
         portrait = self._app.state.portrait
@@ -323,5 +344,6 @@ class MainWindow(QMainWindow):
                     for k, v in self._app.state.marker_visibility.items()
                 },
                 frame=dict(self._app.state.frame),
+                canvas_border_color=self._app.settings.canvas_border_color,
             )
             self._inspector.set_canvas(rig.portrait_size[0], rig.portrait_size[1])

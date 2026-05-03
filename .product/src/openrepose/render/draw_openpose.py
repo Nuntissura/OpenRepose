@@ -82,6 +82,49 @@ FACE_DOT_COLOR_BGR = (255, 255, 255)
 LIMB_LINE_THICKNESS = 4
 KEYPOINT_RADIUS = 4
 FACE_DOT_RADIUS = 1
+CANVAS_BORDER_THICKNESS = 2
+
+
+def _build_body_18_color_by_index() -> tuple[tuple[int, int, int], ...]:
+    """Per-keypoint BGR color derived from LIMB_PAIRS + LIMB_COLORS_BGR.
+
+    For each body_18 index, returns the color of the first limb that
+    includes it (limb-pair iteration order matches OpenPose convention).
+    Used by the GUI Markers tab (WP-I1-032) so body_18 row text matches
+    the limb color in the rendered preview.
+    """
+    from ..openpose_schema import OPENPOSE_BODY_COUNT
+
+    colors: list[tuple[int, int, int] | None] = [None] * OPENPOSE_BODY_COUNT
+    for limb_idx, (a, b) in enumerate(LIMB_PAIRS):
+        color = LIMB_COLORS_BGR[limb_idx]
+        if colors[a] is None:
+            colors[a] = color
+        if colors[b] is None:
+            colors[b] = color
+    fallback = (255, 255, 255)
+    return tuple(c if c is not None else fallback for c in colors)
+
+
+BODY_18_COLOR_BY_INDEX: tuple[tuple[int, int, int], ...] = (
+    _build_body_18_color_by_index()
+)
+
+
+def _hex_to_bgr(color: str | None) -> tuple[int, int, int] | None:
+    """`#rrggbb` (or `rrggbb`) -> (b, g, r). Returns None on empty / invalid."""
+    if not color:
+        return None
+    s = color.strip().lstrip("#")
+    if len(s) != 6:
+        return None
+    try:
+        r = int(s[0:2], 16)
+        g = int(s[2:4], 16)
+        b = int(s[4:6], 16)
+    except ValueError:
+        return None
+    return (b, g, r)
 
 
 def render_openpose(
@@ -92,6 +135,7 @@ def render_openpose(
     body_part_visibility: dict[str, bool] | None = None,
     marker_visibility: dict | None = None,
     frame: dict | None = None,
+    canvas_border_color: str | None = None,
 ) -> np.ndarray:
     """Render the rotated rig as an OpenPose-style wireframe.
 
@@ -161,6 +205,20 @@ def render_openpose(
             continue
         p = (int(round(face70_xy[i, 0])), int(round(face70_xy[i, 1])))
         cv2.circle(canvas, p, FACE_DOT_RADIUS, FACE_DOT_COLOR_BGR, -1, lineType=cv2.LINE_AA)
+
+    # Canvas border outline (WP-I1-032). Skipped if color is None / invalid;
+    # the operator chooses the color via Options. Drawn last so it sits on
+    # top of any keypoints clipped at the canvas edge.
+    border_bgr = _hex_to_bgr(canvas_border_color)
+    if border_bgr is not None:
+        cv2.rectangle(
+            canvas,
+            (0, 0),
+            (int(canvas_width) - 1, int(canvas_height) - 1),
+            border_bgr,
+            CANVAS_BORDER_THICKNESS,
+            cv2.LINE_AA,
+        )
 
     return canvas
 

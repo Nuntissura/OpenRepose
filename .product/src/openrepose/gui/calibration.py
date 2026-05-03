@@ -50,18 +50,39 @@ ALL_MARKER_NAMES_ORDERED: tuple[str, ...] = REQUIRED_MARKERS + OPTIONAL_MARKERS
 
 
 class _ClickablePortrait(QLabel):
-    """QLabel that emits image-space (x, y) on left-click."""
+    """QLabel that emits image-space (x, y) on left-click.
+
+    WP-I1-032 fix: previous version inherited QLabel's pixmap-driven sizeHint,
+    which made the dock width follow the master portrait's natural pixel
+    width when the Calibration tab activated. We now report a small constant
+    sizeHint so the dock width is governed by the rest of the layout, not
+    the portrait pixmap.
+    """
 
     clicked = Signal(int, int)
+
+    DOCK_WIDTH_CAP = 320  # GUI dock width policy; pixmap is scaled to fit.
 
     def __init__(self) -> None:
         super().__init__()
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setMinimumHeight(360)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
+        self.setMinimumWidth(120)
+        self.setMaximumWidth(16777215)
         self._image_size: tuple[int, int] = (0, 0)
         self._displayed_size: tuple[int, int] = (0, 0)
         self._displayed_offset: tuple[int, int] = (0, 0)
+
+    def sizeHint(self):  # noqa: D401, ANN201
+        from PySide6.QtCore import QSize
+
+        return QSize(self.DOCK_WIDTH_CAP, 360)
+
+    def minimumSizeHint(self):  # noqa: ANN201
+        from PySide6.QtCore import QSize
+
+        return QSize(120, 240)
 
     def set_overlay(
         self,

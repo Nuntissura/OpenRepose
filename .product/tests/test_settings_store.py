@@ -47,6 +47,8 @@ def test_save_load_roundtrip(tmp_path: Path):
         export_folder=str(tmp_path / "exports"),
         single_export_subdir_template="{avatar}/single",
         batch_export_subdir_template="{avatar}/{run_tag}",
+        last_portrait_dir=str(tmp_path / "portraits"),
+        canvas_border_color="#ff8800",
         settings_path=tmp_path / "settings.json",
     )
     s.save()
@@ -55,7 +57,30 @@ def test_save_load_roundtrip(tmp_path: Path):
     assert loaded.export_folder == str(tmp_path / "exports")
     assert loaded.single_export_subdir_template == "{avatar}/single"
     assert loaded.batch_export_subdir_template == "{avatar}/{run_tag}"
+    assert loaded.last_portrait_dir == str(tmp_path / "portraits")
+    assert loaded.canvas_border_color == "#ff8800"
     assert loaded.schema_version == SETTINGS_SCHEMA_VERSION
+
+
+def test_settings_defaults_for_new_fields(tmp_path: Path):
+    """A fresh Settings (no persisted file) defaults last_portrait_dir to ""
+    and canvas_border_color to "#ffffff"."""
+    s = load_or_default(tmp_path / "settings.json")
+    assert s.last_portrait_dir == ""
+    assert s.canvas_border_color == "#ffffff"
+
+
+def test_update_persists_new_fields(tmp_path: Path):
+    s = Settings(settings_path=tmp_path / "settings.json")
+    s.save()
+    s.update(
+        last_portrait_dir=str(tmp_path / "portraits"),
+        canvas_border_color="#00ff00",
+    )
+    reloaded = load(tmp_path / "settings.json")
+    assert reloaded is not None
+    assert reloaded.last_portrait_dir == str(tmp_path / "portraits")
+    assert reloaded.canvas_border_color == "#00ff00"
 
 
 def test_save_atomic_via_temp_then_rename(tmp_path: Path):

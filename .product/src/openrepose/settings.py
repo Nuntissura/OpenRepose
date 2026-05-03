@@ -37,6 +37,8 @@ class Settings:
     export_folder: str = ""
     single_export_subdir_template: str = "{avatar}"
     batch_export_subdir_template: str = "{avatar}/{run_tag}"
+    last_portrait_dir: str = ""
+    canvas_border_color: str = "#ffffff"
     settings_path: Path | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -45,6 +47,8 @@ class Settings:
             "export_folder": str(self.export_folder),
             "single_export_subdir_template": str(self.single_export_subdir_template),
             "batch_export_subdir_template": str(self.batch_export_subdir_template),
+            "last_portrait_dir": str(self.last_portrait_dir),
+            "canvas_border_color": str(self.canvas_border_color),
             "updated_at": _now_iso(),
         }
 
@@ -85,6 +89,8 @@ class Settings:
             "export_folder",
             "single_export_subdir_template",
             "batch_export_subdir_template",
+            "last_portrait_dir",
+            "canvas_border_color",
         }
         for k, v in kwargs.items():
             if k not in valid:
@@ -162,6 +168,8 @@ def load(path: Path | str) -> Settings | None:
         batch_export_subdir_template=str(
             data.get("batch_export_subdir_template", "{avatar}/{run_tag}")
         ),
+        last_portrait_dir=str(data.get("last_portrait_dir", "")),
+        canvas_border_color=str(data.get("canvas_border_color", "#ffffff")),
         settings_path=p,
     )
 

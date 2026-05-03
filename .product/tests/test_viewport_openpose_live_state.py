@@ -52,12 +52,14 @@ def _spy_render(monkeypatch):
         body_part_visibility=None,
         marker_visibility=None,
         frame=None,
+        canvas_border_color=None,
     ):
         captured.append(
             {
                 "body_part_visibility": body_part_visibility,
                 "marker_visibility": marker_visibility,
                 "frame": frame,
+                "canvas_border_color": canvas_border_color,
             }
         )
         return real(
@@ -67,6 +69,7 @@ def _spy_render(monkeypatch):
             body_part_visibility=body_part_visibility,
             marker_visibility=marker_visibility,
             frame=frame,
+            canvas_border_color=canvas_border_color,
         )
 
     monkeypatch.setattr(vo_mod, "render_openpose", spy)

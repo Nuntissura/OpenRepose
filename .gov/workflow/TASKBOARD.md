@@ -22,8 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I1-032 | GUI Polish Bundle | assistant | READY | IMPLEMENTATION | M | 2026-05-03 |
-| WP-I1-033 | Feature 3 Spec (Library + ComfyUI + PostgreSQL) | assistant | READY | DOCUMENTATION | L | 2026-05-03 |
+| WP-I1-033 | Feature 3 Spec (Library + ComfyUI + PostgreSQL) | assistant | IN-PROGRESS | DOCUMENTATION | L | 2026-05-03 |
 
 ## Pending Review
 

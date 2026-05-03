@@ -64,6 +64,7 @@ def snapshot(
     body_part_visibility: dict[str, bool] | None = None,
     marker_visibility: dict | None = None,
     frame: dict | None = None,
+    canvas_border_color: str | None = None,
 ) -> Path:
     """Render `target` to a PNG. Returns the absolute output path.
 
@@ -86,6 +87,7 @@ def snapshot(
     image = _render(
         target, rotated, portrait_path, calibration,
         body_part_visibility, marker_visibility, frame,
+        canvas_border_color,
     )
     out.parent.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(out), image)
@@ -112,6 +114,7 @@ def _render(
     body_part_visibility: dict[str, bool] | None,
     marker_visibility: dict | None,
     frame: dict | None,
+    canvas_border_color: str | None,
 ) -> "np.ndarray":
     if target == "3d_viewport":
         if rotated is None:
@@ -125,6 +128,7 @@ def _render(
             body_part_visibility=body_part_visibility,
             marker_visibility=marker_visibility,
             frame=frame,
+            canvas_border_color=canvas_border_color,
         )
     if target == "calibration_overlay":
         return render_calibration_overlay(portrait_path, calibration)
@@ -137,6 +141,7 @@ def _render(
                 body_part_visibility=body_part_visibility,
                 marker_visibility=marker_visibility,
                 frame=frame,
+                canvas_border_color=canvas_border_color,
             )
         for name in ("toolbar", "inspector", "status_bar", "log"):
             panes[name] = render_widget_or_placeholder(name)

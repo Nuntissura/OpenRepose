@@ -40,6 +40,29 @@ def test_calibration_tab_present(app_and_window) -> None:
     assert "Calibration" in titles
 
 
+def test_markers_body_18_rows_colored_per_openpose_limb(
+    app_and_window,
+) -> None:
+    """WP-I1-032: each body_18 row in the Markers tab must be colored to
+    match the OpenPose limb color of that keypoint."""
+    from PySide6.QtGui import QColor
+
+    from openrepose.openpose_schema import OPENPOSE_BODY_COUNT
+    from openrepose.render.draw_openpose import BODY_18_COLOR_BY_INDEX
+
+    _app, window = app_and_window
+    body_list = window._markers._body_list
+    assert body_list.count() == OPENPOSE_BODY_COUNT
+    for i in range(OPENPOSE_BODY_COUNT):
+        item = body_list.item(i)
+        b, g, r = BODY_18_COLOR_BY_INDEX[i]
+        expected = QColor(r, g, b)
+        actual = item.foreground().color()
+        assert actual.red() == expected.red()
+        assert actual.green() == expected.green()
+        assert actual.blue() == expected.blue()
+
+
 def test_calibration_pane_has_all_marker_names_in_dropdown(
     app_and_window,
 ) -> None:
@@ -182,6 +205,20 @@ def test_calibration_pane_clicks_do_not_call_focus_apis(
         "showNormal": 0,
         "showMaximized": 0,
     }, counts
+
+
+def test_calibration_portrait_sizehint_constrained(app_and_window) -> None:
+    """WP-I1-032 regression: switching to Calibration must NOT make the
+    portrait QLabel report a sizeHint wider than the dock cap, otherwise
+    activating the tab would grow the dock width to the master portrait's
+    natural pixel width."""
+    _app, window = app_and_window
+    portrait = window._calibration._portrait
+    hint = portrait.sizeHint()
+    assert hint.width() <= portrait.DOCK_WIDTH_CAP, (
+        f"portrait sizeHint width {hint.width()} exceeds dock cap "
+        f"{portrait.DOCK_WIDTH_CAP}"
+    )
 
 
 def test_calibration_pane_no_modal_dialog_apis_in_source() -> None:

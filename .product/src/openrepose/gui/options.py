@@ -31,6 +31,7 @@ class OptionsPane(QWidget):
     frame_offset_changed = Signal(int, int)
     frame_anchor_changed = Signal(str)
     frame_reset_clicked = Signal()
+    canvas_border_color_changed = Signal(str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -93,6 +94,25 @@ class OptionsPane(QWidget):
         # OpenPose schema (read-only label).
         schema_label = QLabel("body_18 + face_70 + hands_off (locked for v0.1)")
         form.addRow(QLabel("OpenPose schema"), schema_label)
+
+        # Canvas border (WP-I1-032). Visible outline drawn on the OpenPose
+        # canvas perimeter so the operator can see the export bounds even
+        # when frame_scale shrinks the figure away from the edges.
+        from PySide6.QtGui import QColor
+
+        self._canvas_border_color = "#ffffff"
+        self.btn_canvas_border = QPushButton("Pick color...")
+        self.canvas_border_swatch = QLabel("    ")
+        self.canvas_border_swatch.setFixedWidth(40)
+        self.canvas_border_swatch.setStyleSheet(
+            f"background-color: {self._canvas_border_color}; border: 1px solid #444;"
+        )
+        self.btn_canvas_border.clicked.connect(self._on_pick_canvas_border)
+        border_row = QHBoxLayout()
+        border_row.addWidget(self.canvas_border_swatch)
+        border_row.addWidget(self.btn_canvas_border)
+        border_row.addStretch(1)
+        form.addRow(QLabel("Canvas border"), self._wrap_row(border_row))
 
         # Frame reframing (WP-I1-023). Scale slider + offset spinboxes +
         # anchor mode dropdown + reset button. Each control fires its own
@@ -244,6 +264,28 @@ class OptionsPane(QWidget):
             cb.blockSignals(True)
             cb.setChecked(bool(bpv.get(group, True)))
             cb.blockSignals(False)
+
+    def load_canvas_border_color(self, color: str) -> None:
+        """Sync the swatch + cached color from a Settings instance."""
+        self._canvas_border_color = color or "#ffffff"
+        self.canvas_border_swatch.setStyleSheet(
+            f"background-color: {self._canvas_border_color}; border: 1px solid #444;"
+        )
+
+    def _on_pick_canvas_border(self) -> None:
+        """Open QColorDialog (operator-triggered only). Emits new color."""
+        from PySide6.QtGui import QColor
+        from PySide6.QtWidgets import QColorDialog
+
+        initial = QColor(self._canvas_border_color or "#ffffff")
+        chosen = QColorDialog.getColor(
+            initial, self, "Pick canvas border color"
+        )
+        if not chosen.isValid():
+            return
+        hex_str = chosen.name()  # "#rrggbb"
+        self.load_canvas_border_color(hex_str)
+        self.canvas_border_color_changed.emit(hex_str)
 
     def load_frame(self, frame: dict) -> None:  # noqa: ANN001
         """Sync frame controls from state without firing signals."""

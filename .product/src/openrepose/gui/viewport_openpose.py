@@ -28,20 +28,22 @@ class ViewportOpenPose(QLabel):
         body_part_visibility: dict[str, bool] | None = None,
         marker_visibility: dict | None = None,
         frame: dict | None = None,
+        canvas_border_color: str | None = None,
     ) -> None:
         """Render the rotated rig at the live state.
 
         WP-I1-017/029/023 fix: previously this dropped body_part_visibility,
-        marker_visibility, and frame, so toggles + frame slider only affected
-        export/snapshot but not the live preview. Now the polling loop in
-        MainWindow passes them through and the viewport reflects state in
-        real time.
+        marker_visibility, and frame. WP-I1-032 added canvas_border_color so
+        the operator-configured border outline appears in the live preview
+        too (helpful when frame_scale < 1.0 makes the figure smaller than
+        the canvas).
         """
         bgr = render_openpose(
             rotated,
             body_part_visibility=body_part_visibility,
             marker_visibility=marker_visibility,
             frame=frame,
+            canvas_border_color=canvas_border_color,
         )
         self._show_bgr(bgr)
 
