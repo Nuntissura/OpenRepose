@@ -241,9 +241,24 @@ def render_openpose_to_png(
     out_path: Path | str,
     canvas_width: int | None = None,
     canvas_height: int | None = None,
+    *,
+    body_part_visibility: dict[str, bool] | None = None,
+    marker_visibility: dict | None = None,
+    frame: dict | None = None,
+    canvas_border_color: str | None = None,
 ) -> Path:
-    """Render and save to PNG. Returns the absolute output path."""
-    img = render_openpose(rotated, canvas_width=canvas_width, canvas_height=canvas_height)
+    """Render and save to PNG. Returns the absolute output path. Threads
+    through the same visibility / frame / border kwargs as the live
+    viewport renderer (WP-I1-030 export-PNG-alongside-JSON support)."""
+    img = render_openpose(
+        rotated,
+        canvas_width=canvas_width,
+        canvas_height=canvas_height,
+        body_part_visibility=body_part_visibility,
+        marker_visibility=marker_visibility,
+        frame=frame,
+        canvas_border_color=canvas_border_color,
+    )
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(out), img)

@@ -242,7 +242,12 @@ class MainWindow(QMainWindow):
         )
         if not path:
             return
-        slug = self._options.avatar_slug_edit.text().strip() or Path(path).stem
+        from ..util.slugify import sanitize_avatar_slug
+
+        slug = (
+            self._options.avatar_slug_edit.text().strip()
+            or sanitize_avatar_slug(Path(path).stem)
+        )
         self._app.handle_command(
             {"command": "import_portrait", "path": path, "avatar_slug": slug}
         )

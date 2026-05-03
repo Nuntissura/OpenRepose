@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: IN-PROGRESS
+- **Status**: REVIEW
 - **Iteration**: I1
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -184,3 +184,4 @@ Decision: PNG output always-on (operator's clear expectation; cost is one cv2.im
 ## Progress Log
 
 - 2026-05-03: WP drafted at status DRAFT. Awaits operator promotion to READY.
+- 2026-05-03: Operator authorized fast-track. Implementation: util/slugify.py + sanitize_avatar_slug() + main_window._on_open uses it; serialize_to_string(indent=2) in export handlers; render_openpose_to_png() extended with body_part_visibility / marker_visibility / frame / canvas_border_color kwargs and called by both _h_export_single and _h_export_batch alongside JSON write. payload.files now lists both .json and .png paths. test_command_handlers + test_http_channel updated for the new file counts (export_single 1 -> 2 files; export_batch 14 -> 27 files). 20 new tests + 3 existing tests updated. Full suite 319/319. Status IN-PROGRESS -> REVIEW.

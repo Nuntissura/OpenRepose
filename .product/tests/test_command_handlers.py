@@ -40,8 +40,9 @@ def test_import_portrait_then_set_yaw_then_export_single(app: App, aeri_master: 
     r = app.handle_command({"command": "export_single"})
     assert r.status == "ok", r.payload
     files = r.payload["files"]
-    assert len(files) == 1
-    written = Path(files[0])
+    # WP-I1-030: export_single now writes both .json and .png.
+    assert len(files) == 2
+    written = next(Path(f) for f in files if f.endswith(".json"))
     assert written.exists()
     obj = json.loads(written.read_text(encoding="utf-8"))
     assert len(obj[0]["people"][0]["pose_keypoints_2d"]) == 18 * 3
@@ -54,8 +55,8 @@ def test_export_batch_default_13_angles(app: App, aeri_master: Path) -> None:
     r = app.handle_command({"command": "export_batch"})
     assert r.status == "ok"
     files = r.payload["files"]
-    # 13 angle JSONs + 1 manifest.json
-    assert len(files) == 14
+    # WP-I1-030: 13 JSONs + 13 PNGs + 1 manifest.
+    assert len(files) == 27
     assert any("manifest.json" in f for f in files)
 
 

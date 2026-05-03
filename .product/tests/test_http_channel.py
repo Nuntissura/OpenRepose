@@ -110,5 +110,7 @@ def test_post_full_pipeline(http_app: App, aeri_master: Path) -> None:
     code, payload = _post(http_app, {"command": "export_single"})
     assert code == 200
     files = payload["payload"]["files"]
-    assert len(files) == 1
-    assert Path(files[0]).exists()
+    # WP-I1-030: export_single returns both .json and .png paths.
+    assert len(files) == 2
+    for f in files:
+        assert Path(f).exists()

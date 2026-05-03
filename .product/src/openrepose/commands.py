@@ -293,26 +293,52 @@ def _h_export_single(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any
     out_json = out_dir / f"{avatar_slug}_yaw_{safe_bin}.json"
 
     rotated = rotate_yaw(d._rig, bin_obj)
+    bpv = dict(d.state.body_part_visibility)
+    mv = _copy_marker_visibility(d.state.marker_visibility)
+    fr = dict(d.state.frame)
+    border_color = (
+        d.settings.canvas_border_color if d.settings is not None else None
+    )
+    # WP-I1-030: pretty-printed JSON (indent=2) so the operator can
+    # eyeball-verify keypoint zeroing.
     payload = serialize_to_string(
         rotated,
-        indent=None,
-        body_part_visibility=dict(d.state.body_part_visibility),
-        marker_visibility=_copy_marker_visibility(d.state.marker_visibility),
-        frame=dict(d.state.frame),
+        indent=2,
+        body_part_visibility=bpv,
+        marker_visibility=mv,
+        frame=fr,
     )
     out_json.write_text(payload + "\n", encoding="utf-8")
-    # Note: PNG output alongside JSON is WP-I1-030's job; this WP only adds
-    # the canvas-border kwarg plumbing on the snapshot + viewport path.
+    # WP-I1-030: PNG output alongside JSON via the existing render pipeline.
+    from .render.draw_openpose import render_openpose_to_png
+    out_png = out_json.with_suffix(".png")
+    render_openpose_to_png(
+        rotated,
+        out_png,
+        body_part_visibility=bpv,
+        marker_visibility=mv,
+        frame=fr,
+        canvas_border_color=border_color,
+    )
 
-    d.state.add_export(type_="single", out_dir=str(out_dir), files=[str(out_json)])
+    d.state.add_export(
+        type_="single",
+        out_dir=str(out_dir),
+        files=[str(out_json), str(out_png)],
+    )
     d.state.write()
     d.log.ok(
         "export.single",
         avatar_slug=avatar_slug,
         bin=bin_obj.label,
-        out=str(out_json),
+        json=str(out_json),
+        png=str(out_png),
     )
-    return {"out_dir": str(out_dir), "files": [str(out_json)], "bin": bin_obj.label}
+    return {
+        "out_dir": str(out_dir),
+        "files": [str(out_json), str(out_png)],
+        "bin": bin_obj.label,
+    }
 
 
 def _h_export_batch(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
@@ -346,20 +372,35 @@ def _h_export_batch(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]
     bpv = dict(d.state.body_part_visibility)
     mv = _copy_marker_visibility(d.state.marker_visibility)
     fr = dict(d.state.frame)
+    border_color = (
+        d.settings.canvas_border_color if d.settings is not None else None
+    )
+    from .render.draw_openpose import render_openpose_to_png
     for label in angles:
         bin_obj = parse_bin(label)  # validates each label
         safe_bin = bin_obj.label.replace(" ", "-")
         out_json = out_dir / f"{avatar_slug}_yaw_{safe_bin}.json"
+        out_png = out_json.with_suffix(".png")
         rotated = rotate_yaw(d._rig, bin_obj)
+        # WP-I1-030: pretty-printed JSON + PNG alongside.
         payload = serialize_to_string(
             rotated,
-            indent=None,
+            indent=2,
             body_part_visibility=bpv,
             marker_visibility=mv,
             frame=fr,
         )
         out_json.write_text(payload + "\n", encoding="utf-8")
+        render_openpose_to_png(
+            rotated,
+            out_png,
+            body_part_visibility=bpv,
+            marker_visibility=mv,
+            frame=fr,
+            canvas_border_color=border_color,
+        )
         written.append(str(out_json))
+        written.append(str(out_png))
 
     manifest_path = out_dir / "manifest.json"
     manifest_path.write_text(
