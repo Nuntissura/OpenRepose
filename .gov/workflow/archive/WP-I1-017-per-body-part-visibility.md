@@ -4,7 +4,7 @@
 
 - **Owner**: TBD (operator)
 - **Date Opened**: 2026-05-02
-- **Status**: REVIEW
+- **Status**: DONE
 - **Iteration**: I1
 - **Workflow Version**: 1.0
 - **Packet Class**: IMPLEMENTATION
@@ -174,7 +174,7 @@ Operator-controlled visibility toggles for body part groups. Lets the operator s
 - **Test Suite Execution**: `target/test-artifacts/WP-I1-017/pytest_results.xml` — 225 passed, 0 failed (full suite; +18 new from this WP).
 - **Local Audit Run**: `pwsh scripts/audit-repo.ps1` exits 0.
 - **Build Artifacts**: modifications to `openpose_schema.py`, `openpose_serialize.py`, `render/draw_openpose.py`, `snapshot.py`, `state.py`, `commands.py`, `gui/options.py`, `gui/main_window.py`; new `test_body_part_visibility.py`.
-- **Operator Sign-off**: PENDING — operator to verify by toggling body-part checkboxes in Options and inspecting an exported JSON.
+- **Operator Sign-off**: 2026-05-03: APPROVED (bundled with the working fast-track batch; operator did not call out any issue with WP-I1-017).
 
 ## Progress Log
 

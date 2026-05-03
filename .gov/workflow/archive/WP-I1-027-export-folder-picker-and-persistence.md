@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: REVIEW
+- **Status**: DONE
 - **Iteration**: I1
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -208,7 +208,7 @@ Decision: settings stored as `<AppConfigLocation>/openrepose/settings.json` (pla
 - **Test Suite Execution**: `target/test-artifacts/WP-I1-027/pytest_results.xml` — 207 passed, 0 failed (full project suite; +29 new from this WP).
 - **Local Audit Run**: `pwsh scripts/audit-repo.ps1` exits 0.
 - **Build Artifacts**: new `settings.py`, new `test_settings_store.py` + `test_export_folder.py`; modified `state.py`, `app.py`, `commands.py`, `gui/options.py`, `gui/main_window.py`.
-- **Operator Sign-off**: PENDING — operator to verify by launching the GUI, opening Options, clicking Browse..., picking a folder, exporting (single + batch), restarting, and confirming the saved folder is reused.
+- **Operator Sign-off**: 2026-05-03: APPROVED ("WP-I1-027 working").
 
 ## Progress Log
 

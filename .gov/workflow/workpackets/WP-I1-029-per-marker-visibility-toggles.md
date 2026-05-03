@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: REVIEW
+- **Status**: IN-PROGRESS
 - **Iteration**: I1
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -209,3 +209,4 @@ Decision: per-keypoint suppression layered as a `marker_visibility` block in `st
 - 2026-05-03: Operator approved fast-track batch (slot 3). Status DRAFT -> IN-PROGRESS. Implementation complete: schema helper + serializer + renderer + state + 3 commands + Markers tab + 22 tests. 247/247 passing. Audit clean. Status -> REVIEW.
 - 2026-05-03: Operator GUI inspection — same regression as WP-I1-017 (viewport_openpose doesn't honor live state). Status REVIEW -> IN-PROGRESS for in-place fix bundled with WP-I1-017 + WP-I1-023.
 - 2026-05-03: Regression fix landed (shared with WP-I1-017 + WP-I1-023). `viewport_openpose.update_rig()` now passes `marker_visibility`; new regression test guards the polling path. Full suite 281/281. Status IN-PROGRESS -> REVIEW.
+- 2026-05-03: Operator inspection — second bug surfaced. When a portrait is imported and MediaPipe does not detect a body_18 / face_70 keypoint (visibility 0 / position at origin), the Markers tab still shows the row CHECKED. Operator expected undetected markers to start UNCHECKED. Worse: forcing an undetected marker to visible=True via per-marker override causes the renderer to draw a stray dot at (0,0) — the "haywire" symptom. Status REVIEW -> IN-PROGRESS for the in-place fix: (a) on import_portrait, populate state.marker_visibility with explicit False for any body_18 / face_70 keypoint at (0,0,0); (b) defensive render — if a marker is forced visible but its position is at the origin, treat it as not visible (no stray dot).

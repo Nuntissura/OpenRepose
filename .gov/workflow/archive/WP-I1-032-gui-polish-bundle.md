@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: REVIEW
+- **Status**: DONE
 - **Iteration**: I1
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -224,7 +224,7 @@ Decision: 4 fixes bundled. Settings extension reuses WP-I1-027's primitive (no s
 - **Test Suite Execution**: `target/test-artifacts/WP-I1-032/pytest_results.xml` — 295 passed, 0 failed (full suite; +14 new from this WP).
 - **Local Audit Run**: `pwsh scripts/audit-repo.ps1` exits 0.
 - **Build Artifacts**: edits to `settings.py`, `render/draw_openpose.py`, `snapshot.py`, `commands.py`, `gui/calibration.py`, `gui/main_window.py`, `gui/options.py`, `gui/viewport_openpose.py`, `gui/markers.py`; new `test_canvas_border.py`; extensions to `test_settings_store.py`, `test_calibration_gui.py`, `test_viewport_openpose_live_state.py`.
-- **Operator Sign-off**: PENDING — operator to verify by switching to Calibration tab (no dock grow), opening File→Open at the last folder, dragging the frame scale slider with a visible white border on the canvas, inspecting the Markers tab body_18 rows colored per OpenPose limb.
+- **Operator Sign-off**: 2026-05-03: APPROVED ("WP-I1-032 working"). Follow-up enhancement requested separately: frame offsets should be sliders + spinboxes + per-section reset (folded into WP-I1-031 Tools tab scope, which extracts ReframerPane).
 
 ## Progress Log
 

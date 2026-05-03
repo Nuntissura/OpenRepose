@@ -1,20 +1,20 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (fast-track batch in progress: WP-I1-027/017/029/023 sequential)
+Last Updated: 2026-05-03 (5 WPs signed off; WP-I1-029 rejected for follow-up bug; I2 implementation iteration drafting in progress)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 0
+- WPs in flight (READY + IN-PROGRESS): 1 (WP-I1-029 rejected for follow-up bug fix)
 - WPs pending review (REVIEW): 0
 - WPs blocked (BLOCKED): 0
-- WPs draft (DRAFT, eligible to promote): 21 (19 original + WP-I1-028 + WP-I1-030 + WP-I1-031; WP-I1-027 + WP-I1-029 + WP-I1-023 in REVIEW; WP-I1-032 + WP-I1-033 in flight)
+- WPs draft (DRAFT, eligible to promote): 21 + 8 new I2 WPs (drafting in this session)
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
 - WPs done (I0): 4 (WP-I0-001/002/003/004) — I0 CLOSED 2026-05-02
-- WPs done (I1): 3 (WP-I1-025, WP-I1-026, WP-I1-001)
+- WPs done (I1): 8 (WP-I1-025, WP-I1-026, WP-I1-001, WP-I1-027, WP-I1-017, WP-I1-023, WP-I1-032, WP-I1-033) — 5 newly signed off 2026-05-03
 - WPs reserved-not-drafted: 3 (WP-I1-019/020/021 joint-manipulation chain — operator deferred to later)
-- Iterations open: I1 (in progress)
+- Iterations open: I1 (winding down — small fixes + WP-I1-028/030/031 remaining), I2 drafted (Feature 3 implementation)
 
 ## Active
 
@@ -22,8 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-
-_(none — fast-track Phase B+C complete; WP-I1-032 + WP-I1-033 both in REVIEW)_
+| WP-I1-029 | Per-Marker Visibility Toggles | assistant | IN-PROGRESS | IMPLEMENTATION | M | 2026-05-03 (rejected from REVIEW for follow-up bug fix) |
 
 ## Pending Review
 
@@ -31,10 +30,8 @@ Implementation claims to be done; awaiting operator verification.
 
 | WP-ID | Title | Owner | Class | Updated | Verify |
 |-------|-------|-------|-------|---------|--------|
-| WP-I1-027 | Export Folder Picker And Persistence | assistant | IMPLEMENTATION | 2026-05-03 | launch the GUI, open Options, click Browse..., pick a folder, export (single + batch), restart, confirm exports land in the same folder. Sign-off bundled with the rest of the fast-track batch. |
-| WP-I1-017 | Per-Body-Part Visibility Toggles | assistant | IMPLEMENTATION | 2026-05-03 | toggle a body-part checkbox in Options (e.g. legs) and watch the live OpenPose viewport — the suppressed group should disappear immediately (not just on next export). Then export and inspect JSON. Sign-off bundled. |
-| WP-I1-029 | Per-Marker Visibility Toggles | assistant | IMPLEMENTATION | 2026-05-03 | open the Markers tab; uncheck a single noisy keypoint; live preview should drop that keypoint immediately. Then export and inspect JSON. Sign-off bundled. |
-| WP-I1-023 | Frame Reframing (Robust Rerender) | assistant | IMPLEMENTATION | 2026-05-03 | drag the Frame scale slider in Options; live preview should resize the figure immediately while line widths stay constant. Then export and confirm downstream. Sign-off bundled. |
+
+_(none — 5 WPs signed off 2026-05-03; WP-I1-029 rejected to IN-PROGRESS)_
 
 ## Blocked
 
@@ -78,7 +75,15 @@ I0 closed 2026-05-02. The I0-blocking constraint on every I1 WP below is satisfi
 | WP-I1-028 | Calibration tab UX (zoom + mesh inspector + always-on markers + drag/delete) | IMPLEMENTATION | L | High (WP-I1-001 UX polish; scope expanded 2026-05-03 to fold drag/delete + always-on detected overlay surfaced during operator inspection) | n/a (operator-side polish; new delete_markers command is headless) | WP-I1-001 (DONE) |
 | WP-I1-029 | Per-marker visibility toggles | IMPLEMENTATION | M | Mid (companion to WP-I1-017 group-level toggles; per-marker overrides) | yes | I0 (DONE); composes with WP-I1-017 |
 | WP-I1-030 | Export polish (PNG + pretty JSON + slug sanitization) | IMPLEMENTATION | S | High (operator surfaced 3 issues during GUI inspection) | n/a (export side; LLM gets PNG path in payload) | WP-I1-027 (REVIEW) |
-| WP-I1-031 | Tools tab reorganization (Tools tab w/ Calibration / Markers / Reframer sub-tabs) | IMPLEMENTATION | S | Mid (UI grouping per operator request) | n/a (pure GUI reshuffle) | WP-I1-027/029/023 (REVIEW) |
+| WP-I1-031 | Tools tab reorganization (Tools tab w/ Calibration / Markers / Reframer sub-tabs) | IMPLEMENTATION | S | Mid (UI grouping per operator request); also folds in operator's frame-offsets-as-sliders + per-section reset request | n/a (pure GUI reshuffle) | WP-I1-027/029/023 (DONE) |
+| WP-I2-001 | PostgreSQL setup + migration runner | INFRASTRUCTURE | M | High (foundation for all I2 WPs) | n/a | WP-I1-033 (DONE) |
+| WP-I2-002 | Settings extension: library config (schema_version 1 → 2) | INFRASTRUCTURE | S | High | n/a | WP-I1-027 (DONE), WP-I1-033 (DONE) |
+| WP-I2-003 | Library entries CRUD + tags | IMPLEMENTATION | M | High | n/a (data layer) | WP-I2-001, WP-I2-002 |
+| WP-I2-004 | Library LLM commands + search | IMPLEMENTATION | M | High | yes (7 new commands + state.library block) | WP-I2-001, WP-I2-002, WP-I2-003 |
+| WP-I2-005 | ComfyUI bridge custom node | IMPLEMENTATION | M | High (operator's stated round-trip use case) | n/a (lives outside OpenRepose; calls register_library_entry) | WP-I2-004 |
+| WP-I2-006 | Library tab GUI | IMPLEMENTATION | L | High (operator-facing surface) | n/a (operator-only; LLM uses commands) | WP-I2-004 |
+| WP-I2-007 | Library snapshot targets | IMPLEMENTATION | S | Mid | yes (2 new snapshot targets) | WP-I2-004, WP-I2-006 |
+| WP-I2-008 | Library multi-operator tests + operator setup doc | VERIFICATION | M | High (closes I2 + Promotion Guard) | n/a | ALL prior I2 WPs |
 
 ## Recently Done
 
@@ -86,6 +91,11 @@ Last 10 workpackets to reach DONE. Files moved from `workpackets/` to `archive/`
 
 | WP-ID | Title | Owner | Class | Closed |
 |-------|-------|-------|-------|--------|
+| WP-I1-033 | Feature 3 Spec (Library + ComfyUI + PostgreSQL) | assistant | DOCUMENTATION | 2026-05-03 |
+| WP-I1-032 | GUI Polish Bundle | assistant | IMPLEMENTATION | 2026-05-03 |
+| WP-I1-023 | Frame Reframing (Robust Rerender) | assistant | IMPLEMENTATION | 2026-05-03 |
+| WP-I1-017 | Per-Body-Part Visibility Toggles | assistant | IMPLEMENTATION | 2026-05-03 |
+| WP-I1-027 | Export Folder Picker And Persistence | assistant | IMPLEMENTATION | 2026-05-03 |
 | WP-I0-001 | Rig And Rotation Core | assistant | IMPLEMENTATION | 2026-05-02 |
 | WP-I0-002 | LLM Control Surface | assistant | IMPLEMENTATION | 2026-05-02 |
 | WP-I0-003 | Snapshot Subsystem | assistant | IMPLEMENTATION | 2026-05-02 |
@@ -121,8 +131,21 @@ _(none)_
 - WP-I1-001 (Per-Avatar Calibration Overlay, IMPLEMENTATION, L) shipped DONE 2026-05-03. 178/178 tests passing; junit XML at `target/test-artifacts/WP-I1-001/`. GUI verification surfaced two Calibration-tab usability gaps (no zoom; no frontal mesh sanity preview) — operator approved sign-off on the basis that the spec contract + headless surface + tests are met; deferred items recorded in WP-I1-001 Fallback Register and queued as WP-I1-028.
 - 2026-05-03: three follow-up WPs drafted at status DRAFT: **WP-I1-027 Export folder picker + persistence** (highest priority — fixes the bug where the OptionsPane `settings_changed` signal is unwired so pasted paths silently ignored); **WP-I1-028 Calibration zoom + frontal mesh inspector** (UX polish for WP-I1-001); **WP-I1-029 Per-marker visibility toggles** (sibling of WP-I1-017's per-body-part).
 - 2026-05-03 fast-track: WP-I1-027 + WP-I1-017 + WP-I1-029 + WP-I1-023 shipped to REVIEW; viewport regression caught by operator GUI inspection and fixed in-place; suite 281/281 + 4 regression-guard tests on the polling path. Pytest now runs offscreen so windows don't flash on the operator's desktop.
-- 2026-05-03 Phase 2: drafted **WP-I1-030 Export polish** (PNG output + pretty-printed JSON + avatar slug sanitization); drafted **WP-I1-031 Tools tab reorganization** (Tools top-level with Calibration / Markers / Reframer sub-tabs); expanded **WP-I1-028** scope from M → L to fold in always-on MediaPipe-detected overlay + drag-to-move + right-click-delete + new `delete_markers` headless command.
-- 21 I1 WPs at DRAFT (19 original + WP-I1-028/030/031 follow-ups). 4 in REVIEW awaiting operator sign-off (WP-I1-027/017/029/023).
+- 2026-05-03 Phase 2: drafted **WP-I1-030 Export polish** (PNG output + pretty-printed JSON + avatar slug sanitization); drafted **WP-I1-031 Tools tab reorganization** (Tools top-level with Calibration / Markers / Reframer sub-tabs; also picks up operator's frame-offset-sliders + per-section reset request); expanded **WP-I1-028** scope from M → L to fold in always-on MediaPipe-detected overlay + drag-to-move + right-click-delete + new `delete_markers` headless command.
+- 2026-05-03 fast-track Phase B+C: shipped **WP-I1-032 GUI polish bundle** (calibration sizing + last-portrait-folder + canvas border + colored marker rows; 295/295 passing) + **WP-I1-033 Feature 3 spec** (PostgreSQL day one, psycopg 3, hybrid trigram+tsvector search, 7 LLM commands, ComfyUI bridge). Operator signed off WP-I1-027 + WP-I1-017 + WP-I1-023 + WP-I1-032 + WP-I1-033 on 2026-05-03. WP-I1-029 rejected REVIEW → IN-PROGRESS for follow-up bug: undetected MediaPipe markers should auto-uncheck on import; defensive render to avoid stray-dot-at-origin "haywire".
+
+### I2 — Feature 3: OpenPose Library + ComfyUI Coupling (drafted 2026-05-03)
+
+- 8 implementation WPs drafted at status DRAFT against the WP-I1-033 spec:
+  - **WP-I2-001 INFRASTRUCTURE**: PostgreSQL setup + migration runner + docker-compose.
+  - **WP-I2-002 INFRASTRUCTURE**: Settings schema_version 1 → 2 (library_db_url, library_root, operator_slug).
+  - **WP-I2-003 IMPLEMENTATION**: library_entries + tags + entry_tags CRUD + smart-tag extractor + filesystem storage.
+  - **WP-I2-004 IMPLEMENTATION**: 7 LLM commands + library_search() wrapper + prompts/story_beats/notes editing.
+  - **WP-I2-005 IMPLEMENTATION**: ComfyUI bridge custom node (`.product/comfyui-bridge/`).
+  - **WP-I2-006 IMPLEMENTATION**: Library tab GUI (left list + right detail + 6 sub-panes).
+  - **WP-I2-007 IMPLEMENTATION**: 2 new snapshot targets.
+  - **WP-I2-008 VERIFICATION**: multi-operator tests + pg_dump round-trip + operator setup doc; closes I2.
+- Recommended sequencing once operator promotes: WP-I2-002 → WP-I2-001 → WP-I2-003 → WP-I2-004 → (WP-I2-005 + WP-I2-006 in parallel) → WP-I2-007 → WP-I2-008.
 
 ## Iteration Pipeline
 
