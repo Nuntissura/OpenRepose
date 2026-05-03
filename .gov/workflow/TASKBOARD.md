@@ -1,21 +1,22 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (WP-I3-006 REVIEW — AMood data-model commands + dedupe service: 39/39 new tests pass + 68/68 regression-prone tests + audit clean; WP-I3-003/004/005 signed off DONE)
+Last Updated: 2026-05-03 (Sweep A sign-off: 12 WPs DONE in one operator-granted batch — WP-I1-034/035, full I2 sequence WP-I2-001..008, WP-I3-002 stance primitives, WP-I3-006 AMood data-model commands. I2 iteration CLOSED. Sweep B handoff doc at `.gov/doc/handoff-2026-05-03-i3-implementation-phase-2.md`.)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
 - WPs in flight (READY + IN-PROGRESS): 0
-- WPs pending review (REVIEW): 12 (WP-I1-034, WP-I1-035, I2 sequence WP-I2-001..008, WP-I3-002 stance primitives, WP-I3-006 AMood data-model commands)
-- WPs done (I3): 4 (WP-I3-001 spec lock; WP-I3-003 PG schema migrations; WP-I3-004 intake/project/task command surface; WP-I3-005 default-staging ComfyUI bridge — all signed off 2026-05-03)
+- WPs pending review (REVIEW): 0
+- WPs done (I3): 5 (WP-I3-001 spec lock; WP-I3-002 stance primitives; WP-I3-003 PG schema migrations; WP-I3-004 intake/project/task command surface; WP-I3-005 default-staging ComfyUI bridge; WP-I3-006 AMood data-model commands)
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 19 (18 I1 backlog + WP-I3-011 future OpenRepose AMood GPT + Claude wrappers)
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
 - WPs done (I0): 4 (WP-I0-001/002/003/004) — I0 CLOSED 2026-05-02
-- WPs done (I1): 12 (WP-I1-025, WP-I1-026, WP-I1-001, WP-I1-027, WP-I1-017, WP-I1-023, WP-I1-032, WP-I1-033, WP-I1-029, WP-I1-030, WP-I1-031, WP-I1-028) — 4 newly signed off 2026-05-03 fast-track batch
+- WPs done (I1): 14 (12 prior + WP-I1-034/035 signed off 2026-05-03 Sweep A)
+- WPs done (I2): 8 (WP-I2-001..008 — Feature 3 OpenPose Library + ComfyUI bridge + PostgreSQL — I2 CLOSED 2026-05-03 Sweep A)
 - WPs reserved-not-drafted: 3 (WP-I1-019/020/021 joint-manipulation chain — operator deferred to later)
-- Iterations open: I1 (winding down — small fixes), I2 (REVIEW awaiting sign-off — Feature 3 implementation), I3 (spec lock DONE; implementation unblocked)
+- Iterations open: I1 (winding down — small fixes), I3 (Sweep A closed schema + dispatcher + AMood; Sweep B = WP-I3-007 + WP-I3-009; WP-I3-008 + WP-I3-010 close I3)
 
 ## Active
 
@@ -31,18 +32,7 @@ Implementation claims to be done; awaiting operator verification.
 
 | WP-ID | Title | Owner | Class | Updated | Verify |
 |-------|-------|-------|-------|---------|--------|
-| WP-I1-034 | Calibration overview mode + drag/delete + add-marker workflow | assistant | IMPLEMENTATION | 2026-05-03 | `delete_markers` command + Overview drag of detected/operator dots + right-click delete; focused GUI/command tests |
-| WP-I1-035 | In-app manual + manual-impact governance rule | assistant | IMPLEMENTATION | 2026-05-03 | Help tab manual browser + link navigation + audit manual-impact rule; focused manual/audit tests |
-| WP-I2-002 | Settings extension: library config (schema 1→2) | assistant | INFRASTRUCTURE | 2026-05-03 | dump_settings + Options pane Library section + v1→v2 migration |
-| WP-I2-001 | PostgreSQL setup + migration runner | assistant | INFRASTRUCTURE | 2026-05-03 | docker-compose + 001_library_initial.sql + LibraryPool/Migrator + state.library + integration tests via ephemeral PG |
-| WP-I2-003 | Library entries CRUD + tags + smart-tag extractor | assistant | IMPLEMENTATION | 2026-05-03 | openrepose.library package (entries/tags/smart_tags/storage); 31 new tests; manual extended |
-| WP-I2-004 | Library LLM commands + library_search | assistant | IMPLEMENTATION | 2026-05-03 | 7 dispatcher commands + prompts/story_beats/notes/search modules + state.library activity tracking; 16 end-to-end tests; manual LLM-commands table |
-| WP-I2-005 | ComfyUI bridge custom node | assistant | IMPLEMENTATION | 2026-05-03 | .product/comfyui-bridge/ self-contained custom node (stdlib-only on ComfyUI side); POST payload + metadata extraction tested + end-to-end ephemeral-PG round-trip |
-| WP-I2-006 | Library tab GUI | assistant | IMPLEMENTATION | 2026-05-03 | gui/library/ pane (toolbar + list + side-by-side detail + 6 sub-tabs); MainWindow registration; lock indicator; 8 pytest-qt smoke tests |
-| WP-I2-007 | Library snapshot targets | assistant | IMPLEMENTATION | 2026-05-03 | render/draw_library + snapshot.py wiring + state.library.last_entry/last_search_results; 9 tests (7 unit + 2 dispatcher round-trip) |
-| WP-I2-008 | Library multi-operator tests + setup doc | assistant | VERIFICATION | 2026-05-03 | 6 tests (multi-pool + lock collision + advisory lock race + interleaved writes + 100-entry soak + pg_dump round-trip); operator setup doc at .gov/doc/i2-library-setup.md; closes I2 |
-| WP-I3-002 | LLM stance acknowledgement primitives | assistant | IMPLEMENTATION | 2026-05-03 | `adult_production_boundary` in state.json, dump_state, command envelopes, HTTP responses, and inbox processed results; 24 focused tests |
-| WP-I3-006 | AMood data-model commands + dedupe service | assistant | IMPLEMENTATION | 2026-05-03 | 7 dispatcher commands (init_batch_package / library_create_card / library_create_variants / compatibility_check / accepted_set_audit / amood_export_tsv / amood_import_tsv) + library/amood/ subpackage (8 modules) + migration 005 (10 TSV-shaped views in AMood-locked column order, schema_version 4→5) + state.library.amood block + AMOOD-001 dedupe-warning surface + manual extension; 39 new tests (39/39 pass + 68/68 regression-prone tests pass + audit clean) |
+_(none)_
 
 ## Blocked
 
@@ -95,6 +85,18 @@ Last 10 workpackets to reach DONE. Files moved from `workpackets/` to `archive/`
 
 | WP-ID | Title | Owner | Class | Closed |
 |-------|-------|-------|-------|--------|
+| WP-I3-006 | AMood data-model commands + dedupe service | assistant | IMPLEMENTATION | 2026-05-03 |
+| WP-I3-002 | LLM stance acknowledgement primitives | assistant | IMPLEMENTATION | 2026-05-03 |
+| WP-I2-008 | Library multi-operator tests + setup doc | assistant | VERIFICATION | 2026-05-03 |
+| WP-I2-007 | Library snapshot targets | assistant | IMPLEMENTATION | 2026-05-03 |
+| WP-I2-006 | Library tab GUI | assistant | IMPLEMENTATION | 2026-05-03 |
+| WP-I2-005 | ComfyUI bridge custom node | assistant | IMPLEMENTATION | 2026-05-03 |
+| WP-I2-004 | Library LLM commands + library_search | assistant | IMPLEMENTATION | 2026-05-03 |
+| WP-I2-003 | Library entries CRUD + tags + smart-tag extractor | assistant | IMPLEMENTATION | 2026-05-03 |
+| WP-I2-002 | Settings extension: library config (schema 1→2) | assistant | INFRASTRUCTURE | 2026-05-03 |
+| WP-I2-001 | PostgreSQL setup + migration runner | assistant | INFRASTRUCTURE | 2026-05-03 |
+| WP-I1-035 | In-app manual + manual-impact governance rule | assistant | IMPLEMENTATION | 2026-05-03 |
+| WP-I1-034 | Calibration overview mode + drag/delete + add-marker workflow | assistant | IMPLEMENTATION | 2026-05-03 |
 | WP-I3-005 | Default-staging ComfyUI bridge | assistant | IMPLEMENTATION | 2026-05-03 |
 | WP-I3-004 | Intake + project + task command surface | assistant | IMPLEMENTATION | 2026-05-03 |
 | WP-I3-003 | I3 PostgreSQL schema migrations | assistant | INFRASTRUCTURE | 2026-05-03 |
@@ -176,6 +178,7 @@ _(none)_
 - 2026-05-03: **WP-I3-011 OpenRepose AMood GPT + Claude Skill Wrappers** drafted at DRAFT for the future state where the OpenRepose DB, dispatcher, AMood import, intake scoring, accepted-set audit, and requirements/target commands are fully functional. It is a two-track companion integration wrapper effort, not an AMood fork; both GPT/OpenAI and Claude/Codex wrappers must work before DONE.
 - 2026-05-03: **WP-I3-003 / WP-I3-004 / WP-I3-005 signed off DONE** by operator. **WP-I3-006 (AMood data-model commands + dedupe service, IMPLEMENTATION, L)** opened at IN-PROGRESS. Scope: 7 dispatcher commands (`init_batch_package`, `library_create_card`, `library_create_variants`, `compatibility_check`, `accepted_set_audit`, `amood_export_tsv`, `amood_import_tsv`), new `library/amood/` subpackage, new migration `005_i3_amood_tsv_views.sql` (10 TSV-shaped views in AMood-locked column order, schema_version 4 → 5), `state.library.amood` block, AMOOD-001 dedupe-warning surface, blueprint-template-driven package layout under `outputs/library/<project>/<batch>/`. Predecessors WP-I3-003/004/005 archived in the same kickoff commit.
 - 2026-05-03: **WP-I3-006 advanced IN-PROGRESS → REVIEW**. Implementation landed: migration 005 with 10 views (`library_amood_*_v`) in locked AMood column order; `library/amood/` subpackage with 8 modules; 7 dispatcher handlers wired into `commands.py` with `OpenReposeAmoodError` propagation; `state.library.amood` block + 3 mutators on AppState. AMOOD-001 surfaces with overlap_count + matched card slug; SAFE-001/002/003 + AMOOD-004 cited from `compatibility_check`. 39 new tests (12 commands + 6 dedupe + 21 TSV) all passing against ephemeral PG; 68/68 regression-prone tests still passing after schema_version 4 → 5 bump. Manual `amood-workflow.md` extended with Commands table, AMOOD-001 citation example, and dedicated anchor sections (`#anti-repetition`, `#abandonment-criteria`, `#fast-triage`, `#safety-boundary`). Audit clean. Two FALLBACK paths recorded in WP Fallback Register (variant change-rules subset; TSV import for 6 system-generated schemas). Awaiting operator sign-off.
+- 2026-05-03: **Sweep A sign-off batch — 12 WPs DONE in one operator-granted commit.** Closed: WP-I1-034 (calibration overview mode + drag/delete + add-marker), WP-I1-035 (in-app manual + manual-impact rule), the full I2 sequence WP-I2-001..008 (Feature 3 OpenPose Library + ComfyUI bridge + PostgreSQL — I2 iteration CLOSED), WP-I3-002 (stance acknowledgement primitives), WP-I3-006 (AMood data-model commands). 583/583 tests pass across the closed scope. I2 + the I3 Sweep A bundle (-002/-003/-004/-005/-006) are now archived. Sweep B (WP-I3-007 + WP-I3-009) is next; handoff doc at `.gov/doc/handoff-2026-05-03-i3-implementation-phase-2.md`.
 
 ## Iteration Pipeline
 
