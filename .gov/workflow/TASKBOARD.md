@@ -1,6 +1,6 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (WP-I3-004 REVIEW — intake/project/task command surface 530/530 + audit clean; WP-I3-011 drafted for future OpenRepose AMood GPT/skill wrapper; WP-I3-003 REVIEW; WP-I3-001 DONE; I2 + WP-I3-002 + WP-I1-034/035 + WP-I3-003 + WP-I3-004 at REVIEW)
+Last Updated: 2026-05-03 (WP-I3-004 REVIEW — intake/project/task command surface 530/530 + audit clean; WP-I3-011 revised to two-track OpenRepose AMood GPT + Claude skill wrappers; WP-I3-003 REVIEW; WP-I3-001 DONE; I2 + WP-I3-002 + WP-I1-034/035 + WP-I3-003 + WP-I3-004 at REVIEW)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
@@ -10,7 +10,7 @@ Live status of all OpenRepose workpackets. Update in the same session as any wor
 - WPs pending review (REVIEW): 13 (WP-I1-034, WP-I1-035, I2 sequence WP-I2-001..008, WP-I3-002 stance primitives, WP-I3-003 PG schema migrations, WP-I3-004 intake/project/task command surface)
 - WPs done (I3): 1 (WP-I3-001) — I3 spec lock signed off 2026-05-03; implementation iteration unblocked
 - WPs blocked (BLOCKED): 0
-- WPs draft (DRAFT, eligible to promote): 19 (18 I1 backlog + WP-I3-011 future OpenRepose AMood wrapper)
+- WPs draft (DRAFT, eligible to promote): 19 (18 I1 backlog + WP-I3-011 future OpenRepose AMood GPT + Claude wrappers)
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
 - WPs done (I0): 4 (WP-I0-001/002/003/004) — I0 CLOSED 2026-05-02
 - WPs done (I1): 12 (WP-I1-025, WP-I1-026, WP-I1-001, WP-I1-027, WP-I1-017, WP-I1-023, WP-I1-032, WP-I1-033, WP-I1-029, WP-I1-030, WP-I1-031, WP-I1-028) — 4 newly signed off 2026-05-03 fast-track batch
@@ -88,7 +88,7 @@ I0 closed 2026-05-02. The I0-blocking constraint on every I1 WP below is satisfi
 | WP-I1-022 | Read OpenPose JSON as alternate input | IMPLEMENTATION | M | Workflow expansion | yes | I0; composes with WP-I1-023 |
 | WP-I1-024 | Synchronized viewport zoom | IMPLEMENTATION | S | Polish | n/a (GUI sync only; headless covered by WP-I1-023) | WP-I0-004; WP-I1-015; WP-I1-023 |
 | WP-I1-036 | Multi-file workspace spec (DOCUMENTATION) | DOCUMENTATION | M | High (operator's stated need: tabs + per-file state + drag-drop import; large architectural change needs spec lock first) | n/a (spec only) | none |
-| WP-I3-011 | OpenRepose AMood GPT / Skill Wrapper | DOCUMENTATION | M | Future integration (after DB/dispatcher/AMood command path is fully functional) | n/a (skill wrapper only) | WP-I3-003; WP-I3-004; WP-I3-006; WP-I3-007; WP-I3-010 |
+| WP-I3-011 | OpenRepose AMood GPT + Claude Skill Wrappers | DOCUMENTATION | M | Future integration (after DB/dispatcher/AMood command path is fully functional) | n/a (skill wrappers only) | WP-I3-003; WP-I3-004; WP-I3-006; WP-I3-007; WP-I3-010 |
 
 ## Recently Done
 
@@ -171,7 +171,7 @@ _(none)_
   - `openrepose_requirements_v0_1.md` — Typed scoped requirements (8 kinds: hard_output / body / pose / face / crop / quality / clothing_story / structural / custom), inheritance, target tree (sets → cards → per-card target_promoted + AMood stability_target), counters, `fully_satisfied = count_satisfied AND quota_satisfied`, EXP120 worked example.
 - 4 manual topics: `amood-workflow.md` (REPLACE existing simpler tag-page), `intake-and-triage.md` (NEW), `targets-and-progress.md` (NEW), `requirements-and-targets.md` (NEW with EXP120 worked example).
 - **WP-I3-002** is at REVIEW and exposes the Adult Production Boundary through LLM-facing primitives. **WP-I3-003** is READY as the first I3 implementation workpacket: PostgreSQL schema migrations. The implementation sequence is documented in `.gov/doc/handoff-2026-05-03-i3-implementation.md`.
-- 2026-05-03: **WP-I3-011 OpenRepose AMood GPT / Skill Wrapper** drafted at DRAFT for the future state where the OpenRepose DB, dispatcher, AMood import, intake scoring, accepted-set audit, and requirements/target commands are fully functional. It is a companion integration wrapper, not an AMood fork.
+- 2026-05-03: **WP-I3-011 OpenRepose AMood GPT + Claude Skill Wrappers** drafted at DRAFT for the future state where the OpenRepose DB, dispatcher, AMood import, intake scoring, accepted-set audit, and requirements/target commands are fully functional. It is a two-track companion integration wrapper effort, not an AMood fork; both GPT/OpenAI and Claude/Codex wrappers must work before DONE.
 
 ## Iteration Pipeline
 
