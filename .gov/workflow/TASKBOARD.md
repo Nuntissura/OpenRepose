@@ -1,20 +1,20 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (overnight I2 sequence COMPLETE: all 8 I2 WPs at REVIEW, awaiting operator sign-off — 489/489 tests, audit clean)
+Last Updated: 2026-05-03 (I3 kickoff: WP-I3-001 IN-PROGRESS — AMood + Intake + Requirements spec lock; I2 sequence still at REVIEW)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 0 (overnight I2 sequence complete; WP-I2-001..008 all at REVIEW)
-- WPs pending review (REVIEW): 0
+- WPs in flight (READY + IN-PROGRESS): 1 (WP-I3-001 — DOCUMENTATION spec lock for I3 iteration)
+- WPs pending review (REVIEW): 8 (overnight I2 sequence; WP-I2-001..008)
 - WPs blocked (BLOCKED): 0
-- WPs draft (DRAFT, eligible to promote): 21 + 8 new I2 WPs (drafting in this session)
+- WPs draft (DRAFT, eligible to promote): 21 (I1 backlog)
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
 - WPs done (I0): 4 (WP-I0-001/002/003/004) — I0 CLOSED 2026-05-02
 - WPs done (I1): 12 (WP-I1-025, WP-I1-026, WP-I1-001, WP-I1-027, WP-I1-017, WP-I1-023, WP-I1-032, WP-I1-033, WP-I1-029, WP-I1-030, WP-I1-031, WP-I1-028) — 4 newly signed off 2026-05-03 fast-track batch
 - WPs reserved-not-drafted: 3 (WP-I1-019/020/021 joint-manipulation chain — operator deferred to later)
-- Iterations open: I1 (winding down — small fixes + WP-I1-028/030/031 remaining), I2 drafted (Feature 3 implementation)
+- Iterations open: I1 (winding down — small fixes), I2 (REVIEW awaiting sign-off — Feature 3 implementation), I3 (kickoff — AMood + Intake + Requirements)
 
 ## Active
 
@@ -22,7 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-_(none — entire overnight I2 sequence complete; all 8 WPs at REVIEW)_
+| WP-I3-001 | AMood + Intake + Requirements Spec Lock | assistant | IN-PROGRESS | DOCUMENTATION | L | 2026-05-03 |
 
 ## Pending Review
 
@@ -162,6 +162,18 @@ _(none)_
   - **WP-I2-007 IMPLEMENTATION**: 2 new snapshot targets.
   - **WP-I2-008 VERIFICATION**: multi-operator tests + pg_dump round-trip + operator setup doc; closes I2.
 - Recommended sequencing once operator promotes: WP-I2-002 → WP-I2-001 → WP-I2-003 → WP-I2-004 → (WP-I2-005 + WP-I2-006 in parallel) → WP-I2-007 → WP-I2-008.
+
+### I3 — AMood + Intake + Requirements (kickoff 2026-05-03)
+
+- Operator dropped the canonical AMood blueprint at `.gov/doc/references/ADULT_MOODBOARD_SYSTEM_2026-05-03.md` (2070 lines; provider/model agnostic; tier table + package layout + 8+ TSV schemas + scoring rubric + abandonment criteria + accepted-set diversity audit + anti-repetition ledger).
+- Multi-turn design conversation produced a coherent set of contracts that extend OpenRepose to operationalize the blueprint while preventing main-library contamination from raw LLM outputs.
+- **WP-I3-001 (DOCUMENTATION, L)** authoring 4 spec sections + 4 manual topics + topology extension as a single locked-contract bundle:
+  - `openrepose_amood_v0_1.md` — AMood data model + command surface + package layout under `outputs/library/<project_slug>/<batch_slug>/`.
+  - `openrepose_intake_v0_1.md` — Project / Task / Batch / Card / Run / Output hierarchy; intake staging at `outputs/intake/<task_id>/`; status enum (`pending → triaging → soft_accepted → promoted | rejected | diagnostic | abandoned`); two-stage acceptance (LLM may soft_accept; only operator may finalize); default-staging ComfyUI bridge.
+  - `openrepose_rules_v0_1.md` — Rule registry (4 severity tiers: auto-route / block / warn / info), error-citation contract, global-vs-project-scoped registry split, initial registry seeded with the 6 existing repo rules promoted to RUL-001..006.
+  - `openrepose_requirements_v0_1.md` — Typed scoped requirements (8 kinds: hard_output / body / pose / face / crop / quality / clothing_story / structural / custom), inheritance, target tree (sets → cards → per-card target_promoted + AMood stability_target), counters, `fully_satisfied = count_satisfied AND quota_satisfied`, EXP120 worked example.
+- 4 manual topics: `amood-workflow.md` (REPLACE existing simpler tag-page), `intake-and-triage.md` (NEW), `targets-and-progress.md` (NEW), `requirements-and-targets.md` (NEW with EXP120 worked example).
+- Implementation WPs (WP-I3-002+) will be drafted against the locked contracts after operator sign-off on WP-I3-001. Expected sequence: new DB tables + migrations (INFRASTRUCTURE), default-staging ComfyUI bridge change (IMPLEMENTATION), triage GUI tab as 7th Library sub-pane (IMPLEMENTATION), requirements editor + markdown round-trip (IMPLEMENTATION), audit script extension to verify rule-registry coverage (INFRASTRUCTURE), first-run walkthrough (IMPLEMENTATION).
 
 ## Iteration Pipeline
 
