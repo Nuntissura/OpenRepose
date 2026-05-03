@@ -4,7 +4,7 @@
 
 - **Owner**: TBD (operator)
 - **Date Opened**: 2026-05-02
-- **Status**: REVIEW
+- **Status**: IN-PROGRESS
 - **Iteration**: I1
 - **Workflow Version**: 1.0
 - **Packet Class**: IMPLEMENTATION
@@ -194,3 +194,4 @@ Solves the portrait-bias / cropped-feet problem operators hit when image generat
 - 2026-05-02: WP drafted, status DRAFT. Robust rerender approach is the only allowed path; naive image-resize is excluded by spec decision.
 - 2026-05-02: Enhanced with full template sections (Files Touched, Test Plan, Risks, Rollback, Exit Criteria, etc.) for session-survivability.
 - 2026-05-03: Operator approved fast-track batch (slot 4). Status DRAFT -> IN-PROGRESS. Implementation complete: schema helpers + serializer + renderer + state + 5 commands + Options frame controls + 30 tests. 277/277 passing. Audit clean. Status -> REVIEW.
+- 2026-05-03: Operator GUI inspection — same regression as WP-I1-017/029 (viewport_openpose doesn't honor live state, so frame slider doesn't change the preview). Status REVIEW -> IN-PROGRESS for in-place fix.

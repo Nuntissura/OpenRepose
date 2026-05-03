@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: REVIEW
+- **Status**: IN-PROGRESS
 - **Iteration**: I1
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -207,3 +207,4 @@ Decision: per-keypoint suppression layered as a `marker_visibility` block in `st
 
 - 2026-05-03: WP drafted at status DRAFT. Predecessors satisfied. Intentionally a sibling of WP-I1-017 (not a successor) — both layers compose with documented precedence. Awaits operator promotion to READY.
 - 2026-05-03: Operator approved fast-track batch (slot 3). Status DRAFT -> IN-PROGRESS. Implementation complete: schema helper + serializer + renderer + state + 3 commands + Markers tab + 22 tests. 247/247 passing. Audit clean. Status -> REVIEW.
+- 2026-05-03: Operator GUI inspection — same regression as WP-I1-017 (viewport_openpose doesn't honor live state). Status REVIEW -> IN-PROGRESS for in-place fix bundled with WP-I1-017 + WP-I1-023.
