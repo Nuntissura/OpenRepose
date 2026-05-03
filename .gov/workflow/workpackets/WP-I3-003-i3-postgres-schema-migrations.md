@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: READY
+- **Status**: REVIEW
 - **Iteration**: I3
 - **Workflow Version**: 1.1
 - **Packet Class**: INFRASTRUCTURE
@@ -133,38 +133,38 @@ Existing approach is correct for migration discovery + lock + apply pattern; no 
 
 ## Definition Of Done
 
-- [ ] `.product/migrations/002_i3_intake.sql` exists, applies cleanly on `schema_version=1`, contains all tables/indexes/CHECK constraints listed in In Scope.
-- [ ] `.product/migrations/003_i3_amood_card_schema.sql` exists, applies cleanly on `schema_version=2`, ALTERs `library_entries` and creates AMood scorecard tables + dedupe function.
-- [ ] `.product/migrations/004_i3_requirements_targets.sql` exists, applies cleanly on `schema_version=3`, creates target tree + rules table + counts view.
-- [ ] After all three migrations, `SELECT MAX(version) FROM schema_version` returns 4.
-- [ ] `.product/tests/test_db_migrator_i3.py` passes locally against ephemeral PG; junit XML saved to `target/test-artifacts/WP-I3-003/`.
-- [ ] Every CHECK constraint mentioned in In Scope rejects its forbidden state with the rule_id visible in the constraint name.
-- [ ] `library.dedupe_check` returns correct overlap counts for synthetic scenarios.
-- [ ] `library_target_card_counts` view aggregates correctly across all 7 status values.
-- [ ] `pwsh scripts/audit-repo.ps1` exits 0.
-- [ ] **Manual Impact**: No — pure schema change with no operator-facing surface; manual updates land in WP-I3-004..008 alongside the surfaces.
+- [x] `.product/migrations/002_i3_intake.sql` exists, applies cleanly on `schema_version=1`, contains all tables/indexes/CHECK constraints listed in In Scope.
+- [x] `.product/migrations/003_i3_amood_card_schema.sql` exists, applies cleanly on `schema_version=2`, ALTERs `library_entries` and creates AMood scorecard tables + dedupe function.
+- [x] `.product/migrations/004_i3_requirements_targets.sql` exists, applies cleanly on `schema_version=3`, creates target tree + rules table + counts view.
+- [x] After all three migrations, `SELECT MAX(version) FROM schema_version` returns 4.
+- [x] `.product/tests/test_db_migrator_i3.py` passes locally against ephemeral PG (21/21); junit XML saved to `target/test-artifacts/WP-I3-003/pytest_results.xml`.
+- [x] Every CHECK constraint mentioned in In Scope rejects its forbidden state with the rule_id visible in the constraint name (verified by `test_intake_001_two_stage_acceptance_blocks_promote_without_finalizer`, `test_amood_003_fast_triage_blocks_promote_with_low_adult_gate`, `test_amood_004_promotion_thresholds_blocks_promote_with_low_arousal`, `test_safety_boundaries_block_promote[*]`, `test_library_outputs_status_enum_rejects_unknown`, `test_library_rules_severity_enum_rejects_unknown`, `test_library_rules_kind_enum_rejects_unknown`, `test_batches_dedupe_threshold_range`).
+- [x] `library.dedupe_check` returns correct overlap counts for synthetic scenarios (3 dedicated tests covering threshold-at, threshold-above, and cross-project isolation).
+- [x] `library_target_card_counts` view aggregates correctly across all 7 status values (verified by `test_target_card_counts_aggregates_all_seven_status_values` + empty-card test).
+- [x] `powershell -ExecutionPolicy Bypass -File scripts/audit-repo.ps1` exits 0.
+- [x] **Manual Impact**: No — pure schema change with no operator-facing surface; manual updates land in WP-I3-004..008 alongside the surfaces.
 
 ## Test Coverage Plan
 
 ### Functional Flow Tests
-- [ ] Migrator discovers and applies 001..004 in order; `schema_version` rows present for each.
-- [ ] Re-running `apply_pending()` on a fully-migrated DB is a no-op.
+- [x] Migrator discovers and applies 001..004 in order; `schema_version` rows present for each.
+- [x] Re-running `apply_pending()` on a fully-migrated DB is a no-op.
 
 ### Code Correctness Tests
-- [ ] Schema present: every CREATE TABLE / VIEW / FUNCTION / INDEX in In Scope is queryable post-apply.
-- [ ] CHECK constraints named per rule_id reject their forbidden state.
-- [ ] `library_outputs.status` only accepts the 7 enum values.
-- [ ] `library_outputs_promotion_requires_operator` rejects `status='promoted' AND finalized_by IS NULL`.
-- [ ] `library_target_card_counts` view returns correct counts for synthetic data.
-- [ ] `library.dedupe_check(project_id, sig, 6)` returns candidate(s) with exact `overlap_count`; threshold=8 returns subset.
+- [x] Schema present: every CREATE TABLE / VIEW / FUNCTION / INDEX in In Scope is queryable post-apply.
+- [x] CHECK constraints named per rule_id reject their forbidden state.
+- [x] `library_outputs.status` only accepts the 7 enum values.
+- [x] `lib_outputs_intake_001_two_stage_acceptance` rejects `status='promoted' AND finalized_by IS NULL`.
+- [x] `library_target_card_counts` view returns correct counts for synthetic data.
+- [x] `library.dedupe_check(project_id, sig, 6)` returns candidate(s) with exact `overlap_count`; threshold=8 returns subset.
 
 ### Red-Team / Abuse Tests
-- [ ] Forbidden status enum value (e.g. `'oops'`) rejected by CHECK.
-- [ ] Promotion without operator finalize blocked at DB level (cannot bypass two-stage acceptance even with hand-crafted SQL).
-- [ ] AMood safety constraints (SAFE-001/002/003) reject forbidden scorecard combinations even if dispatcher sends them.
+- [x] Forbidden status enum value (e.g. `'oops'`) rejected by CHECK.
+- [x] Promotion without operator finalize blocked at DB level (cannot bypass two-stage acceptance even with hand-crafted SQL).
+- [x] AMood safety constraints (SAFE-001/002/003) reject forbidden scorecard combinations even if dispatcher sends them.
 
 ### Performance / Reliability Tests
-- [ ] N/A — schema-only migration; performance budget verification belongs to WP-I3-008/010.
+- [x] N/A — schema-only migration; performance budget verification belongs to WP-I3-008/010.
 
 ## Rollback Plan
 
@@ -178,6 +178,8 @@ Existing approach is correct for migration discovery + lock + apply pattern; no 
 - 2026-05-03: **CREATE library_runs + library_batches in 002, not ALTER**. Reason: operator confirmed I2 did not ship these tables; the I3 spec text "ALTER TABLE library_runs ADD COLUMN task_id" describes end-state shape, not literal DDL recipe. Alternatives: spec amendment first (rejected by operator — additive-only stance covers this; the spec's end-state is satisfied either way).
 - 2026-05-03: **NOT NULL columns with empty-string default backfill**. Reason: `dedupe_signature` and `compatibility_signature` are NOT NULL on `library_entries`, but I2 already has rows. ADD COLUMN ... NOT NULL DEFAULT '' fills in-place fast in PG 11+; WP-I3-006 backfills real values when cards are migrated to the AMood schema. Alternatives: NULL allowed (rejected — spec mandates NOT NULL), separate backfill migration (rejected — overkill for v0.1).
 - 2026-05-03: **CHECK constraint names embed rule_id**. Reason: WP-I3-009 audit script extension will verify "every CHECK constraint that triggers a rejection cites a rule_id"; the cheapest implementation is constraint-name regex `<table>_<rule_id_lowercase>_<short>`. Alternative: rule_id only in COMMENT ON CONSTRAINT (rejected — not surfaced in error messages, audit can't grep).
+- 2026-05-03: **`library_entries` gets `batch_id` (nullable) + `status` (NOT NULL DEFAULT 'pending')** in 002. Reason: amood spec `dedupe_check` SQL function restricts on `library_entries.status IN ('soft_accepted','promoted')`, and intake spec `Hierarchy` says "card belongs to exactly one batch" — neither column was explicitly added by any I3 ALTER. Both belong with the hierarchy migration (002), not the AMood card content migration (003). Status uses the unified 7-value enum to match `library_outputs.status`. Alternative: denormalize `project_id` onto `library_entries` for dedupe perf (rejected — JOIN through batches.project_id is one hop; can be added later if needed).
+- 2026-05-03: **`library_scorecards` schema sourced from AMood blueprint lines 1120-1145 + 1952-1953**. Reason: neither intake nor amood spec defines the library_scorecards columns; the blueprint scorecard TSV header is the structural source. 16 score fields + total_score + promotion_decision + primary_rejection_reason + notes + identifiers (review_id, run_id, output_id). CHECK constraints split per rule_id: AMOOD-003 fast-triage (4 fields gate), AMOOD-004 full-rubric (3 additional fields gate), SAFE-001/002/003 (one per safety boundary). Constraint shape "promotion_decision <> 'promote' OR (...)" expresses "promote requires conditions; non-promote unrestricted". Alternative: combine all into one CHECK (rejected — audit can't map back to individual rule_ids).
 
 ## Fallback Register
 
@@ -185,11 +187,20 @@ Existing approach is correct for migration discovery + lock + apply pattern; no 
 
 ## Change Ledger
 
-_Captured at REVIEW. Truthful summary._
+- **What Became Real**: Three new SQL migrations under `.product/migrations/` (`002_i3_intake.sql`, `003_i3_amood_card_schema.sql`, `004_i3_requirements_targets.sql`) apply on top of `schema_version=1` taking the DB to `schema_version=4`. End-state schema carries 12 new tables (`library_projects`, `library_tasks`, `library_batches`, `library_pose_guides`, `library_runs`, `library_outputs`, `library_scorecards`, `library_diagnostics`, `library_diversity_audits`, `library_target_groups`, `library_target_cards`, `library_rules`), 18 new columns on `library_entries` (16 AMood card-schema columns from spec + the two hierarchy hookups `batch_id` / `status`), 7 new indexes on `library_entries` (trigram + partial), partial indexes on `library_outputs` for triage queue queries, the `library_target_card_counts` VIEW, the `library` schema with the `library.dedupe_check` SQL function, and rule-cited CHECK constraints (INTAKE-001 two-stage acceptance; AMOOD-003 fast-triage; AMOOD-004 full-rubric thresholds; SAFE-001/002/003 safety boundaries; status / severity / scope_type / kind / tier / decision / dedupe-threshold-range enums). 21 new tests in `test_db_migrator_i3.py` exercise apply order, idempotency, schema presence, every CHECK rejection, dedupe overlap correctness, view roll-up across all 7 status values, and cross-project dedupe isolation. Existing `test_db_migrator.py`, `test_db_connection.py`, `test_library_commands.py` updated to reflect the new `schema_version=4` end-state (4 line changes total). Suite results: 528/528 passed (full suite minus the pre-existing Windows `test_state_write_atomic_no_partial` reader-thread `PermissionError` warning that WP-I3-002 also flagged); audit script clean.
+- **What Remains Simulated**: nothing in this WP's scope. Surfaces over the schema (dispatcher commands, GUI, ComfyUI bridge default-staging, audit-script extension, end-to-end EXP120 walkthrough) land in WP-I3-004..010. The `library_rules` table is created empty; project-scoped rule authoring lands in WP-I3-007 (requirements editor markdown round-trip). The 16 AMood card-schema columns on `library_entries` are present but not populated for legacy I2 rows; backfill happens in WP-I3-006 when cards are migrated to the AMood schema (NOT NULL columns `dedupe_signature` and `compatibility_signature` carry `DEFAULT ''` for the legacy rows per Decisions Log).
+- **Next Blocking Real Seam**: WP-I3-004 (intake + project + task command surface) wires the dispatcher commands that consume this schema; WP-I3-005 changes the ComfyUI bridge to default-staging; WP-I3-006 adds the AMood data-model commands + populates AMood card columns; WP-I3-007 adds the requirements editor and markdown round-trip; WP-I3-009 audit extension verifies every CHECK constraint and rule_id resolves.
 
-- **What Became Real**: _filled at REVIEW._
-- **What Remains Simulated**: _filled at REVIEW._
-- **Next Blocking Real Seam**: _filled at REVIEW._
+## Spec Gaps Resolved In This WP
+
+Three implementation-level gaps surfaced during drafting; all flagged to operator before writing migrations and resolved without spec relitigation per the operator's "gap confirmed, fix it" stance (2026-05-03):
+
+1. `library_runs` and `library_batches` were referenced by all three I3 specs as if they existed (`ALTER TABLE library_runs ADD COLUMN task_id`) but were never shipped by I2. Resolution: CREATE both in 002 with the I3-required FKs (`task_id`, `pose_guide_id`, `card_id`, `project_id`) baked in from creation. Spec ALTER text describes end-state; how we got there is implementation.
+2. `library_entries.batch_id` and `library_entries.status` are required by the spec semantics (cards belong to one batch; `dedupe_check` filters on status) but no I3 ALTER added them. Resolution: both columns added in 002 alongside the hierarchy tables; `batch_id` nullable for legacy I2 rows; `status` defaults to `'pending'` using the unified 7-value enum.
+3. `library_scorecards` is referenced by both intake and amood specs but neither defines its column shape. Resolution: column shape sourced from the operator-canonical AMood blueprint TSV header (`.gov/doc/references/ADULT_MOODBOARD_SYSTEM_2026-05-03.md` lines 1120-1145 + 1952-1953), which the assistant treats as read-only. Promotion CHECK constraints split per rule_id (AMOOD-003 fast-triage, AMOOD-004 full-rubric thresholds, SAFE-001/002/003) so the WP-I3-009 audit extension can verify each by constraint-name regex.
+
+One implementation defect caught in test:
+- `OVERLAPS` is a reserved word in PostgreSQL (temporal range operator). The first draft of `library.dedupe_check` named a CTE `overlaps`; PG parsed it as an operator. Renamed to `axis_matches`. All 21 tests pass after the rename.
 
 ## Checkpoint Commit Plan
 
@@ -211,18 +222,22 @@ N/A — pure DB schema change. No GUI, no command channel, no snapshot target. T
 
 ## Exit Criteria
 
-- [ ] Definition of Done items all checked.
-- [ ] Taskboard row reflects current status.
-- [ ] Reality Boundary, Fallback Register, and Change Ledger are truthful.
-- [ ] Linked test suite has executed results saved under `target/test-artifacts/WP-I3-003/`.
-- [ ] Evidence section populated with concrete paths.
+- [x] Definition of Done items all checked.
+- [x] Taskboard row reflects current status.
+- [x] Reality Boundary, Fallback Register, and Change Ledger are truthful.
+- [x] Linked test suite has executed results saved under `target/test-artifacts/WP-I3-003/`.
+- [x] Evidence section populated with concrete paths.
 - [ ] Operator sign-off recorded in Evidence section.
-- [ ] **Headless LLM Operation Compliance** section either marked `N/A` with reason, or all items checked.
+- [x] **Headless LLM Operation Compliance** section either marked `N/A` with reason, or all items checked.
 
 ## Evidence
 
-- **Test Suite Execution**: _filled at REVIEW._
-- **Logs**: _filled at REVIEW._
+- **Test Suite Execution**:
+  - WP-I3-003 dedicated suite: `.\.venv\Scripts\python.exe -m pytest .product/tests/test_db_migrator_i3.py --junitxml=target/test-artifacts/WP-I3-003/pytest_results.xml -q` → 21/21 passed.
+  - DB-touching tests after assertion update: `.\.venv\Scripts\python.exe -m pytest .product/tests/test_db_connection.py .product/tests/test_library_commands.py .product/tests/test_db_migrator.py .product/tests/test_db_migrator_i3.py -q` → 57/57 passed.
+  - Full suite: `.\.venv\Scripts\python.exe -m pytest .product/tests/ -q` → 528/528 passed (3 pre-update regressions fixed by line-level `schema_version` assertion bumps; one pre-existing `PermissionError` warning in `test_state_write_atomic_no_partial` reader thread is unchanged from WP-I3-002 baseline).
+- **Audit**: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/audit-repo.ps1` → `audit-repo: OK no violations` (exit 0).
+- **Logs**: pytest stdout in this session; junit XML at `target/test-artifacts/WP-I3-003/pytest_results.xml`.
 - **Screenshots / Exports**: N/A — schema only.
 - **Build Artifacts**: N/A — no installer/dist artifact.
 - **Proof Artifact**: `target/test-artifacts/WP-I3-003/`
@@ -231,3 +246,6 @@ N/A — pure DB schema change. No GUI, no command channel, no snapshot target. T
 ## Progress Log
 
 - 2026-05-03: WP drafted at READY per operator authorization. Governance refactor exempt from product-edit gate; kickoff commit + push will land this WP file + taskboard row before any `.product/` file is opened.
+- 2026-05-03: Kickoff push landed (commit `3ce31ba`) on `origin/main`; predecessor housekeeping commit `738ef04` consolidated stranded prior-assistant work (audit test harness + spec lock stamps). Status READY -> IN-PROGRESS. Two additional spec gaps noted before writing migrations: (1) `library_entries` needs `batch_id` + `status` columns to support the hierarchy + dedupe_check semantics — added to 002 with Decisions Log entry; (2) `library_scorecards` column schema sourced from AMood blueprint TSV header (operator-canonical, read-only).
+- 2026-05-03: Three migrations + 21 dedicated tests authored. First test run hit `psycopg.errors.SyntaxError: syntax error at or near "overlaps"` — `OVERLAPS` is a reserved word in PostgreSQL. Renamed the CTE in `library.dedupe_check` from `overlaps` to `axis_matches`. 21/21 pass on rerun.
+- 2026-05-03: Full suite run surfaced 3 regressions in I2 tests asserting `schema_version == 1` (`test_db_connection::test_app_boots_with_live_db_and_runs_migrations`, `test_db_connection::test_pool_schema_version_after_migration`, `test_library_commands::test_dump_library_schema_returns_version_and_tables`). Updated assertions to `== 4` (4 line-level changes; comments updated to acknowledge new end-state). Suite 528/528 green. Audit clean. Status IN-PROGRESS -> REVIEW.

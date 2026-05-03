@@ -1,13 +1,13 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (WP-I3-003 PROMOTED to READY — I3 PostgreSQL schema migrations; WP-I3-001 DONE; I2 + WP-I3-002 + WP-I1-034/035 still at REVIEW)
+Last Updated: 2026-05-03 (WP-I3-003 REVIEW — I3 PostgreSQL schema migrations 528/528 + audit clean; WP-I3-001 DONE; I2 + WP-I3-002 + WP-I1-034/035 still at REVIEW)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 1 (WP-I3-003 READY — I3 PG schema migrations)
-- WPs pending review (REVIEW): 11 (WP-I1-034, WP-I1-035, I2 sequence WP-I2-001..008, WP-I3-002 stance primitives)
+- WPs in flight (READY + IN-PROGRESS): 0
+- WPs pending review (REVIEW): 12 (WP-I1-034, WP-I1-035, I2 sequence WP-I2-001..008, WP-I3-002 stance primitives, WP-I3-003 PG schema migrations)
 - WPs done (I3): 1 (WP-I3-001) — I3 spec lock signed off 2026-05-03; implementation iteration unblocked
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 18 (I1 backlog)
@@ -23,7 +23,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I3-003 | I3 PostgreSQL schema migrations (intake + AMood card schema + requirements/target tree) | assistant | READY | INFRASTRUCTURE | L | 2026-05-03 |
+_(none)_
 
 ## Pending Review
 
@@ -42,6 +42,7 @@ Implementation claims to be done; awaiting operator verification.
 | WP-I2-007 | Library snapshot targets | assistant | IMPLEMENTATION | 2026-05-03 | render/draw_library + snapshot.py wiring + state.library.last_entry/last_search_results; 9 tests (7 unit + 2 dispatcher round-trip) |
 | WP-I2-008 | Library multi-operator tests + setup doc | assistant | VERIFICATION | 2026-05-03 | 6 tests (multi-pool + lock collision + advisory lock race + interleaved writes + 100-entry soak + pg_dump round-trip); operator setup doc at .gov/doc/i2-library-setup.md; closes I2 |
 | WP-I3-002 | LLM stance acknowledgement primitives | assistant | IMPLEMENTATION | 2026-05-03 | `adult_production_boundary` in state.json, dump_state, command envelopes, HTTP responses, and inbox processed results; 24 focused tests |
+| WP-I3-003 | I3 PostgreSQL schema migrations | assistant | INFRASTRUCTURE | 2026-05-03 | 3 migrations (002 intake + 003 amood card schema + 004 requirements/targets); 12 new tables + 18 cols on library_entries + view + dedupe SQL function + rule-cited CHECKs; 21 new tests + 4 schema_version assertion bumps; 528/528 + audit clean |
 
 ## Blocked
 

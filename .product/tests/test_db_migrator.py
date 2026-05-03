@@ -149,8 +149,10 @@ def test_advisory_lock_id_is_stable_constant():
     reason="no system Postgres / pytest-postgresql",
 )
 def test_apply_initial_migration_creates_all_tables(library_pg, tmp_path: Path):
-    """Apply 001_library_initial.sql against a fresh DB; verify every
-    table + the library_search() function exists."""
+    """Apply every shipped migration against a fresh DB; verify the I2
+    tables + the library_search() function still exist after the I3 trio
+    (002 intake, 003 amood card schema, 004 requirements/targets) lands
+    on top. I3 schema coverage is asserted in test_db_migrator_i3.py."""
     import psycopg
 
     repo_root = Path(__file__).resolve().parent.parent.parent
@@ -160,11 +162,11 @@ def test_apply_initial_migration_creates_all_tables(library_pg, tmp_path: Path):
     with psycopg.connect(dsn) as conn:
         migrator = Migrator(conn, migrations_dir=migrations_dir)
         applied = migrator.apply_pending()
-        assert applied == [1]
+        assert applied == [1, 2, 3, 4]
 
         # Idempotent re-apply: no further work.
         assert migrator.apply_pending() == []
-        assert migrator.current_version() == 1
+        assert migrator.current_version() == 4
 
         with conn.cursor() as cur:
             cur.execute(
