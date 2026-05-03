@@ -1,21 +1,21 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (WP-I3-001 DONE; handoff for I3 implementation authored at .gov/doc/handoff-2026-05-03-i3-implementation.md; I2 + WP-I3-002 still at REVIEW)
+Last Updated: 2026-05-03 (WP-I3-003 PROMOTED to READY — I3 PostgreSQL schema migrations; WP-I3-001 DONE; I2 + WP-I3-002 + WP-I1-034/035 still at REVIEW)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 0
-- WPs pending review (REVIEW): 9 (I2 sequence WP-I2-001..008 + WP-I3-002 stance primitives)
+- WPs in flight (READY + IN-PROGRESS): 1 (WP-I3-003 READY — I3 PG schema migrations)
+- WPs pending review (REVIEW): 11 (WP-I1-034, WP-I1-035, I2 sequence WP-I2-001..008, WP-I3-002 stance primitives)
 - WPs done (I3): 1 (WP-I3-001) — I3 spec lock signed off 2026-05-03; implementation iteration unblocked
 - WPs blocked (BLOCKED): 0
-- WPs draft (DRAFT, eligible to promote): 21 (I1 backlog)
+- WPs draft (DRAFT, eligible to promote): 18 (I1 backlog)
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
 - WPs done (I0): 4 (WP-I0-001/002/003/004) — I0 CLOSED 2026-05-02
 - WPs done (I1): 12 (WP-I1-025, WP-I1-026, WP-I1-001, WP-I1-027, WP-I1-017, WP-I1-023, WP-I1-032, WP-I1-033, WP-I1-029, WP-I1-030, WP-I1-031, WP-I1-028) — 4 newly signed off 2026-05-03 fast-track batch
 - WPs reserved-not-drafted: 3 (WP-I1-019/020/021 joint-manipulation chain — operator deferred to later)
-- Iterations open: I1 (winding down — small fixes), I2 (REVIEW awaiting sign-off — Feature 3 implementation), I3 (kickoff — AMood + Intake + Requirements)
+- Iterations open: I1 (winding down — small fixes), I2 (REVIEW awaiting sign-off — Feature 3 implementation), I3 (spec lock DONE; implementation unblocked)
 
 ## Active
 
@@ -23,7 +23,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-_(none — WP-I3-001 moved to REVIEW)_
+| WP-I3-003 | I3 PostgreSQL schema migrations (intake + AMood card schema + requirements/target tree) | assistant | READY | INFRASTRUCTURE | L | 2026-05-03 |
 
 ## Pending Review
 
@@ -31,6 +31,8 @@ Implementation claims to be done; awaiting operator verification.
 
 | WP-ID | Title | Owner | Class | Updated | Verify |
 |-------|-------|-------|-------|---------|--------|
+| WP-I1-034 | Calibration overview mode + drag/delete + add-marker workflow | assistant | IMPLEMENTATION | 2026-05-03 | `delete_markers` command + Overview drag of detected/operator dots + right-click delete; focused GUI/command tests |
+| WP-I1-035 | In-app manual + manual-impact governance rule | assistant | IMPLEMENTATION | 2026-05-03 | Help tab manual browser + link navigation + audit manual-impact rule; focused manual/audit tests |
 | WP-I2-002 | Settings extension: library config (schema 1→2) | assistant | INFRASTRUCTURE | 2026-05-03 | dump_settings + Options pane Library section + v1→v2 migration |
 | WP-I2-001 | PostgreSQL setup + migration runner | assistant | INFRASTRUCTURE | 2026-05-03 | docker-compose + 001_library_initial.sql + LibraryPool/Migrator + state.library + integration tests via ephemeral PG |
 | WP-I2-003 | Library entries CRUD + tags + smart-tag extractor | assistant | IMPLEMENTATION | 2026-05-03 | openrepose.library package (entries/tags/smart_tags/storage); 31 new tests; manual extended |
@@ -50,6 +52,14 @@ Cannot proceed until the named blocker resolves.
 
 _(none)_
 
+## Deferred
+
+Workpackets intentionally held out of the active draft queue.
+
+| WP-ID | Title | Class | Reason |
+|-------|-------|-------|--------|
+| WP-I1-012 | Garment locks | IMPLEMENTATION | OpenPose has no garment channel; revisit only if a garment-polyline / secondary-ControlNet workflow becomes real. |
+
 ## Draft (Will Promote To Ready When Predecessors Close)
 
 Drafted now so dependencies, scope, and contracts are settled. Status moves to READY when the named predecessor reaches DONE.
@@ -58,7 +68,6 @@ I0 closed 2026-05-02. The I0-blocking constraint on every I1 WP below is satisfi
 
 | WP-ID | Title | Class | Effort | Priority | Headless | Predecessor |
 |-------|-------|-------|--------|----------|----------|-------------|
-| WP-I1-001 | Per-avatar calibration overlay | IMPLEMENTATION | L | High (fixes WP-I0-003 diagnostic) | yes | I0 (DONE) + WP-I1-026 (DONE) — PROMOTED to READY |
 | WP-I1-002 | Orbital camera in 3D viewport | IMPLEMENTATION | S | Polish | n/a | WP-I0-004 |
 | WP-I1-003 | Settings persistence | IMPLEMENTATION | S | Polish | yes | WP-I0-004 |
 | WP-I1-004 | Extended keyboard shortcuts | IMPLEMENTATION | XS | Polish | n/a | WP-I0-004 |
@@ -69,32 +78,14 @@ I0 closed 2026-05-02. The I0-blocking constraint on every I1 WP below is satisfi
 | WP-I1-009 | Identity-export profiles | IMPLEMENTATION | M | Feature expansion | yes | I0; ideally WP-I1-001 |
 | WP-I1-010 | Multi-angle automation | IMPLEMENTATION | M | Feature expansion | yes | I0 |
 | WP-I1-011 | Multi-subject scenes | IMPLEMENTATION | L | Feature expansion (likely I2) | yes | I0; ideally WP-I1-007 |
-| WP-I1-012 | Garment locks | IMPLEMENTATION | M | DEFERRED (OpenPose has no garment channel) | n/a | n/a |
 | WP-I1-013 | Installer build + release | INFRASTRUCTURE | M | Distribution | n/a | I0; ideally WP-I1-003 |
 | WP-I1-014 | MediaPipe Tasks API migration | INFRASTRUCTURE | M | Future-proofing | n/a | I0 |
 | WP-I1-015 | Floating reference portrait window | IMPLEMENTATION | S | Polish | yes | WP-I0-004; WP-I1-003 |
 | WP-I1-016 | Clear workspace command + button | IMPLEMENTATION | XS | Polish | yes | WP-I0-004 |
-| WP-I1-017 | Per-body-part visibility toggles | IMPLEMENTATION | S | Feature expansion | yes | WP-I0-004 |
 | WP-I1-018 | Hand detection + OpenPose hand output | IMPLEMENTATION | M | Feature expansion (gates DWPose hand conditioning) | yes | I0; relates to WP-I1-014 |
 | WP-I1-022 | Read OpenPose JSON as alternate input | IMPLEMENTATION | M | Workflow expansion | yes | I0; composes with WP-I1-023 |
-| WP-I1-023 | Frame reframing (robust rerender) | IMPLEMENTATION | M | High (fixes portrait-bias / cropped-feet) | yes | I0; composes with WP-I1-022 |
 | WP-I1-024 | Synchronized viewport zoom | IMPLEMENTATION | S | Polish | n/a (GUI sync only; headless covered by WP-I1-023) | WP-I0-004; WP-I1-015; WP-I1-023 |
-| WP-I1-027 | Export folder picker + persistence | IMPLEMENTATION | M | High (current bug: pasted paths silently ignored) | yes (dump_settings) | I0 (DONE) |
-| WP-I1-028 | Calibration tab UX (zoom + mesh inspector + always-on markers + drag/delete) | IMPLEMENTATION | L | High (WP-I1-001 UX polish; scope expanded 2026-05-03 to fold drag/delete + always-on detected overlay surfaced during operator inspection) | n/a (operator-side polish; new delete_markers command is headless) | WP-I1-001 (DONE) |
-| WP-I1-029 | Per-marker visibility toggles | IMPLEMENTATION | M | Mid (companion to WP-I1-017 group-level toggles; per-marker overrides) | yes | I0 (DONE); composes with WP-I1-017 |
-| WP-I1-030 | Export polish (PNG + pretty JSON + slug sanitization) | IMPLEMENTATION | S | High (operator surfaced 3 issues during GUI inspection) | n/a (export side; LLM gets PNG path in payload) | WP-I1-027 (REVIEW) |
-| WP-I1-031 | Tools tab reorganization (Tools tab w/ Calibration / Markers / Reframer sub-tabs) | IMPLEMENTATION | S | Mid (UI grouping per operator request); also folds in operator's frame-offsets-as-sliders + per-section reset request | n/a (pure GUI reshuffle) | WP-I1-027/029/023 (DONE) |
-| WP-I1-034 | Calibration overview mode + drag/delete + add-marker workflow + mesh inspector | IMPLEMENTATION | L | High (operator follow-up — overview drag-and-drop is the natural editing model; folds in WP-I1-001 + WP-I1-028 deferred items) | yes (new delete_markers command) | WP-I1-028 (DONE), WP-I1-029 (DONE) |
-| WP-I1-035 | In-app manual + manual-impact governance rule | IMPLEMENTATION | M | High (operator wants new models/humans to onboard via built-in manual; rule + audit enforce keeping manual current) | n/a (Help tab manual browser is operator-facing only) | WP-I1-025 (audit), WP-I0-004 (GUI) — both DONE |
 | WP-I1-036 | Multi-file workspace spec (DOCUMENTATION) | DOCUMENTATION | M | High (operator's stated need: tabs + per-file state + drag-drop import; large architectural change needs spec lock first) | n/a (spec only) | none |
-| WP-I2-001 | PostgreSQL setup + migration runner | INFRASTRUCTURE | M | High (foundation for all I2 WPs) | n/a | WP-I1-033 (DONE) |
-| WP-I2-002 | Settings extension: library config (schema_version 1 → 2) | INFRASTRUCTURE | S | High | n/a | WP-I1-027 (DONE), WP-I1-033 (DONE) |
-| WP-I2-003 | Library entries CRUD + tags | IMPLEMENTATION | M | High | n/a (data layer) | WP-I2-001, WP-I2-002 |
-| WP-I2-004 | Library LLM commands + search | IMPLEMENTATION | M | High | yes (7 new commands + state.library block) | WP-I2-001, WP-I2-002, WP-I2-003 |
-| WP-I2-005 | ComfyUI bridge custom node | IMPLEMENTATION | M | High (operator's stated round-trip use case) | n/a (lives outside OpenRepose; calls register_library_entry) | WP-I2-004 |
-| WP-I2-006 | Library tab GUI | IMPLEMENTATION | L | High (operator-facing surface) | n/a (operator-only; LLM uses commands) | WP-I2-004 |
-| WP-I2-007 | Library snapshot targets | IMPLEMENTATION | S | Mid | yes (2 new snapshot targets) | WP-I2-004, WP-I2-006 |
-| WP-I2-008 | Library multi-operator tests + operator setup doc | VERIFICATION | M | High (closes I2 + Promotion Guard) | n/a | ALL prior I2 WPs |
 
 ## Recently Done
 
@@ -150,12 +141,12 @@ _(none)_
 - 2026-05-03 Phase 2: drafted **WP-I1-030 Export polish** (PNG output + pretty-printed JSON + avatar slug sanitization); drafted **WP-I1-031 Tools tab reorganization** (Tools top-level with Calibration / Markers / Reframer sub-tabs; also picks up operator's frame-offset-sliders + per-section reset request); expanded **WP-I1-028** scope from M → L to fold in always-on MediaPipe-detected overlay + drag-to-move + right-click-delete + new `delete_markers` headless command.
 - 2026-05-03 fast-track Phase B+C: shipped **WP-I1-032 GUI polish bundle** (calibration sizing + last-portrait-folder + canvas border + colored marker rows; 295/295 passing) + **WP-I1-033 Feature 3 spec** (PostgreSQL day one, psycopg 3, hybrid trigram+tsvector search, 7 LLM commands, ComfyUI bridge). Operator signed off WP-I1-027 + WP-I1-017 + WP-I1-023 + WP-I1-032 + WP-I1-033 on 2026-05-03. WP-I1-029 rejected REVIEW → IN-PROGRESS for follow-up bug: undetected MediaPipe markers should auto-uncheck on import; defensive render to avoid stray-dot-at-origin "haywire".
 - 2026-05-03 fast-track 2: shipped **WP-I1-029 fix** (auto-uncheck undetected + defensive render + Markers tab "— no detection" annotations) + **WP-I1-030 export polish** (PNG alongside JSON + pretty-printed JSON + slug sanitization) + **WP-I1-031 Tools tab reorganization** (Inspector / Tools (Calibration|Markers|Reframer) / Options / Log / Help; ReframerPane with slider+spinbox+per-section resets) + **WP-I1-028 calibration UX core** (zoom + pan + always-on MediaPipe overlay + spacebar+left-click pan per Photoshop convention). Operator signed off all 4 on 2026-05-03 (329/329 tests passing).
-- 2026-05-03: drafted **WP-I1-034** (calibration overview mode + drag-to-move + right-click-delete + delete_markers command + add+place workflow when no detection + frontal mesh inspector — folds in everything deferred from WP-I1-001 + WP-I1-028) and **WP-I1-035** (in-app manual under .gov/doc/manual/ + Help tab manual browser + new Manual Impact governance rule + audit script extension). Both at DRAFT awaiting promotion. Operator-noted future scope: body calibration (currently face-only) — needs spec extension first.
+- 2026-05-03: **WP-I1-034** (calibration overview mode + drag-to-move + right-click-delete + `delete_markers` command + add+place workflow when no detection) and **WP-I1-035** (in-app manual under `.gov/doc/manual/` + Help tab manual browser + Manual Impact governance rule + audit script extension) both shipped to REVIEW. Operator-noted future scope: body calibration (currently face-only) — needs spec extension first.
 - 2026-05-03 overnight: operator handed off the I2 sequence to the assistant for autonomous overnight execution (operator-defined order: WP-I2-002 → WP-I2-001 → WP-I2-003 → WP-I2-004 → WP-I2-005+006 parallel → WP-I2-007 → WP-I2-008). All shipped WPs land at REVIEW pending operator sign-off. **WP-I2-002** promoted DRAFT → READY → IN-PROGRESS as kickoff.
 
-### I2 — Feature 3: OpenPose Library + ComfyUI Coupling (drafted 2026-05-03)
+### I2 — Feature 3: OpenPose Library + ComfyUI Coupling (REVIEW 2026-05-03)
 
-- 8 implementation WPs drafted at status DRAFT against the WP-I1-033 spec:
+- 8 WPs shipped to REVIEW against the WP-I1-033 spec:
   - **WP-I2-001 INFRASTRUCTURE**: PostgreSQL setup + migration runner + docker-compose.
   - **WP-I2-002 INFRASTRUCTURE**: Settings schema_version 1 → 2 (library_db_url, library_root, operator_slug).
   - **WP-I2-003 IMPLEMENTATION**: library_entries + tags + entry_tags CRUD + smart-tag extractor + filesystem storage.
@@ -164,19 +155,19 @@ _(none)_
   - **WP-I2-006 IMPLEMENTATION**: Library tab GUI (left list + right detail + 6 sub-panes).
   - **WP-I2-007 IMPLEMENTATION**: 2 new snapshot targets.
   - **WP-I2-008 VERIFICATION**: multi-operator tests + pg_dump round-trip + operator setup doc; closes I2.
-- Recommended sequencing once operator promotes: WP-I2-002 → WP-I2-001 → WP-I2-003 → WP-I2-004 → (WP-I2-005 + WP-I2-006 in parallel) → WP-I2-007 → WP-I2-008.
+- Execution order completed: WP-I2-002 -> WP-I2-001 -> WP-I2-003 -> WP-I2-004 -> WP-I2-005 + WP-I2-006 -> WP-I2-007 -> WP-I2-008. All await operator sign-off.
 
-### I3 — AMood + Intake + Requirements (kickoff 2026-05-03)
+### I3 — AMood + Intake + Requirements (spec lock DONE 2026-05-03)
 
 - Operator dropped the canonical AMood blueprint at `.gov/doc/references/ADULT_MOODBOARD_SYSTEM_2026-05-03.md` (2070 lines; provider/model agnostic; tier table + package layout + 8+ TSV schemas + scoring rubric + abandonment criteria + accepted-set diversity audit + anti-repetition ledger).
 - Multi-turn design conversation produced a coherent set of contracts that extend OpenRepose to operationalize the blueprint while preventing main-library contamination from raw LLM outputs.
-- **WP-I3-001 (DOCUMENTATION, L)** authoring 4 spec sections + 4 manual topics + topology extension as a single locked-contract bundle:
+- **WP-I3-001 (DOCUMENTATION, L)** authored 4 spec sections + 4 manual topics + topology extension as a single locked-contract bundle. Operator approved; WP is DONE and archived:
   - `openrepose_amood_v0_1.md` — AMood data model + command surface + package layout under `outputs/library/<project_slug>/<batch_slug>/`.
   - `openrepose_intake_v0_1.md` — Project / Task / Batch / Card / Run / Output hierarchy; intake staging at `outputs/intake/<task_id>/`; status enum (`pending → triaging → soft_accepted → promoted | rejected | diagnostic | abandoned`); two-stage acceptance (LLM may soft_accept; only operator may finalize); default-staging ComfyUI bridge.
   - `openrepose_rules_v0_1.md` — Rule registry (4 severity tiers: auto-route / block / warn / info), error-citation contract, global-vs-project-scoped registry split, initial registry seeded with the 6 existing repo rules promoted to RUL-001..006.
   - `openrepose_requirements_v0_1.md` — Typed scoped requirements (8 kinds: hard_output / body / pose / face / crop / quality / clothing_story / structural / custom), inheritance, target tree (sets → cards → per-card target_promoted + AMood stability_target), counters, `fully_satisfied = count_satisfied AND quota_satisfied`, EXP120 worked example.
 - 4 manual topics: `amood-workflow.md` (REPLACE existing simpler tag-page), `intake-and-triage.md` (NEW), `targets-and-progress.md` (NEW), `requirements-and-targets.md` (NEW with EXP120 worked example).
-- Implementation WPs (WP-I3-002+) will be drafted against the locked contracts after operator sign-off on WP-I3-001. Expected sequence: new DB tables + migrations (INFRASTRUCTURE), default-staging ComfyUI bridge change (IMPLEMENTATION), triage GUI tab as 7th Library sub-pane (IMPLEMENTATION), requirements editor + markdown round-trip (IMPLEMENTATION), audit script extension to verify rule-registry coverage (INFRASTRUCTURE), first-run walkthrough (IMPLEMENTATION).
+- **WP-I3-002** is at REVIEW and exposes the Adult Production Boundary through LLM-facing primitives. **WP-I3-003** is READY as the first I3 implementation workpacket: PostgreSQL schema migrations. The implementation sequence is documented in `.gov/doc/handoff-2026-05-03-i3-implementation.md`.
 
 ## Iteration Pipeline
 
