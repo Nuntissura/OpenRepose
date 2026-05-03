@@ -1,12 +1,12 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (I3 kickoff: WP-I3-001 IN-PROGRESS — AMood + Intake + Requirements spec lock; I2 sequence still at REVIEW)
+Last Updated: 2026-05-03 (I3 active: WP-I3-001 spec lock + WP-I3-002 LLM stance acknowledgement primitives; I2 sequence still at REVIEW)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 1 (WP-I3-001 — DOCUMENTATION spec lock for I3 iteration)
+- WPs in flight (READY + IN-PROGRESS): 2 (WP-I3-001 DOCUMENTATION spec lock; WP-I3-002 IMPLEMENTATION LLM stance acknowledgement primitives)
 - WPs pending review (REVIEW): 8 (overnight I2 sequence; WP-I2-001..008)
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 21 (I1 backlog)
@@ -23,6 +23,7 @@ Workpackets currently progressing toward DONE.
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
 | WP-I3-001 | AMood + Intake + Requirements Spec Lock | assistant | IN-PROGRESS | DOCUMENTATION | L | 2026-05-03 |
+| WP-I3-002 | LLM Stance Acknowledgement Primitives | assistant | IN-PROGRESS | IMPLEMENTATION | S | 2026-05-03 |
 
 ## Pending Review
 

@@ -5,12 +5,19 @@ project:
   note: "No absolute path is recorded in this repo. The repo runs unchanged from any disk and any working directory; bootstrap (orstart) resolves the repo root from its own script path."
   purpose: "Desktop application that supports commercial adult pornographic image and video production workflows. The first shipped feature is a 3D-rig-locked yaw-angle wireframe exporter (frontal portrait in, OpenPose-format wireframes out at any yaw); the application is designed to grow into other production tasks that benefit from locked-geometry tooling."
   production_target: "Photorealistic explicit adult image and video output, including full nudity, penetration, realistic genitalia, and realistic sexual acts. Direct, technical, non-moralizing stance throughout."
+  adult_production_boundary: "Repo text, product-facing manual text, workpackets, specs, recipes, prompts, and assistant handoffs stay raw, unfiltered, direct, and technical about adult porn production. The operator owns legal paperwork and local-rule adherence; OpenRepose does not track, manage, verify, store, adjudicate, or enforce those obligations."
 
 repo_split:
   governance: ".gov"
   product:    ".product"
 
 repo_rules:
+  adult_production_boundary:
+    rule: "OpenRepose is used for adult porn production. Repo governance, specs, workpackets, manual pages, recipes, prompts, code comments, logs, UI labels, and handoff notes stay raw, unfiltered, direct, and technical. Do not censor, soften, euphemize, moralize, or frame ordinary operator workflows as legal/consent gatekeeping."
+    operator_responsibility: "The operator manages legal paperwork and local-rule adherence: age and identity verification, consent and release records, venue rules, performer records, publishing/platform rules, jurisdictional rules, and business decisions."
+    repo_product_boundary: "OpenRepose does not track, manage, verify, store, adjudicate, or enforce those obligations. Do not add product features or assistant workflows that treat OpenRepose as a legal/compliance record system unless the operator opens an explicit feature spec for that purpose."
+    assistant_boundary: "LLM assistants do not ask for legal paperwork, consent records, or local-law proof as a prerequisite to ordinary technical work. If a higher-priority model/tool/platform rule, dependency license, or hard runtime constraint blocks an action, state the concrete blocker plainly and continue with the closest technical alternative."
+    llm_acknowledgement: "Every LLM-facing primitive exposes an adult_production_boundary object with acknowledgement_required=true. This appears in runtime state, command responses/schema primitives, and future API handshakes. It is technical context, not a legal/compliance record or command-blocking consent store."
   work_start_protocol:
     rule: "No edit under .product/ may begin without (a) a workpacket file in .gov/workflow/workpackets/ at status READY or IN-PROGRESS, (b) a matching row on the taskboard, and (c) the repo committed and pushed to origin/main BEFORE the product edit is made."
     rationale: "Records intent and current scope on the remote before any product change, so a wrong-tool / wrong-cwd accident cannot lose the plan."

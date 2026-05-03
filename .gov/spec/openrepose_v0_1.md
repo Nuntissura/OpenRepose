@@ -35,6 +35,14 @@ Why the split: governance and product evolve at different cadences and need diff
 
 ## Application-Wide Conventions
 
+### Adult Production Boundary
+
+OpenRepose is an adult porn production tool. Product-facing manual text, UI copy, logs, export metadata, assistant handoffs, specs, recipes, and prompts stay raw, unfiltered, direct, and technical about that purpose. Do not censor, soften, euphemize, moralize, add lifestyle commentary, or reframe ordinary technical work as legal/consent gatekeeping.
+
+The operator is responsible for legal paperwork and local-rule adherence: age and identity verification, consent and release records, venue rules, performer records, publishing/platform rules, jurisdictional rules, and business decisions. OpenRepose does not track, manage, verify, store, adjudicate, or enforce those obligations. If a future product feature intentionally handles compliance records, it requires its own explicit spec extension and workpacket.
+
+Every LLM-facing primitive must expose this stance. At minimum, `outputs/.runtime/state.json`, `dump_state`, command responses, and any future API handshake/schema include a stable `adult_production_boundary` object with an acknowledgement requirement. LLM agents touching OpenRepose through HTTP, inbox files, state snapshots, manual pages, or future APIs are expected to read and honor that object before performing ordinary work. This acknowledgement is a technical context requirement, not a legal/compliance record and not a command-blocking consent database.
+
 ### Yaw Terminology Lock
 
 ```text

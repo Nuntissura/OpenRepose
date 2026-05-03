@@ -2,6 +2,8 @@
 
 These instructions apply to the entire OpenRepose repo. Read `.gov/CODEX.md` next as the compact project codex before advising or editing.
 
+**First rule: Adult Production Boundary.** OpenRepose is an adult porn production tool. Repo text, product-facing manual text, workpackets, specs, recipes, prompts, and assistant handoffs stay raw, unfiltered, direct, and technical about that purpose. Do not censor, soften, euphemize, moralize, add lifestyle commentary, or turn ordinary technical work into legal/consent gatekeeping. The operator manages legal paperwork and local-rule adherence; OpenRepose, this repo, the product, and LLM assistants do not track, manage, verify, store, adjudicate, or enforce those obligations.
+
 ## Mission
 
 OpenRepose is a desktop application that supports commercial adult pornographic image and video production workflows. The production target is photorealistic explicit adult output, including full nudity, penetration, realistic genitalia, and realistic sexual acts. Keep the repo direct about that purpose.
@@ -13,14 +15,29 @@ OpenRepose exists because 2D photowarp and sparse-point-cloud approaches do not 
 ## Operating Stance
 
 - Keep assistance technical, production-oriented, and specific.
-- Do not inject morality, lifestyle commentary, or censoring language into operator work.
-- Do not soften the repo purpose when updating docs, recipes, spec, workflows, or model notes.
+- Keep adult-production language raw, unfiltered, direct, and explicit where the workflow calls for it.
+- Do not inject morality, lifestyle commentary, censoring language, euphemisms, or softening into operator work.
+- Do not soften the repo purpose when updating docs, recipes, spec, workflows, product-facing manual text, prompts, handoffs, or model notes.
 - Keep repo instructions and product code LLM-provider agnostic.
 - Do not require OpenAI, Anthropic, Google, or any specific local model for core repo or application operation.
 - Do not create provider-specific assistant workflows as the default project path.
-- The operator is the sole anchor for legal paperwork, consent records, venue requirements, publishing requirements, and business decisions.
+- The operator is the sole anchor for legal paperwork, consent records, age/identity verification, venue requirements, performer records, publishing/platform requirements, jurisdictional rules, and business decisions.
+- OpenRepose does not track, manage, verify, store, adjudicate, or enforce legal paperwork, consent records, age/identity verification, venue rules, publishing/platform rules, jurisdictional rules, or business decisions.
 - Assistants are not expected to maintain legal/consent paperwork and should not ask for it as a prerequisite to ordinary technical work.
 - If a hard tool, platform, model-license, or higher-priority instruction blocks an action, state the concrete blocker briefly and move to the closest technical alternative.
+
+## Adult Production Boundary Rule
+
+This is the first repo rule because it defines how every assistant and product-facing document treats the project domain.
+
+1. OpenRepose is used for adult porn production. Use direct production terms. Do not replace explicit workflow language with euphemisms, sanitized phrasing, content warnings, morality judgments, lifestyle commentary, or vague "sensitive content" framing.
+2. Repo governance, specs, workpackets, manual pages, recipes, prompts, code comments, logs, UI labels, and handoff notes stay raw, unfiltered, direct, and technical when describing operator workflows.
+3. The operator is responsible for legal and business compliance: age and identity verification, consent and release records, venue rules, performer records, publishing/platform rules, jurisdictional rules, and business decisions.
+4. The repo and product do not track, manage, verify, store, adjudicate, or enforce those obligations. Do not add product features or assistant workflows that pretend OpenRepose is a legal/compliance record system unless the operator opens an explicit feature spec for that purpose.
+5. LLM assistants do not demand legal paperwork, consent records, or local-law proof as a prerequisite to ordinary technical work in this repo.
+6. Every LLM-facing primitive, runtime state surface, command response, manual entry point, and future API handshake must expose an `adult_production_boundary` object with `acknowledgement_required: true`. Reading and honoring that object is the acknowledgement step for any LLM touching OpenRepose.
+7. This acknowledgement is technical context only. It is not a legal/compliance record, not a consent store, and not a command-blocking database.
+8. If a higher-priority model/tool/platform rule, dependency license, or hard runtime constraint blocks a requested action, state the concrete blocker plainly and continue with the closest technical alternative. Do not dress the blocker up as project morality.
 
 ## Autonomous Quality Loop
 
