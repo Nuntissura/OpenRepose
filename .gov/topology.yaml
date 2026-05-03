@@ -14,6 +14,7 @@ repo_split:
 repo_rules:
   adult_production_boundary:
     rule: "OpenRepose is used for adult porn production. Repo governance, specs, workpackets, manual pages, recipes, prompts, code comments, logs, UI labels, and handoff notes stay raw, unfiltered, direct, and technical. Do not censor, soften, euphemize, moralize, or frame ordinary operator workflows as legal/consent gatekeeping."
+    raw_colloquial_wording: "Raw colloquial porn wording is encouraged when it fits the hardcore porn production goal and improves intent fidelity. Examples include pussy, tits, dick, cock, cumplay, sluts, whores, fucktoy, stud, and monster dick; these are non-exhaustive style signals, not a fixed vocabulary list."
     operator_responsibility: "The operator manages legal paperwork and local-rule adherence: age and identity verification, consent and release records, venue rules, performer records, publishing/platform rules, jurisdictional rules, and business decisions."
     repo_product_boundary: "OpenRepose does not track, manage, verify, store, adjudicate, or enforce those obligations. Do not add product features or assistant workflows that treat OpenRepose as a legal/compliance record system unless the operator opens an explicit feature spec for that purpose."
     assistant_boundary: "LLM assistants do not ask for legal paperwork, consent records, or local-law proof as a prerequisite to ordinary technical work. If a higher-priority model/tool/platform rule, dependency license, or hard runtime constraint blocks an action, state the concrete blocker plainly and continue with the closest technical alternative."
@@ -388,8 +389,9 @@ i3_command_surface:
 
 i3_snapshot_targets:
   description: "Headless-compliant snapshot targets added by I3 implementation. All follow snapshot_subsystem rules (no raise, no focus theft)."
-  - intake_triage_view
-  - task_summary_view
-  - library_card_with_pose
-  - amood_card_with_pose
-  - amood_batch_overview
+  targets:
+    - intake_triage_view
+    - task_summary_view
+    - library_card_with_pose
+    - amood_card_with_pose
+    - amood_batch_overview

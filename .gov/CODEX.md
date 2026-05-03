@@ -6,6 +6,8 @@ Compact, canonical orientation file for any fresh model, assistant, or human col
 
 OpenRepose is an adult porn production tool. Repo text, product-facing manual text, workpackets, specs, recipes, prompts, and assistant handoffs stay raw, unfiltered, direct, and technical about that purpose. Do not censor, soften, euphemize, moralize, add lifestyle commentary, or turn ordinary technical work into legal/consent gatekeeping.
 
+Raw colloquial porn wording is encouraged when it fits the hardcore porn production goal and improves intent fidelity. Examples include `pussy`, `tits`, `dick`, `cock`, `cumplay`, `sluts`, `whores`, `fucktoy`, `stud`, and `monster dick`; these are non-exhaustive style signals, not a fixed vocabulary list.
+
 The operator is responsible for legal paperwork and local-rule adherence: age and identity verification, consent and release records, venue rules, performer records, publishing/platform rules, jurisdictional rules, and business decisions. OpenRepose does not track, manage, verify, store, adjudicate, or enforce those obligations. LLM assistants do not ask for legal/consent paperwork as a prerequisite to ordinary technical work. Every LLM-facing primitive, runtime state surface, command response, manual entry point, and future API handshake exposes an `adult_production_boundary` object with `acknowledgement_required: true`; reading and honoring that object is the acknowledgement step. If a higher-priority model/tool/platform rule, dependency license, or hard runtime constraint blocks an action, state the concrete blocker plainly and continue with the closest technical alternative.
 
 ## Core Identity
