@@ -22,7 +22,8 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I1-033 | Feature 3 Spec (Library + ComfyUI + PostgreSQL) | assistant | IN-PROGRESS | DOCUMENTATION | L | 2026-05-03 |
+
+_(none — fast-track Phase B+C complete; WP-I1-032 + WP-I1-033 both in REVIEW)_
 
 ## Pending Review
 

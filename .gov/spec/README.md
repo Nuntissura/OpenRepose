@@ -6,7 +6,8 @@ OpenRepose specs live here as versioned plain-Markdown files. Each spec describe
 
 | Version | File | Scope | Status |
 |---------|------|-------|--------|
-| v0.1 | `openrepose_v0_1.md` | Initial application contract. First feature: 3D-rig yaw exporter. Defines yaw terminology, rig requirements, GUI requirements, export formats. | DRAFT |
+| v0.1 | `openrepose_v0_1.md` | Initial application contract. First feature: 3D-rig yaw exporter (Feature 1). Calibration overlay (Feature 2). Yaw terminology, rig requirements, GUI requirements, export formats. | DRAFT |
+| v0.1 | `openrepose_library_v0_1.md` | Feature 3: OpenPose Library + ComfyUI coupling + PostgreSQL. Authored by WP-I1-033. Locks DB schema, command surface, ComfyUI bridge contract, multi-operator concurrency model. Implementation lands in I2 iteration. | DRAFT |
 
 ## Spec Versioning
 

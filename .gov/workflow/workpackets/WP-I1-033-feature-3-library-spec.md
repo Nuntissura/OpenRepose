@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: READY
+- **Status**: REVIEW
 - **Iteration**: I1
 - **Workflow Version**: 1.1
 - **Packet Class**: DOCUMENTATION
@@ -150,7 +150,20 @@ DOCUMENTATION-class. No new tests. Verification is the audit + the spec being in
 
 ## Change Ledger
 
-- (filled at REVIEW)
+- **What Became Real**:
+  - `.gov/spec/openrepose_library_v0_1.md` (NEW, ~14KB): full Feature 3 spec with 13 sections (Purpose, Inputs, Database Schema, Storage Layout, Tag System, Library Tab UI Requirements, Command Surface, ComfyUI Bridge / Custom Node Contract, Multi-Operator Concurrency, State File Reflection, Snapshot Targets, Out Of Scope, Reality Boundary). PostgreSQL schema includes 7 tables + 1 SQL function (`library_search()`) hybrid-ranking trigram + tsvector results.
+  - `.gov/spec/README.md`: Active Specs table extended with the new file.
+  - `.gov/spec/openrepose_v0_1.md`: Iteration Roadmap extended with an "I2 — Feature 3" section that summarizes the locked decisions (PostgreSQL day one, psycopg 3, hybrid search, ComfyUI bridge POSTs to existing localhost HTTP, row-level locking + optimistic concurrency).
+  - 7 LLM commands enumerated in the spec: register_library_entry, update_library_entry, delete_library_entry, library_search, get_library_entry, set_library_tags, dump_library_schema.
+  - 2 new snapshot targets: library_entry, library_search_results.
+  - state.json `library` block specified.
+  - ComfyUI bridge custom node folder location locked (`.product/comfyui-bridge/`); POST payload schema enumerated; ComfyUI ≥ 0.3.65 target version pinned.
+  - Storage layout: filesystem (paths in DB) over BLOBs; library root under `outputs/library/<entry-uuid>/`.
+- **What Remains Simulated / Deferred**:
+  - Implementation — every line of code lands in I2 iteration WPs (not drafted yet).
+  - Database setup automation / Docker compose snippet — referenced in the spec; the actual `docker-compose.yml` ships with the first I2 INFRASTRUCTURE WP.
+  - Migration scripts (`.product/migrations/001_library_initial.sql`) — referenced; ship with the first I2 IMPLEMENTATION WP.
+- **Next Blocking Real Seam**: I2 iteration kickoff. First WPs: WP-I2-001 INFRASTRUCTURE (PostgreSQL setup + docker-compose + migrator); WP-I2-002 IMPLEMENTATION (psycopg pool + library_entries CRUD); subsequent WPs for tags, prompts, story_beats, notes, ComfyUI bridge, GUI library tab.
 
 ## Checkpoint Commit Plan
 
@@ -178,8 +191,12 @@ DOCUMENTATION-class. No new tests. Verification is the audit + the spec being in
 
 ## Evidence
 
-- (filled at close)
+- **Spec Diff**: new file `.gov/spec/openrepose_library_v0_1.md` (~14KB, 13 sections). Updates to `.gov/spec/README.md` Active Specs table + `.gov/spec/openrepose_v0_1.md` Iteration Roadmap.
+- **Local Audit Run**: `pwsh scripts/audit-repo.ps1` exits 0.
+- **Build Artifacts**: spec authoring only — no product code, no tests changed.
+- **Operator Sign-off**: PENDING — operator to read the new spec file and confirm: (a) PostgreSQL schema covers their use case, (b) the 7 LLM commands match what they want to drive from the GUI / agents, (c) the ComfyUI bridge POST contract is what they expect to template into their ComfyUI workflows, (d) the multi-operator locking semantics match their team workflow.
 
 ## Progress Log
 
 - 2026-05-03: WP drafted directly at READY (operator authorized parallel work alongside WP-I1-032). Research-First pass complete. Spec authoring follows the WP-I1-032 implementation in this session.
+- 2026-05-03: Spec authored. New file `.gov/spec/openrepose_library_v0_1.md` (13 sections, ~14KB) + Spec README index + Iteration Roadmap reference in openrepose_v0_1.md. Status IN-PROGRESS -> REVIEW. Awaiting operator sign-off on the contract before I2 implementation iteration kicks off.

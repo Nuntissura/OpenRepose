@@ -589,6 +589,10 @@ Research WP:
 
 - **WP-I1-008 Alternative landmark detector research** — investigate dlib 68-point + iris, MediaPipe Tasks, or other detectors for stylized faces. Output is a comparison report; implementation gated on findings.
 
+### I2 — Feature 3: OpenPose Library + ComfyUI Coupling + PostgreSQL (spec drafted)
+
+Feature 3 spec authored as `openrepose_library_v0_1.md` (WP-I1-033). Locks PostgreSQL as the storage backend (multi-operator from day one), psycopg 3 as the client, the database schema, the LLM command surface (`register_library_entry`, `update_library_entry`, `delete_library_entry`, `library_search`, `get_library_entry`, `set_library_tags`, `dump_library_schema`), the ComfyUI custom-node bridge contract (`comfyui-openrepose-bridge` POSTs to the existing localhost HTTP control surface), and the multi-operator concurrency model (row-level locks + optimistic concurrency for bulk ops). Implementation iteration (I2) is the next major work after I1 closes; estimated 6-10 implementation WPs.
+
 ### Deferred / Reserved
 
 - **WP-I1-012 Garment locks** — DEFERRED. OpenPose has no garment channel; the locked-rig concept does not transfer cleanly. Re-scope candidate for I2: "garment polyline → secondary ControlNet input" if a multi-ControlNet workflow becomes a production path.
