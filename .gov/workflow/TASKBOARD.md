@@ -1,12 +1,12 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (Sweep B both shipped to REVIEW: WP-I3-009 audit-script extension + WP-I3-007 requirements editor + target tree. Sweep B handoff doc at `.gov/doc/handoff-2026-05-03-i3-implementation-phase-2.md`.)
+Last Updated: 2026-05-04 (Sweep B finale: WP-I3-008 Triage GUI tab + 3 snapshot targets opened IN-PROGRESS. WP-I3-007 + WP-I3-009 still pending operator sign-off in REVIEW. Sweep B handoff doc at `.gov/doc/handoff-2026-05-03-i3-implementation-phase-2.md`.)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 0
+- WPs in flight (READY + IN-PROGRESS): 1 (WP-I3-008 Triage GUI tab + snapshot targets)
 - WPs pending review (REVIEW): 2 (WP-I3-009 audit-script extension; WP-I3-007 requirements editor + target tree)
 - WPs done (I3): 5 (WP-I3-001 spec lock; WP-I3-002 stance primitives; WP-I3-003 PG schema migrations; WP-I3-004 intake/project/task command surface; WP-I3-005 default-staging ComfyUI bridge; WP-I3-006 AMood data-model commands)
 - WPs blocked (BLOCKED): 0
@@ -24,7 +24,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-_(none)_
+| WP-I3-008 | Triage GUI tab + 3 snapshot targets | assistant | IN-PROGRESS | IMPLEMENTATION | M | 2026-05-04 |
 
 ## Pending Review
 
