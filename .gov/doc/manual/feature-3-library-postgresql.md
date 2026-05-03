@@ -11,7 +11,7 @@ Status (2026-05-03):
 - **WP-I2-005 (REVIEW)**: ComfyUI bridge custom node under `.product/comfyui-bridge/` — POSTs `register_library_entry` after each image save; stdlib-only on ComfyUI side; non-blocking on POST failure.
 - **WP-I2-006 (REVIEW)**: Library tab GUI in OpenRepose — search bar, entry list, side-by-side detail, six sub-tabs (Tags / Prompts / Story / Notes / Workflow / Metadata).
 - **WP-I2-007 (REVIEW)**: Two new snapshot targets — `library_entry` (side-by-side openpose + reference for the most recently fetched entry) and `library_search_results` (4×6 thumbnail grid of the most recent search).
-- WP-I2-008 still drafted; verification + setup doc land next.
+- **WP-I2-008 (REVIEW)**: Closes I2 — multi-operator concurrency tests, 100-entry soak, `pg_dump` round-trip, and the operator setup guide at `.gov/doc/i2-library-setup.md`.
 
 ## What it will do
 

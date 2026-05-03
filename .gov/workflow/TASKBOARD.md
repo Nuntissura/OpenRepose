@@ -1,12 +1,12 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (overnight I2 sequence: WP-I2-001..007 → REVIEW; WP-I2-008 IN-PROGRESS — final WP, multi-operator + soak + pg_dump round-trip + setup doc)
+Last Updated: 2026-05-03 (overnight I2 sequence COMPLETE: all 8 I2 WPs at REVIEW, awaiting operator sign-off — 489/489 tests, audit clean)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 1 (WP-I2-008 IN-PROGRESS — verification + setup doc; closes I2)
+- WPs in flight (READY + IN-PROGRESS): 0 (overnight I2 sequence complete; WP-I2-001..008 all at REVIEW)
 - WPs pending review (REVIEW): 0
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 21 + 8 new I2 WPs (drafting in this session)
@@ -22,7 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I2-008 | Library multi-operator tests + setup doc | assistant | IN-PROGRESS | VERIFICATION | M | 2026-05-03 |
+_(none — entire overnight I2 sequence complete; all 8 WPs at REVIEW)_
 
 ## Pending Review
 
@@ -37,6 +37,7 @@ Implementation claims to be done; awaiting operator verification.
 | WP-I2-005 | ComfyUI bridge custom node | assistant | IMPLEMENTATION | 2026-05-03 | .product/comfyui-bridge/ self-contained custom node (stdlib-only on ComfyUI side); POST payload + metadata extraction tested + end-to-end ephemeral-PG round-trip |
 | WP-I2-006 | Library tab GUI | assistant | IMPLEMENTATION | 2026-05-03 | gui/library/ pane (toolbar + list + side-by-side detail + 6 sub-tabs); MainWindow registration; lock indicator; 8 pytest-qt smoke tests |
 | WP-I2-007 | Library snapshot targets | assistant | IMPLEMENTATION | 2026-05-03 | render/draw_library + snapshot.py wiring + state.library.last_entry/last_search_results; 9 tests (7 unit + 2 dispatcher round-trip) |
+| WP-I2-008 | Library multi-operator tests + setup doc | assistant | VERIFICATION | 2026-05-03 | 6 tests (multi-pool + lock collision + advisory lock race + interleaved writes + 100-entry soak + pg_dump round-trip); operator setup doc at .gov/doc/i2-library-setup.md; closes I2 |
 
 ## Blocked
 

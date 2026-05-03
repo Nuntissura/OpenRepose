@@ -87,3 +87,4 @@ Six non-negotiable rules govern this repo. Full bodies in `.gov/AGENTS.md`; codi
 - Slash command (deletion): `.claude/commands/safe-delete.md`
 - Operator helper (deletion): `scripts/safe-delete.ps1`
 - Operator helper (clean build/dist/outputs): `scripts/clean-target.ps1`
+- I2 Library backend setup: `.gov/doc/i2-library-setup.md` (PostgreSQL + ComfyUI bridge install + smoke tests)
