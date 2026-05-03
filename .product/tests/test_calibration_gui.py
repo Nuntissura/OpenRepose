@@ -33,11 +33,17 @@ def app_and_window(qtbot, tmp_path: Path):
 
 
 def test_calibration_tab_present(app_and_window) -> None:
+    """WP-I1-031: Calibration is a sub-tab of Tools (no longer top-level)."""
     _app, window = app_and_window
-    titles = [
+    top_titles = [
         window._tabs.tabText(i) for i in range(window._tabs.count())
     ]
-    assert "Calibration" in titles
+    assert "Tools" in top_titles
+    sub_titles = [
+        window._tools._tabs.tabText(i)
+        for i in range(window._tools._tabs.count())
+    ]
+    assert "Calibration" in sub_titles
 
 
 def test_markers_body_18_rows_colored_per_openpose_limb(

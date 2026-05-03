@@ -22,13 +22,12 @@ from ..app import App
 from ..render.widget_grab import set_widget_provider
 from ..rotation import rotate_yaw
 from ..yaw_bin import parse_bin, signed_deg_to_bin, standard_13_angle_bins
-from .calibration import CalibrationPane
 from .help_pane import HelpPane
 from .inspector import InspectorPane
 from .log_pane import LogPane
-from .markers import MarkersPane
 from .options import OptionsPane
 from .status_bar import StatusBar
+from .tools_pane import ToolsPane
 from .style import DARK_QSS
 from .toolbar import Toolbar
 from .viewport_3d import Viewport3D
@@ -121,11 +120,15 @@ class MainWindow(QMainWindow):
         self._options = OptionsPane()
         self._log_pane = LogPane(self._app.log)
         self._help_pane = HelpPane()
-        self._calibration = CalibrationPane(self._app)
-        self._markers = MarkersPane(self._app)
+        # WP-I1-031: editing tools (Calibration, Markers, Reframer) live
+        # under a single Tools top-level tab as sub-tabs. Keep direct
+        # references on MainWindow for existing tests + state-poll path.
+        self._tools = ToolsPane(self._app)
+        self._calibration = self._tools.calibration
+        self._markers = self._tools.markers
+        self._reframer = self._tools.reframer
         self._tabs.addTab(self._inspector, "Inspector")
-        self._tabs.addTab(self._calibration, "Calibration")
-        self._tabs.addTab(self._markers, "Markers")
+        self._tabs.addTab(self._tools, "Tools")
         self._tabs.addTab(self._options, "Options")
         self._tabs.addTab(self._log_pane, "Log")
         self._tabs.addTab(self._help_pane, "Help")
@@ -155,31 +158,50 @@ class MainWindow(QMainWindow):
         self._toolbar.export_single_clicked.connect(self._on_export_single)
         self._toolbar.export_batch_clicked.connect(self._on_export_batch)
 
-        # Options pane -> persistent settings + per-body-part + frame.
+        # Options pane -> persistent settings + per-body-part.
         self._options.load_from_settings(self._app.settings)
         self._options.load_body_part_visibility(self._app.state.body_part_visibility)
-        self._options.load_frame(self._app.state.frame)
         self._options.settings_changed.connect(self._on_settings_changed)
         self._options.body_part_visibility_changed.connect(
             self._on_body_part_visibility_changed
         )
-        self._options.frame_scale_changed.connect(
+
+        # WP-I1-031: Reframer pane (Tools tab → Reframer sub-tab) hosts the
+        # frame scale + offset + anchor controls. Wire to dispatcher.
+        self._reframer.load_frame(self._app.state.frame)
+        self._reframer.frame_scale_changed.connect(
             lambda s: self._app.handle_command(
                 {"command": "set_frame_scale", "scale": float(s)}
             )
         )
-        self._options.frame_offset_changed.connect(
+        self._reframer.frame_offset_changed.connect(
             lambda x, y: self._app.handle_command(
                 {"command": "set_frame_offset", "x": int(x), "y": int(y)}
             )
         )
-        self._options.frame_anchor_changed.connect(
+        self._reframer.frame_anchor_changed.connect(
             lambda mode: self._app.handle_command(
                 {"command": "set_frame_anchor", "mode": str(mode)}
             )
         )
-        self._options.frame_reset_clicked.connect(
+        self._reframer.frame_reset_clicked.connect(
             lambda: self._app.handle_command({"command": "reset_frame"})
+        )
+        # Per-section resets (WP-I1-031 operator request).
+        self._reframer.reset_scale_clicked.connect(
+            lambda: self._app.handle_command(
+                {"command": "set_frame_scale", "scale": 1.0}
+            )
+        )
+        self._reframer.reset_offset_clicked.connect(
+            lambda: self._app.handle_command(
+                {"command": "set_frame_offset", "x": 0, "y": 0}
+            )
+        )
+        self._reframer.reset_anchor_clicked.connect(
+            lambda: self._app.handle_command(
+                {"command": "set_frame_anchor", "mode": "head_anchor"}
+            )
         )
 
         # WP-I1-032: canvas border color persists via Settings.
@@ -330,6 +352,8 @@ class MainWindow(QMainWindow):
         self._calibration.refresh()
         # Sync markers tab from state (LLM commands can mutate it too).
         self._markers.refresh()
+        # Sync reframer pane (LLM commands can mutate state.frame).
+        self._reframer.load_frame(self._app.state.frame)
         # Update status bar.
         self._status_bar.refresh()
         # Render viewports if a rig is loaded.

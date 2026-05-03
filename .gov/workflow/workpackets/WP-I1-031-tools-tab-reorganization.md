@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: IN-PROGRESS
+- **Status**: REVIEW
 - **Iteration**: I1
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -173,3 +173,4 @@ Decision: top-level dock becomes `Inspector | Tools | Options | Log | Help` (fiv
 ## Progress Log
 
 - 2026-05-03: WP drafted at status DRAFT. Awaits operator promotion to READY.
+- 2026-05-03: Operator authorized fast-track. New `gui/tools_pane.py` (ToolsPane wrapping QTabWidget with Calibration / Markers / Reframer sub-tabs). New `gui/reframer.py` (ReframerPane extracted from OptionsPane: scale slider+QDoubleSpinBox, offset_x slider+QSpinBox, offset_y slider+QSpinBox, anchor combo, per-section reset buttons + global Reset). OptionsPane no longer hosts frame controls. main_window.py replaces top-level Calibration + Markers tabs (and the in-Options frame controls) with a single Tools top-level tab. Top-level dock now: Inspector / Tools / Options / Log / Help (5 tabs). MainWindow keeps `self._calibration` / `self._markers` / `self._reframer` references pointing at the same widget instances under ToolsPane so existing tests + state-poll path keep working. Per-section reset signals dispatch the matching command. Operator's request "frame offsets are sliders but also numerical inputs + a reset" is satisfied by the slider+spinbox bidirectional binding + the Reset XY button + global Reset frame button. Full suite 323/323. Audit clean. Status IN-PROGRESS -> REVIEW.

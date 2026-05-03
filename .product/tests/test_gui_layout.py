@@ -54,17 +54,51 @@ def test_two_viewports_exist(app_and_window) -> None:
     assert window._viewport_openpose is not None
 
 
-def test_six_dock_tabs_present(app_and_window) -> None:
+def test_five_dock_tabs_present(app_and_window) -> None:
+    """WP-I1-031: Calibration + Markers + Reframer collapse under Tools."""
     _app, window = app_and_window
     tab_titles = [window._tabs.tabText(i) for i in range(window._tabs.count())]
-    assert tab_titles == [
-        "Inspector",
-        "Calibration",
-        "Markers",
-        "Options",
-        "Log",
-        "Help",
-    ]
+    assert tab_titles == ["Inspector", "Tools", "Options", "Log", "Help"]
+
+
+def test_tools_tab_has_three_sub_tabs(app_and_window) -> None:
+    _app, window = app_and_window
+    tools = window._tools
+    sub_titles = [tools._tabs.tabText(i) for i in range(tools._tabs.count())]
+    assert sub_titles == ["Calibration", "Markers", "Reframer"]
+
+
+def test_reframer_pane_has_slider_spinbox_and_resets(app_and_window) -> None:
+    _app, window = app_and_window
+    rf = window._reframer
+    assert rf.scale_slider is not None
+    assert rf.scale_spin is not None
+    assert rf.offset_x_slider is not None
+    assert rf.offset_x_spin is not None
+    assert rf.offset_y_slider is not None
+    assert rf.offset_y_spin is not None
+    assert rf.btn_reset_scale is not None
+    assert rf.btn_reset_offset is not None
+    assert rf.btn_reset_anchor is not None
+    assert rf.btn_reset_all is not None
+
+
+def test_reframer_scale_slider_dispatches_set_frame_scale(
+    app_and_window, qtbot
+) -> None:
+    app, window = app_and_window
+    window._reframer.scale_slider.setValue(60)  # 0.60x
+    qtbot.wait(50)
+    assert app.state.frame["scale"] == 0.6
+
+
+def test_reframer_offset_x_spinbox_dispatches_set_frame_offset(
+    app_and_window, qtbot
+) -> None:
+    app, window = app_and_window
+    window._reframer.offset_x_spin.setValue(50)
+    qtbot.wait(50)
+    assert app.state.frame["offset_x"] == 50
 
 
 def test_status_bar_shows_yaw_readout(app_and_window) -> None:
