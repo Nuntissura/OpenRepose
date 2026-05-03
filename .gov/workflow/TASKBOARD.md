@@ -1,14 +1,14 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (WP-I3-005 REVIEW — default-staging ComfyUI bridge 544/544 + audit clean; WP-I3-004 REVIEW; WP-I3-011 revised to two-track OpenRepose AMood GPT + Claude skill wrappers; WP-I3-003 REVIEW; WP-I3-001 DONE; I2 + WP-I3-002 + WP-I1-034/035 + WP-I3-003 + WP-I3-004 + WP-I3-005 at REVIEW)
+Last Updated: 2026-05-03 (WP-I3-006 IN-PROGRESS — AMood data-model commands + dedupe service kickoff; WP-I3-003/004/005 signed off DONE; remaining REVIEW: WP-I1-034/035, I2 sequence WP-I2-001..008, WP-I3-002 stance primitives)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 0
-- WPs pending review (REVIEW): 14 (WP-I1-034, WP-I1-035, I2 sequence WP-I2-001..008, WP-I3-002 stance primitives, WP-I3-003 PG schema migrations, WP-I3-004 intake/project/task command surface, WP-I3-005 default-staging ComfyUI bridge)
-- WPs done (I3): 1 (WP-I3-001) — I3 spec lock signed off 2026-05-03; implementation iteration unblocked
+- WPs in flight (READY + IN-PROGRESS): 1 (WP-I3-006 IN-PROGRESS)
+- WPs pending review (REVIEW): 11 (WP-I1-034, WP-I1-035, I2 sequence WP-I2-001..008, WP-I3-002 stance primitives)
+- WPs done (I3): 4 (WP-I3-001 spec lock; WP-I3-003 PG schema migrations; WP-I3-004 intake/project/task command surface; WP-I3-005 default-staging ComfyUI bridge — all signed off 2026-05-03)
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 19 (18 I1 backlog + WP-I3-011 future OpenRepose AMood GPT + Claude wrappers)
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
@@ -23,7 +23,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-_(none)_
+| WP-I3-006 | AMood data-model commands + dedupe service | assistant | IN-PROGRESS | IMPLEMENTATION | L | 2026-05-03 |
 
 ## Pending Review
 
@@ -42,9 +42,6 @@ Implementation claims to be done; awaiting operator verification.
 | WP-I2-007 | Library snapshot targets | assistant | IMPLEMENTATION | 2026-05-03 | render/draw_library + snapshot.py wiring + state.library.last_entry/last_search_results; 9 tests (7 unit + 2 dispatcher round-trip) |
 | WP-I2-008 | Library multi-operator tests + setup doc | assistant | VERIFICATION | 2026-05-03 | 6 tests (multi-pool + lock collision + advisory lock race + interleaved writes + 100-entry soak + pg_dump round-trip); operator setup doc at .gov/doc/i2-library-setup.md; closes I2 |
 | WP-I3-002 | LLM stance acknowledgement primitives | assistant | IMPLEMENTATION | 2026-05-03 | `adult_production_boundary` in state.json, dump_state, command envelopes, HTTP responses, and inbox processed results; 24 focused tests |
-| WP-I3-003 | I3 PostgreSQL schema migrations | assistant | INFRASTRUCTURE | 2026-05-03 | 3 migrations (002 intake + 003 amood card schema + 004 requirements/targets); 12 new tables + 18 cols on library_entries + view + dedupe SQL function + rule-cited CHECKs; 21 new tests + 4 schema_version assertion bumps; 528/528 + audit clean |
-| WP-I3-004 | Intake + project + task command surface | assistant | IMPLEMENTATION | 2026-05-03 | 15 dispatcher commands (project/task/intake_*) + library/intake subpackage + library/citations.py registry + state.library.intake/guidance + auto-route scaffolding + INTAKE-001 operator-token gate; 20 new tests (530/530 full suite); manual extended (intake-and-triage.md) |
-| WP-I3-005 | Default-staging ComfyUI bridge | assistant | IMPLEMENTATION | 2026-05-03 | env-var-driven branching (intake / legacy / legacy_fallback FALLBACK / refused-with-INTAKE-002); intake_begin_run dispatcher command + library/intake/runs.py; intake_register_output extended for inline b64 bytes; bridge ships images via b64 (cross-process safe); 14 new tests (544/544 full suite); manual + bridge README extended |
 
 ## Blocked
 
@@ -97,6 +94,9 @@ Last 10 workpackets to reach DONE. Files moved from `workpackets/` to `archive/`
 
 | WP-ID | Title | Owner | Class | Closed |
 |-------|-------|-------|-------|--------|
+| WP-I3-005 | Default-staging ComfyUI bridge | assistant | IMPLEMENTATION | 2026-05-03 |
+| WP-I3-004 | Intake + project + task command surface | assistant | IMPLEMENTATION | 2026-05-03 |
+| WP-I3-003 | I3 PostgreSQL schema migrations | assistant | INFRASTRUCTURE | 2026-05-03 |
 | WP-I3-001 | AMood + Intake + Requirements Spec Lock | assistant | DOCUMENTATION | 2026-05-03 |
 | WP-I1-028 | Calibration Tab UX (zoom + always-on overlay + spacebar pan) | assistant | IMPLEMENTATION | 2026-05-03 |
 | WP-I1-031 | Tools Tab Reorganization (incl. frame slider/spinbox) | assistant | IMPLEMENTATION | 2026-05-03 |
@@ -173,6 +173,7 @@ _(none)_
 - 4 manual topics: `amood-workflow.md` (REPLACE existing simpler tag-page), `intake-and-triage.md` (NEW), `targets-and-progress.md` (NEW), `requirements-and-targets.md` (NEW with EXP120 worked example).
 - **WP-I3-002** is at REVIEW and exposes the Adult Production Boundary through LLM-facing primitives. **WP-I3-003** is READY as the first I3 implementation workpacket: PostgreSQL schema migrations. The implementation sequence is documented in `.gov/doc/handoff-2026-05-03-i3-implementation.md`.
 - 2026-05-03: **WP-I3-011 OpenRepose AMood GPT + Claude Skill Wrappers** drafted at DRAFT for the future state where the OpenRepose DB, dispatcher, AMood import, intake scoring, accepted-set audit, and requirements/target commands are fully functional. It is a two-track companion integration wrapper effort, not an AMood fork; both GPT/OpenAI and Claude/Codex wrappers must work before DONE.
+- 2026-05-03: **WP-I3-003 / WP-I3-004 / WP-I3-005 signed off DONE** by operator. **WP-I3-006 (AMood data-model commands + dedupe service, IMPLEMENTATION, L)** opened at IN-PROGRESS. Scope: 7 dispatcher commands (`init_batch_package`, `library_create_card`, `library_create_variants`, `compatibility_check`, `accepted_set_audit`, `amood_export_tsv`, `amood_import_tsv`), new `library/amood/` subpackage, new migration `005_i3_amood_tsv_views.sql` (10 TSV-shaped views in AMood-locked column order, schema_version 4 → 5), `state.library.amood` block, AMOOD-001 dedupe-warning surface, blueprint-template-driven package layout under `outputs/library/<project>/<batch>/`. Predecessors WP-I3-003/004/005 archived in the same kickoff commit.
 
 ## Iteration Pipeline
 
