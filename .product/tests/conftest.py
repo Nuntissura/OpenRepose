@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
+
+# Force Qt to use the offscreen platform plugin during pytest so GUI tests
+# do not flash real top-level windows on the operator's desktop. Must be
+# set BEFORE any PySide6 import. Override with `QT_QPA_PLATFORM=windows`
+# (or your platform default) if you want to see widgets pop up while
+# debugging a GUI test interactively.
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
