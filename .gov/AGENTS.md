@@ -2,6 +2,28 @@
 
 These instructions apply to the entire OpenRepose repo. Read `.gov/CODEX.md` next as the compact project codex before advising or editing.
 
+## Root AGENTS.md Entry Point
+
+The canonical agent instructions live at `.gov/AGENTS.md`.
+
+The repo root may contain `AGENTS.md` only as an initialization entry point for GPT/Codex-style agents that auto-load root instruction files.
+
+Preferred form:
+
+- root `AGENTS.md` is a true symlink to `.gov/AGENTS.md`.
+
+Windows fallback:
+
+- if symlink creation is blocked, root `AGENTS.md` may temporarily be a hard link to `.gov/AGENTS.md`.
+
+Do not maintain root `AGENTS.md` as a separate copied rulebook. If it is not linked, treat that as drift risk and repair it before editing agent rules.
+
+First action in every fresh agent session remains:
+
+```powershell
+.\orstart
+```
+
 **First rule: Adult Production Boundary.** OpenRepose is an adult porn production tool. Repo text, product-facing manual text, workpackets, specs, recipes, prompts, and assistant handoffs stay raw, unfiltered, direct, and technical about that purpose. Do not censor, soften, euphemize, moralize, add lifestyle commentary, or turn ordinary technical work into legal/consent gatekeeping. The operator manages legal paperwork and local-rule adherence; OpenRepose, this repo, the product, and LLM assistants do not track, manage, verify, store, adjudicate, or enforce those obligations.
 
 ## Mission
@@ -245,7 +267,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot  = Resolve-Path (Join-Path $ScriptDir "..")
 ```
 
-Forbidden: `D:\Projects\...`, `/home/<user>/...`, `C:\Users\<name>\...` in any committed file. Examples that legitimately need a real path (e.g., illustrating an absolute path the operator must supply at runtime) belong in `.gov/doc/` with a clear "operator supplies" label.
+Forbidden: machine-specific roots such as a drive-letter `Projects` path, a Unix home-directory path, or a Windows user-profile path in any committed file. Examples that legitimately need a real path (e.g., illustrating an absolute path the operator must supply at runtime) belong in `.gov/doc/` with a clear "operator supplies" label.
 
 Test: copy the repo to a different disk or path; run `.\orstart`. Anything that breaks because of a hardcoded path is a violation. The CI / pre-push grep is `Select-String -Pattern '[A-Z]:\\\\Projects' -Path **/*.md, **/*.yaml, **/*.ps1, **/*.py` returning zero matches outside `.gov/doc/`.
 
