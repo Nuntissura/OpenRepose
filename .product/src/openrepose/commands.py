@@ -23,11 +23,14 @@ from .calibration import (
     Marker,
     OpenReposeCalibrationError,
     calibration_path,
+)
+from .calibration import (
     load as load_calibration,
+)
+from .calibration import (
     save as save_calibration,
 )
 from .library import (
-    AUTO_TAG_PREFIX,
     LibraryEntryError,
     LibraryEntryLockedError,
     LibraryTagError,
@@ -43,10 +46,29 @@ from .library import (
     list_prompts,
     list_text_records,
     relative_to_root,
-    search as library_search_fn,
     set_entry_tags,
     update_entry,
     write_entry_files,
+)
+from .library import (
+    search as library_search_fn,
+)
+from .library.amood import (
+    AcceptedSetAuditError,
+    AmoodBatchError,
+    AmoodCardError,
+    AmoodTsvError,
+    AmoodVariantError,
+    accepted_set_audit,
+    check_compatibility,
+    create_variants,
+    export_tsv,
+    get_batch,
+    import_tsv,
+    init_batch_package,
+)
+from .library.amood import (
+    create_card as amood_create_card,
 )
 from .library.intake import (
     IntakeOutputError,
@@ -57,7 +79,6 @@ from .library.intake import (
     create_task,
     finalize_output,
     get_output,
-    get_project,
     get_task,
     list_outputs,
     list_projects,
@@ -122,6 +143,17 @@ class OpenReposeIntakeError(OpenReposeLibraryError):
         self.citation = citation
 
 
+class OpenReposeAmoodError(OpenReposeLibraryError):
+    """Raised by AMood command handlers (WP-I3-006). Carries `rule_id`
+    and a pre-formatted `citation` for the canonical error shape from
+    openrepose_rules_v0_1.md."""
+
+    def __init__(self, message: str, *, rule_id: str | None = None, citation: str | None = None) -> None:
+        super().__init__(message)
+        self.rule_id = rule_id
+        self.citation = citation
+
+
 @dataclass(frozen=True)
 class CommandResult:
     """Structured response for one command. Always JSON-serializable."""
@@ -155,7 +187,7 @@ class CommandDispatcher:
         *,
         outputs_root: Path | str = Path("outputs"),
         snapshot_handler: object | None = None,
-        settings: "Settings | None" = None,
+        settings: Settings | None = None,
     ) -> None:
         self.state = state
         self.log = log
@@ -201,6 +233,11 @@ class CommandDispatcher:
             LibraryTagError,
             IntakeOutputError,
             LibraryRunError,
+            AmoodBatchError,
+            AmoodCardError,
+            AmoodVariantError,
+            AmoodTsvError,
+            AcceptedSetAuditError,
             FileNotFoundError,
             NotImplementedError,
         ) as e:
@@ -296,7 +333,7 @@ def _h_import_portrait(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, A
     # Compute openpose-mapped counts for the state snapshot.
     face_70 = rig.openpose_face_70()
     body_18, _conf_18 = rig.openpose_body_18()
-    face_visible = int((face_70[:, 0] != 0).sum() + (face_70[:, 1] != 0).sum() > 0)
+    int((face_70[:, 0] != 0).sum() + (face_70[:, 1] != 0).sum() > 0)
     # Approximate visible: count non-(0,0) rows.
     import numpy as np
 
@@ -1349,7 +1386,7 @@ def _mediapipe_version_string() -> str:
 # ---------------------------------------------------------------------------
 
 
-def _ensure_pool(d: "CommandDispatcher"):  # noqa: ANN001
+def _ensure_pool(d: CommandDispatcher):
     pool = getattr(d, "library_pool", None)
     if pool is None or not getattr(pool, "is_open", False):
         raise OpenReposeLibraryError(
@@ -1359,14 +1396,14 @@ def _ensure_pool(d: "CommandDispatcher"):  # noqa: ANN001
     return pool
 
 
-def _operator_slug(d: "CommandDispatcher") -> str | None:  # noqa: ANN001
+def _operator_slug(d: CommandDispatcher) -> str | None:
     if d.settings is None:
         return None
     slug = d.settings.effective_operator_slug()
     return slug or None
 
 
-def _library_root(d: "CommandDispatcher") -> Path:  # noqa: ANN001
+def _library_root(d: CommandDispatcher) -> Path:
     """Resolved library root for filesystem writes; falls back to
     `<outputs_root>/library/` when no settings are present (covers
     headless tests that build a dispatcher directly)."""
@@ -1404,7 +1441,7 @@ def _decode_payload(
 
 
 def _h_register_library_entry(
-    d: "CommandDispatcher", cmd: dict[str, Any]
+    d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
     """Insert a new library entry. Either supply pre-existing paths
     (`portrait_path`, `openpose_json_path`, …) OR base64-encoded bytes
@@ -1484,15 +1521,14 @@ def _h_register_library_entry(
                 add_tags(conn, entry.id, smart, is_auto=True)
 
             # Optional sub-records.
-            if prompts_payload:
-                if isinstance(prompts_payload, dict):
-                    add_prompt(
-                        conn,
-                        entry.id,
-                        positive=prompts_payload.get("positive", "") or "",
-                        negative=prompts_payload.get("negative", "") or "",
-                        created_by=op,
-                    )
+            if prompts_payload and isinstance(prompts_payload, dict):
+                add_prompt(
+                    conn,
+                    entry.id,
+                    positive=prompts_payload.get("positive", "") or "",
+                    negative=prompts_payload.get("negative", "") or "",
+                    created_by=op,
+                )
             if story_beats_payload:
                 items = (
                     story_beats_payload
@@ -1536,7 +1572,7 @@ def _h_register_library_entry(
 
 
 def _h_update_library_entry(
-    d: "CommandDispatcher", cmd: dict[str, Any]
+    d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
     """Patch a library entry. Lock contention surfaces as a structured
     error including `retry_after` so the LLM agent can back off."""
@@ -1583,7 +1619,7 @@ def _h_update_library_entry(
 
 
 def _h_delete_library_entry(
-    d: "CommandDispatcher", cmd: dict[str, Any]
+    d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
     """Delete an entry + its `outputs/library/<entry-uuid>/` folder.
     Cascades to entry_tags / prompts / story_beats / notes via FKs."""
@@ -1617,7 +1653,7 @@ def _h_delete_library_entry(
 
 
 def _h_library_search(
-    d: "CommandDispatcher", cmd: dict[str, Any]
+    d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
     pool = _ensure_pool(d)
     query = cmd.get("query")
@@ -1647,7 +1683,7 @@ def _h_library_search(
 
 
 def _h_get_library_entry(
-    d: "CommandDispatcher", cmd: dict[str, Any]
+    d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
     pool = _ensure_pool(d)
     entry_id = cmd.get("entry_id")
@@ -1683,7 +1719,7 @@ def _h_get_library_entry(
 
 
 def _h_set_library_tags(
-    d: "CommandDispatcher", cmd: dict[str, Any]
+    d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
     pool = _ensure_pool(d)
     entry_id = cmd.get("entry_id")
@@ -1710,31 +1746,30 @@ def _h_set_library_tags(
 
 
 def _h_dump_library_schema(
-    d: "CommandDispatcher", cmd: dict[str, Any]
+    d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
     """Return current schema_version + an inventory hash an operator /
     LLM agent can compare against the migration files in source control
     to confirm no drift."""
     pool = _ensure_pool(d)
-    with pool.connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT COALESCE(MAX(version), 0) FROM schema_version"
-            )
-            row = cur.fetchone()
-            version = int(row[0]) if row else 0
-            cur.execute(
-                "SELECT table_name FROM information_schema.tables "
-                "WHERE table_schema = 'public' "
-                "ORDER BY table_name"
-            )
-            tables = [r[0] for r in cur.fetchall()]
-            cur.execute(
-                "SELECT routine_name FROM information_schema.routines "
-                "WHERE routine_schema = 'public' AND routine_type = 'FUNCTION' "
-                "ORDER BY routine_name"
-            )
-            functions = [r[0] for r in cur.fetchall()]
+    with pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT COALESCE(MAX(version), 0) FROM schema_version"
+        )
+        row = cur.fetchone()
+        version = int(row[0]) if row else 0
+        cur.execute(
+            "SELECT table_name FROM information_schema.tables "
+            "WHERE table_schema = 'public' "
+            "ORDER BY table_name"
+        )
+        tables = [r[0] for r in cur.fetchall()]
+        cur.execute(
+            "SELECT routine_name FROM information_schema.routines "
+            "WHERE routine_schema = 'public' AND routine_type = 'FUNCTION' "
+            "ORDER BY routine_name"
+        )
+        functions = [r[0] for r in cur.fetchall()]
     digest_input = json.dumps(
         {"version": version, "tables": tables, "functions": functions},
         sort_keys=True,
@@ -1753,7 +1788,7 @@ def _h_dump_library_schema(
 # ---------------------------------------------------------------------------
 
 
-def _intake_outputs_root(d: "CommandDispatcher") -> Path:  # noqa: ANN001
+def _intake_outputs_root(d: CommandDispatcher) -> Path:
     """Outputs root for intake filesystem operations. Same as the
     dispatcher's `outputs_root` (where `outputs/.runtime/`, `outputs/intake/`,
     `outputs/library/` all live)."""
@@ -1761,8 +1796,8 @@ def _intake_outputs_root(d: "CommandDispatcher") -> Path:  # noqa: ANN001
 
 
 def _require_operator_token(
-    d: "CommandDispatcher", cmd: dict[str, Any], command: str
-) -> None:  # noqa: ANN001
+    d: CommandDispatcher, cmd: dict[str, Any], command: str
+) -> None:
     """Raise INTAKE-001 OpenReposeIntakeError if the payload does not
     carry a valid operator_token. The DB CHECK constraint is the kill
     switch; this gate is defense-in-depth + early citation."""
@@ -1777,8 +1812,8 @@ def _require_operator_token(
 
 
 def _refresh_intake_state(
-    d: "CommandDispatcher", task_uuid: str | None = None
-) -> None:  # noqa: ANN001
+    d: CommandDispatcher, task_uuid: str | None = None
+) -> None:
     """Read task_summary for the active task (or clear) and write
     `state.library.intake` accordingly."""
     if not task_uuid:
@@ -1803,7 +1838,7 @@ def _refresh_intake_state(
     )
 
 
-def _h_project_create(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, Any]:
+def _h_project_create(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     pool = _ensure_pool(d)
     slug = cmd.get("slug")
     name = cmd.get("name")
@@ -1822,7 +1857,7 @@ def _h_project_create(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, 
     return {"project": project.to_dict()}
 
 
-def _h_project_list(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, Any]:
+def _h_project_list(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     pool = _ensure_pool(d)
     status = cmd.get("status")
     with pool.connection() as conn:
@@ -1830,7 +1865,7 @@ def _h_project_list(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, An
     return {"projects": [p.to_dict() for p in projects], "count": len(projects)}
 
 
-def _h_task_create(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, Any]:
+def _h_task_create(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     pool = _ensure_pool(d)
     project_id = cmd.get("project_id")
     slug = cmd.get("slug")
@@ -1860,7 +1895,7 @@ def _h_task_create(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, Any
     return {"task": task.to_dict()}
 
 
-def _h_task_list(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, Any]:
+def _h_task_list(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     pool = _ensure_pool(d)
     project_id = cmd.get("project_id")
     status = cmd.get("status")
@@ -1869,7 +1904,7 @@ def _h_task_list(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, Any]:
     return {"tasks": [t.to_dict() for t in tasks], "count": len(tasks)}
 
 
-def _h_task_summary(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, Any]:
+def _h_task_summary(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     pool = _ensure_pool(d)
     task_id = cmd.get("task_id")
     if not isinstance(task_id, str) or not task_id:
@@ -1880,7 +1915,7 @@ def _h_task_summary(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, An
     return {"summary": summary}
 
 
-def _h_task_inspect(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, Any]:
+def _h_task_inspect(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     pool = _ensure_pool(d)
     task_id = cmd.get("task_id")
     if not isinstance(task_id, str) or not task_id:
@@ -1905,7 +1940,7 @@ def _h_task_inspect(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, An
 
 
 def _h_intake_register_output(
-    d: "CommandDispatcher", cmd: dict[str, Any]
+    d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
     """Register one library_outputs row.
 
@@ -1993,7 +2028,7 @@ def _h_intake_register_output(
     return {"output": output.to_dict(), "auto_route": auto.to_dict()}
 
 
-def _h_intake_list(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, Any]:
+def _h_intake_list(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     pool = _ensure_pool(d)
     task_id = cmd.get("task_id")
     status = cmd.get("status")
@@ -2012,7 +2047,7 @@ def _h_intake_list(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, Any
 
 
 def _h_intake_inspect(
-    d: "CommandDispatcher", cmd: dict[str, Any]
+    d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
     pool = _ensure_pool(d)
     output_id = cmd.get("output_id")
@@ -2055,7 +2090,7 @@ def _h_intake_inspect(
 
 
 def _h_intake_soft_accept(
-    d: "CommandDispatcher", cmd: dict[str, Any]
+    d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
     pool = _ensure_pool(d)
     output_id = cmd.get("output_id")
@@ -2069,7 +2104,7 @@ def _h_intake_soft_accept(
 
 
 def _h_intake_reject(
-    d: "CommandDispatcher", cmd: dict[str, Any]
+    d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
     pool = _ensure_pool(d)
     output_id = cmd.get("output_id")
@@ -2093,7 +2128,7 @@ def _h_intake_reject(
 
 
 def _h_intake_finalize(
-    d: "CommandDispatcher", cmd: dict[str, Any]
+    d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
     _require_operator_token(d, cmd, "intake_finalize")
     pool = _ensure_pool(d)
@@ -2112,7 +2147,7 @@ def _h_intake_finalize(
 
 
 def _h_intake_reroute(
-    d: "CommandDispatcher", cmd: dict[str, Any]
+    d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
     pool = _ensure_pool(d)
     output_id = cmd.get("output_id")
@@ -2128,7 +2163,7 @@ def _h_intake_reroute(
 
 
 def _h_promote_to_library(
-    d: "CommandDispatcher", cmd: dict[str, Any]
+    d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
     _require_operator_token(d, cmd, "promote_to_library")
     pool = _ensure_pool(d)
@@ -2147,7 +2182,7 @@ def _h_promote_to_library(
 
 
 def _h_intake_begin_run(
-    d: "CommandDispatcher", cmd: dict[str, Any]
+    d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
     """Create one library_runs row and return its run_id. The bridge calls
     this once per ComfyUI save before per-image intake_register_output
@@ -2201,7 +2236,7 @@ def _h_intake_begin_run(
 
 
 def _h_task_reject_wholesale(
-    d: "CommandDispatcher", cmd: dict[str, Any]
+    d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
     _require_operator_token(d, cmd, "task_reject_wholesale")
     pool = _ensure_pool(d)
@@ -2224,6 +2259,248 @@ def _h_task_reject_wholesale(
         )
     _refresh_intake_state(d, task_id)
     return result
+
+
+# ---------------------------------------------------------------------------
+# AMood commands (WP-I3-006)
+# Spec: .gov/spec/openrepose_amood_v0_1.md "Command Surface (AMood-specific)"
+# ---------------------------------------------------------------------------
+
+
+def _h_init_batch_package(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    project_slug = cmd.get("project_slug")
+    batch_slug = cmd.get("batch_slug")
+    task_id = cmd.get("task_id")
+    tier = cmd.get("tier", "production")
+    primary_explicit_family = cmd.get("primary_explicit_family")
+    dedupe_threshold = cmd.get("dedupe_threshold", 6)
+
+    if not isinstance(project_slug, str) or not project_slug:
+        raise OpenReposeCommandError("init_batch_package requires 'project_slug'")
+    if not isinstance(batch_slug, str) or not batch_slug:
+        raise OpenReposeCommandError("init_batch_package requires 'batch_slug'")
+    if not isinstance(task_id, str) or not task_id:
+        raise OpenReposeCommandError("init_batch_package requires 'task_id'")
+
+    library_root = _library_root(d)
+    with pool.connection() as conn:
+        result = init_batch_package(
+            conn,
+            project_slug=project_slug,
+            batch_slug=batch_slug,
+            task_id=task_id,
+            library_root=library_root,
+            tier=tier,
+            primary_explicit_family=primary_explicit_family,
+            dedupe_threshold=int(dedupe_threshold),
+        )
+
+    batch = result["batch"]
+    d.state.set_active_amood_batch(
+        batch_id=batch["id"],
+        batch_slug=batch["slug"],
+        tier=batch["tier"],
+        primary_explicit_family=batch["primary_explicit_family"],
+    )
+    d.state.set_guidance(
+        current_focus=f"AMood batch {batch['slug']} initialized",
+        next_valid_actions=[
+            "library_create_card",
+            "library_create_variants",
+            "compatibility_check",
+            "amood_export_tsv",
+        ],
+        active_rules=["AMOOD-001", "AMOOD-003", "AMOOD-004"],
+    )
+    return result
+
+
+def _h_library_create_card(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    batch_id = cmd.get("batch_id")
+    avatar_slug = cmd.get("avatar_slug")
+    slug = cmd.get("slug")
+    if not isinstance(batch_id, str) or not batch_id:
+        raise OpenReposeCommandError("library_create_card requires 'batch_id'")
+    if not isinstance(avatar_slug, str) or not avatar_slug:
+        raise OpenReposeCommandError("library_create_card requires 'avatar_slug'")
+    if not isinstance(slug, str) or not slug:
+        raise OpenReposeCommandError("library_create_card requires 'slug'")
+
+    extra_metadata = cmd.get("extra_metadata") or {}
+    if not isinstance(extra_metadata, dict):
+        raise OpenReposeCommandError("'extra_metadata' must be an object")
+
+    with pool.connection() as conn:
+        # Look up batch for dedupe_threshold default.
+        batch = get_batch(conn, batch_id=batch_id)
+        threshold = (
+            cmd.get("dedupe_threshold")
+            if cmd.get("dedupe_threshold") is not None
+            else (batch.dedupe_threshold if batch else 6)
+        )
+        result = amood_create_card(
+            conn,
+            batch_id=batch_id,
+            avatar_slug=avatar_slug,
+            slug=slug,
+            sexual_trigger=cmd.get("sexual_trigger"),
+            kink_cue=cmd.get("kink_cue"),
+            porn_archetype=cmd.get("porn_archetype"),
+            fantasy_mode=cmd.get("fantasy_mode"),
+            explicit_family=cmd.get("explicit_family"),
+            exposure_detail=cmd.get("exposure_detail"),
+            archetype_signal=cmd.get("archetype_signal"),
+            scene_engine=cmd.get("scene_engine"),
+            shot_purpose=cmd.get("shot_purpose"),
+            pose_family=cmd.get("pose_family"),
+            orientation=cmd.get("orientation"),
+            wardrobe_state=cmd.get("wardrobe_state"),
+            held_object=cmd.get("held_object"),
+            support_object=cmd.get("support_object"),
+            setting_family=cmd.get("setting_family"),
+            lighting_family=cmd.get("lighting_family"),
+            camera_family=cmd.get("camera_family"),
+            gaze=cmd.get("gaze"),
+            mouth_tongue=cmd.get("mouth_tongue"),
+            palette_family=cmd.get("palette_family"),
+            accent_color=cmd.get("accent_color"),
+            dedupe_signature=cmd.get("dedupe_signature"),
+            compatibility_signature=cmd.get("compatibility_signature"),
+            dedupe_threshold=int(threshold),
+            operator_slug=_operator_slug(d),
+            extra_metadata=extra_metadata,
+        )
+
+    payload = result.to_dict()
+
+    # Surface AMOOD-001 warning when dedupe overlap was found.
+    if result.dedupe_match.has_overlap:
+        top = result.dedupe_match.candidates[0]
+        d.state.record_amood_dedupe_warning(
+            card_id=str(result.card_id),
+            overlap_count=top.overlap_count,
+            matched_card_slug=top.candidate_slug,
+        )
+        citation = format_citation(
+            command="library_create_card",
+            rule_id="AMOOD-001",
+            action_result="warned",
+            fix_action=(
+                f"revise card before promoting; overlaps {top.overlap_count}/8 "
+                f"with {top.candidate_slug!r}; raise dedupe_threshold for the batch "
+                "if intentional"
+            ),
+        )
+        payload["amood_001_citation"] = citation
+    return payload
+
+
+def _h_library_create_variants(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    parent_card_id = cmd.get("parent_card_id")
+    variants = cmd.get("variants")
+    if not isinstance(parent_card_id, str) or not parent_card_id:
+        raise OpenReposeCommandError("library_create_variants requires 'parent_card_id'")
+    if not isinstance(variants, list) or not variants:
+        raise OpenReposeCommandError("library_create_variants requires non-empty 'variants' list")
+    with pool.connection() as conn:
+        children = create_variants(
+            conn,
+            parent_card_id=parent_card_id,
+            variants=[str(v) for v in variants],
+            operator_slug=_operator_slug(d),
+        )
+    return {"children": children, "count": len(children)}
+
+
+def _h_compatibility_check(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    # No DB read required for the truth-table check; v0.1 takes axes
+    # directly from the payload. (A future revision can resolve them
+    # from card_id when the operator passes one instead of an axis set.)
+    result = check_compatibility(
+        sexual_trigger=cmd.get("sexual_trigger") or "",
+        explicit_family=cmd.get("explicit_family") or "",
+        pose_family=cmd.get("pose_family") or "",
+        orientation=cmd.get("orientation") or "",
+        camera_family=cmd.get("camera_family") or "",
+        wardrobe_state=cmd.get("wardrobe_state") or "",
+        support_object=cmd.get("support_object") or "",
+        palette_family=cmd.get("palette_family") or "",
+        lighting_family=cmd.get("lighting_family") or "",
+        fantasy_mode=cmd.get("fantasy_mode") or "",
+        primary_rejection_reason=cmd.get("primary_rejection_reason"),
+    )
+    payload = result.to_dict()
+    if not result.pass_ok and result.hard_rejects:
+        # Cite the first hard reject's rule_id (block-severity ones first).
+        first = result.hard_rejects[0]
+        rule_id = first.get("rule_id", "AMOOD-004")
+        citation = format_citation(
+            command="compatibility_check",
+            rule_id=rule_id,
+            action_result="blocked",
+            fix_action=f"resolve hard_reject category {first.get('category')!r}: {first.get('detail', '')}",
+        )
+        payload["primary_citation"] = citation
+    return payload
+
+
+def _h_accepted_set_audit(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    batch_id = cmd.get("batch_id")
+    if not isinstance(batch_id, str) or not batch_id:
+        raise OpenReposeCommandError("accepted_set_audit requires 'batch_id'")
+    with pool.connection() as conn:
+        result = accepted_set_audit(conn, batch_id=batch_id)
+    payload = result.to_dict()
+    # Reflect last-audit summary on state.library.amood.
+    summary = {
+        "batch_id": payload["batch_id"],
+        "axes_priority": [a for a in payload["axes"] if a["priority_flag"] == "priority"],
+        "axes_watch":    [a for a in payload["axes"] if a["priority_flag"] == "watch"],
+    }
+    d.state.refresh_amood_card_counts(last_audit=summary)
+    return payload
+
+
+def _h_amood_export_tsv(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    schema = cmd.get("schema")
+    batch_id = cmd.get("batch_id")
+    project_id = cmd.get("project_id")
+    if not isinstance(schema, str) or not schema:
+        raise OpenReposeCommandError("amood_export_tsv requires 'schema'")
+    with pool.connection() as conn:
+        tsv_text = export_tsv(
+            conn,
+            schema=schema,
+            batch_id=batch_id,
+            project_id=project_id,
+        )
+    return {"schema": schema, "tsv_text": tsv_text, "byte_length": len(tsv_text)}
+
+
+def _h_amood_import_tsv(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    schema = cmd.get("schema")
+    tsv_text = cmd.get("tsv_text")
+    batch_id = cmd.get("batch_id")
+    if not isinstance(schema, str) or not schema:
+        raise OpenReposeCommandError("amood_import_tsv requires 'schema'")
+    if not isinstance(tsv_text, str):
+        raise OpenReposeCommandError("amood_import_tsv requires 'tsv_text'")
+    with pool.connection() as conn:
+        result = import_tsv(
+            conn,
+            schema=schema,
+            tsv_text=tsv_text,
+            batch_id=batch_id,
+        )
+    return {"schema": schema, **result}
 
 
 _HANDLERS = {
@@ -2277,4 +2554,12 @@ _HANDLERS = {
     "promote_to_library": _h_promote_to_library,
     "task_reject_wholesale": _h_task_reject_wholesale,
     "intake_begin_run": _h_intake_begin_run,
+    # AMood commands (WP-I3-006).
+    "init_batch_package":     _h_init_batch_package,
+    "library_create_card":    _h_library_create_card,
+    "library_create_variants": _h_library_create_variants,
+    "compatibility_check":    _h_compatibility_check,
+    "accepted_set_audit":     _h_accepted_set_audit,
+    "amood_export_tsv":       _h_amood_export_tsv,
+    "amood_import_tsv":       _h_amood_import_tsv,
 }

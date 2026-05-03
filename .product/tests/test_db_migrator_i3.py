@@ -1,7 +1,7 @@
-"""Tests for the I3 PostgreSQL schema migrations (WP-I3-003).
+"""Tests for the I3 PostgreSQL schema migrations (WP-I3-003 + WP-I3-006).
 
 Covers:
-  - Clean apply of 001..004 in order; schema_version rows present.
+  - Clean apply of 001..005 in order; schema_version rows present.
   - Idempotent re-apply.
   - Every CHECK constraint named with a rule_id rejects its forbidden
     state with the constraint name visible in the error.
@@ -83,14 +83,14 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_i3_migrations_apply_in_order(library_pg):
-    """001..004 apply cleanly; schema_version reflects all four."""
+    """001..005 apply cleanly; schema_version reflects all five."""
     import psycopg
 
     with psycopg.connect(_dsn(library_pg)) as conn:
         migrator = Migrator(conn, migrations_dir=_migrations_dir())
         applied = migrator.apply_pending()
-        assert applied == [1, 2, 3, 4]
-        assert migrator.current_version() == 4
+        assert applied == [1, 2, 3, 4, 5]
+        assert migrator.current_version() == 5
 
         # Idempotent re-apply.
         assert migrator.apply_pending() == []

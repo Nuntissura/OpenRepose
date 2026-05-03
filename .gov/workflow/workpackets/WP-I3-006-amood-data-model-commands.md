@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: IN-PROGRESS
+- **Status**: REVIEW
 - **Iteration**: I3
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -232,11 +232,29 @@ Wire the 7 AMood-specific dispatcher commands from `openrepose_amood_v0_1.md` ag
 
 ## Change Ledger
 
-_To be filled at REVIEW time._
+- **What Became Real**:
+  - Migration `005_i3_amood_tsv_views.sql` shipped: 10 views (`library_amood_quota_plan_v`, `library_amood_batch_matrix_v`, `library_amood_variant_ladder_v`, `library_amood_anti_repetition_v`, `library_amood_prompt_manifest_v`, `library_amood_run_manifest_v`, `library_amood_review_manifest_v`, `library_amood_scorecard_v`, `library_amood_pose_control_guide_v`, `library_amood_series_plan_v`) in AMood-locked column order. Schema_version advances 4 → 5; assertions bumped in `test_db_migrator_i3.py` and `test_db_migrator.py`.
+  - `library/amood/` subpackage shipped: 8 modules (`__init__`, `batches`, `cards`, `variants`, `compatibility`, `audit`, `dedupe`, `tsv_views`, `tsv_io`).
+  - 7 dispatcher handlers wired in `commands.py`: `init_batch_package`, `library_create_card`, `library_create_variants`, `compatibility_check`, `accepted_set_audit`, `amood_export_tsv`, `amood_import_tsv`. New `OpenReposeAmoodError` class with `rule_id` + `citation` propagation.
+  - `state.library.amood` block added with mutators (`set_active_amood_batch`, `record_amood_dedupe_warning`, `refresh_amood_card_counts`).
+  - `library.dedupe_check` SQL function wrapped in `dedupe.check_card_pre_insert`; `library_create_card` invokes it BEFORE INSERT and surfaces AMOOD-001 citation when overlap >= threshold.
+  - `compatibility_check` encodes the AMood blueprint truth table (camera-cant-see-target, wardrobe-covers-target, prop-blocks-target, fantasy-set-camera-mismatch, palette-collapse, pose-implausible, multi-trigger-conflict) and SAFE-001/002/003 safety boundaries.
+  - `accepted_set_audit` writes 13 `library_diversity_audits` rows (one per amood:* tag axis) with priority_flag (`>= 0.75 ok`, `0.5..0.74 watch`, `< 0.5 priority`).
+  - `init_batch_package` creates batch row + folder layout (`outputs/library/<project_slug>/<batch_slug>/`) with 17 subdirs + INDEX.md + README.md from f-string templates; idempotent re-run reports diffs without overwrite.
+  - 39 new tests across 3 files (`test_amood_commands.py` 12, `test_amood_dedupe.py` 6, `test_amood_tsv.py` 21) — all passing against ephemeral PG.
+  - Manual `amood-workflow.md` extended with Commands table, init/create-card examples, AMOOD-001 citation example, TSV round-trip overview, and dedicated sections for the four anchor links cited by the rule registry: `#anti-repetition`, `#abandonment-criteria`, `#fast-triage`, `#safety-boundary`.
 
-- **What Became Real**: _TBD_
-- **What Remains Simulated**: _TBD_
-- **Next Blocking Real Seam**: _TBD_
+- **What Remains Simulated**:
+  - **Variant change-rules subset**: only `baseline`, `intimate`, `explicit_plus` ship with fully-populated change-rule defaults. `editorial`, `raw_cam`, `story_plus` ship with stub `"operator-defined"` placeholders, marked `# FALLBACK: WP-I3-006 variant change-rules subset` in `variants.py`. Operator overrides via subsequent `update_entry` calls. Successor: WP-I3-008 (Triage GUI) or follow-up IMPLEMENTATION WP.
+  - **TSV import for 6 system-generated schemas**: `prompt_manifest`, `run_manifest`, `review_manifest`, `scorecard`, `pose_control_guide`, `series_plan` are export-only in v0.1 (the views aggregate base tables; importing them would re-derive). Import returns INFO + manual link. Successor: post-WP-I3-008 follow-up if operators surface a real round-trip need.
+  - **Quota-plan import maps shape v0.1**: `target_count` is split into `(expected_card_count, target_per_card=1)` for `library_target_groups` upsert. The richer requirements editor + EXP120 round-trip lives in WP-I3-007.
+  - **Cross-axis interactions in `accepted_set_audit`**: v0.1 audits each of 13 axes independently. Cross-axis matrix interpretation needs the GUI (WP-I3-008).
+
+- **Next Blocking Real Seam**:
+  - WP-I3-007 (requirements editor + target tree commands) for the project_set_target_tree / project_render_markdown / project_import_markdown flow that the EXP120 example exercises end-to-end.
+  - WP-I3-008 (Triage GUI tab) consumes `state.library.amood` + the per-card AMood view to render variant strips and the accepted-set audit matrix.
+  - WP-I3-009 (audit script extension) verifies every CHECK constraint + view column matches the topology rule_registry + Python column mirror.
+  - WP-I3-010 (end-to-end EXP120 verification) closes I3 v0.1.
 
 ## Checkpoint Commit Plan
 
@@ -275,13 +293,14 @@ _To be filled at REVIEW time._
 
 ## Evidence
 
-- **Test Suite Execution**: `<TBD: target/test-artifacts/WP-I3-006/junit.xml>`
-- **Logs**: `<TBD: target/test-artifacts/WP-I3-006/audit.log>`
-- **Screenshots / Exports**: N/A (data-layer + dispatcher; no GUI in this WP)
-- **Build Artifacts**: N/A
-- **Proof Artifact**: `target/test-artifacts/WP-I3-006/`
-- **Operator Sign-off**: `<TBD>`
+- **Test Suite Execution**: `target/test-artifacts/WP-I3-006/junit.xml` — 39/39 AMood tests pass against ephemeral PG (`pytest-postgresql`, system PG 17). 68/68 regression-prone tests (`test_command_handlers.py`, `test_state_file.py`, `test_intake_commands.py`, `test_db_migrator.py`, `test_db_migrator_i3.py`) pass after the schema_version 4 → 5 bump and the AMood handler additions to `commands.py`.
+- **Logs**: `pwsh scripts/audit-repo.ps1` exits 0 — checks `hardcoded-paths`, `blank-space-paths`, `wp-research-notes`, `wp-manual-impact` all clean.
+- **Screenshots / Exports**: N/A (data-layer + dispatcher; no GUI in this WP).
+- **Build Artifacts**: `.product/migrations/005_i3_amood_tsv_views.sql`; `.product/src/openrepose/library/amood/` (8 modules); `commands.py` extension (~280 net new lines); `state.py` extension (`amood` block + 3 mutators); `library/__init__.py` re-exports.
+- **Proof Artifact**: `target/test-artifacts/WP-I3-006/junit.xml`.
+- **Operator Sign-off**: `<pending>`
 
 ## Progress Log
 
 - 2026-05-03: WP initialized at IN-PROGRESS. Predecessors WP-I3-003/004/005 archived in the same kickoff commit (operator sign-off granted in-session).
+- 2026-05-03: Implementation complete. Migration 005 (10 views) + library/amood/ subpackage (8 modules) + 7 dispatcher handlers + state.library.amood block + 39 new tests (all passing) + manual extension. Audit clean. WP advanced to REVIEW.

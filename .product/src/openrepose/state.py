@@ -196,6 +196,18 @@ class AppState:
                 "current_card_id": None,
                 "queue_depth": 0,
             },
+            # WP-I3-006: AMood batch state.
+            "amood": {
+                "active_batch_id": None,
+                "active_batch_slug": None,
+                "tier": None,
+                "primary_explicit_family": None,
+                "stable_cards": 0,
+                "unstable_cards": 0,
+                "abandoned_cards": 0,
+                "dedupe_recent_warnings": [],
+                "last_audit": None,
+            },
             # WP-I3-004: self-documenting guidance for cold-start LLMs.
             "guidance": {
                 "current_focus": None,
@@ -483,6 +495,66 @@ class AppState:
                     "queue_depth": int(queue_depth),
                 },
             }
+
+    # --- WP-I3-006: AMood ------------------------------------------------
+
+    def set_active_amood_batch(
+        self,
+        *,
+        batch_id: str | None,
+        batch_slug: str | None,
+        tier: str | None = None,
+        primary_explicit_family: str | None = None,
+    ) -> None:
+        """Pin the active AMood batch on the state-block. Counters
+        (stable/unstable/abandoned cards) are refreshed by
+        `refresh_amood_card_counts`."""
+        with self._lock:
+            current = dict(self.library.get("amood") or {})
+            current["active_batch_id"] = batch_id
+            current["active_batch_slug"] = batch_slug
+            current["tier"] = tier
+            current["primary_explicit_family"] = primary_explicit_family
+            self.library = {**self.library, "amood": current}
+
+    def record_amood_dedupe_warning(
+        self,
+        *,
+        card_id: str,
+        overlap_count: int,
+        matched_card_slug: str,
+    ) -> None:
+        """Append a dedupe warning to the rolling window (capped at 10)."""
+        with self._lock:
+            current = dict(self.library.get("amood") or {})
+            warnings = list(current.get("dedupe_recent_warnings") or [])
+            warnings.append(
+                {
+                    "card_id": card_id,
+                    "overlap_count": int(overlap_count),
+                    "matched_card_slug": matched_card_slug,
+                    "at": _now(),
+                }
+            )
+            current["dedupe_recent_warnings"] = warnings[-10:]
+            self.library = {**self.library, "amood": current}
+
+    def refresh_amood_card_counts(
+        self,
+        *,
+        stable_cards: int = 0,
+        unstable_cards: int = 0,
+        abandoned_cards: int = 0,
+        last_audit: dict[str, Any] | None = None,
+    ) -> None:
+        with self._lock:
+            current = dict(self.library.get("amood") or {})
+            current["stable_cards"] = int(stable_cards)
+            current["unstable_cards"] = int(unstable_cards)
+            current["abandoned_cards"] = int(abandoned_cards)
+            if last_audit is not None:
+                current["last_audit"] = last_audit
+            self.library = {**self.library, "amood": current}
 
     def set_guidance(
         self,

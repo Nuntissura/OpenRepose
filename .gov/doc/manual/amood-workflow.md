@@ -252,3 +252,137 @@ A task-ready Library entry is complete when it has:
 - review note explaining why it was accepted, rejected, or kept for diagnostics
 
 Entries missing this context may still be useful, but they are not complete task records.
+
+## Commands
+
+The seven AMood-specific dispatcher commands (WP-I3-006). All return responses with the `adult_production_boundary` envelope. See `intake-and-triage.md` for the project/task layer underneath; AMood batches sit on top of that hierarchy.
+
+| Command | LLM-issuable | Effect |
+|---------|--------------|--------|
+| `init_batch_package` | yes | Creates a `library_batches` row + folder layout under `outputs/library/<project_slug>/<batch_slug>/`. Idempotent: re-running reports diffs without overwriting. |
+| `library_create_card` | yes | Inserts an AMood-shaped `library_entries` row. Calls `library.dedupe_check` before INSERT; emits AMOOD-001 citation when overlap >= threshold. |
+| `library_create_variants` | yes | Spawns child cards with `parent_card_id` FK + `variant_label`. Default change-rules for `baseline`/`intimate`/`explicit_plus`; stub for `editorial`/`raw_cam`/`story_plus`. |
+| `compatibility_check` | yes | Runs the AMood compatibility truth table; cites SAFE-001/002/003 on safety boundaries (juvenile / coercion / hidden-camera) and AMOOD-004 on moodboard hard-rejects. |
+| `accepted_set_audit` | yes | Writes `library_diversity_audits` rows for the 13 amood:* tag axes; priority flag `>= 0.75 ok / 0.5..0.74 watch / < 0.5 priority`. |
+| `amood_export_tsv` | yes | Returns TAB-separated text in AMood-locked column order for one of 10 view schemas. |
+| `amood_import_tsv` | yes | Parses TSV in locked column order; upserts to underlying tables. v0.1 supports import for 4 hand-edited schemas (`quota_plan`, `batch_matrix`, `variant_ladder`, `anti_repetition`); 6 system-generated schemas return INFO. |
+
+### init_batch_package example
+
+```json
+{
+  "command": "init_batch_package",
+  "project_slug": "exposure-120",
+  "batch_slug": "hotel-robes",
+  "task_id": "<uuid from task_create>",
+  "tier": "production",
+  "primary_explicit_family": "vulva-pussy-exposure",
+  "dedupe_threshold": 6
+}
+```
+
+Response includes `created` (true on first run, false on idempotent re-run), `package_path`, and `layout_diffs` (empty when the folder tree matches the canonical shape).
+
+### library_create_card example
+
+```json
+{
+  "command": "library_create_card",
+  "batch_id": "<uuid>",
+  "avatar_slug": "aeri",
+  "slug": "hotel-robe-bed-edge",
+  "sexual_trigger": "visible vulva exposure",
+  "kink_cue": "self-display",
+  "porn_archetype": "hotel robe reveal",
+  "fantasy_mode": "casual intimate",
+  "explicit_family": "vulva/pussy exposure",
+  "exposure_detail": "full target visible",
+  "pose_family": "bed-edge lean",
+  "orientation": "three-quarter front",
+  "wardrobe_state": "robe open",
+  "support_object": "bed edge",
+  "setting_family": "luxury hotel",
+  "camera_family": "eye-level full-body",
+  "palette_family": "warm hotel amber"
+}
+```
+
+Response includes `card_id`, `dedupe_signature` (8-axis pipe-delimited canonical), `compatibility_signature`, `dedupe_match` (matching cards with overlap_count >= threshold), and `compatibility_warnings`. When overlap is found, the response also includes `amood_001_citation` with the canonical AMOOD-001 error shape.
+
+### AMOOD-001 citation example
+
+```text
+ERR cmd=library_create_card: warned by AMOOD-001 (anti-repetition threshold): >= 6 axis overlap with accepted card requires revision; project-overridable.
+See manual: amood-workflow.md#anti-repetition.
+Fix: revise card before promoting; overlaps 7/8 with 'hotel-robe-bed-edge'; raise dedupe_threshold for the batch if intentional.
+```
+
+### TSV round-trip
+
+The 10 TSV schemas live as DB views (migration 005) in AMood-locked column order. Export reads the view; import parses TSV in the same column order back to underlying tables. Round-trip is bytewise lossless on the 4 hand-edited schemas.
+
+```text
+quota_plan          batch-level axis-value quotas; project_id-scoped via library_target_groups
+batch_matrix        per-card matrix row (43 columns); covers all blueprint card axes
+variant_ladder      variant change-rule rows (parent + child cards)
+anti_repetition     per-card dedupe signature + axes; ledger for batches > 24 cards
+prompt_manifest     export-only; rendered from library_entries + prompts table
+run_manifest        export-only; rendered from library_runs + library_outputs
+review_manifest     export-only; rendered from library_scorecards + library_outputs
+scorecard           export-only; rendered from library_scorecards
+pose_control_guide  export-only; rendered from library_pose_guides
+series_plan         export-only; rendered from library_entries.metadata 'amood:series_id'
+```
+
+Additive-only rule: future migrations may append columns on the right; never reorder, rename, or drop existing columns. The migration uses `CREATE OR REPLACE VIEW` which enforces this at the SQL layer.
+
+## anti-repetition
+
+Two cards in the same project that share too many dedupe-signature axes produce visually similar outputs. AMOOD-001 surfaces this as a warning (severity: `warn`) so the operator can revise before promoting.
+
+```text
+Threshold default:    6 of 8 axes overlap
+Threshold range:      4..8 (per batch, on library_batches.dedupe_threshold)
+Status filter:        only soft_accepted + promoted cards drive the dedupe surface
+Override path:        none for v0.1; revise the card OR raise the batch threshold
+```
+
+The 8 dedupe axes are: `explicit_family | pose_family | orientation | wardrobe_state | support_object | setting_family | camera_family | palette_family`.
+
+## abandonment-criteria
+
+Per AMOOD-002 (warn): a card is abandonment-eligible after 12 seeds with `trigger_clarity_score < 4`, or after 8 seeds with repeated structural failure (anatomy / wardrobe / pose). Card-level abandonment writes `library_entries.abandoned_after_seeds` + `abandonment_reason`.
+
+```text
+trigger_fights_model      the trigger keeps colliding with the model's bias
+pose_needs_guide          unguided pose drifts; needs explicit pose guide
+wardrobe_incompatible     wardrobe mechanism doesn't read with this trigger
+identity_drift            avatar identity not preserved across seeds
+duplicate_scene           re-runs of the same scene aren't producing diversity
+safety_boundary           SAFE-001/002/003 boundary fired (no override path)
+```
+
+## fast-triage
+
+Per AMOOD-003 (warn): a row is rejected before the full 16-field rubric runs when any of these 4 fields fails:
+
+```text
+adult_gate_score        < 5  (must read clearly as adult)
+trigger_clarity_score   < 4  (the sexual trigger must be readable)
+anatomy_score           < 3  (anatomy must be coherent)
+artifact_score          < 4  (no major AI artifacts)
+```
+
+Fast-triage is a CHECK constraint on `library_scorecards`: a `promote` decision is rejected at DB level when any of these scores is below the bar. The full rubric (12 more fields) only runs after fast-triage passes.
+
+## safety-boundary
+
+Per SAFE-001 / SAFE-002 / SAFE-003 (block, no override path): juvenile-coded, coercion-coded, or hidden-camera-coded outputs cannot be promoted. The DB enforces this with three CHECK constraints on `library_scorecards`:
+
+```text
+SAFE-001  primary_rejection_reason='juvenile_coded'  -> cannot promote
+SAFE-002  primary_rejection_reason='coercion_coded'   -> cannot promote
+SAFE-003  primary_rejection_reason='hidden_camera_coded' -> cannot promote
+```
+
+Card-level abandonment is the prescribed response (per AMOOD-002), not just seed-level rejection.

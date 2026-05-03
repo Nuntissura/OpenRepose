@@ -162,11 +162,11 @@ def test_apply_initial_migration_creates_all_tables(library_pg, tmp_path: Path):
     with psycopg.connect(dsn) as conn:
         migrator = Migrator(conn, migrations_dir=migrations_dir)
         applied = migrator.apply_pending()
-        assert applied == [1, 2, 3, 4]
+        assert applied == [1, 2, 3, 4, 5]
 
         # Idempotent re-apply: no further work.
         assert migrator.apply_pending() == []
-        assert migrator.current_version() == 4
+        assert migrator.current_version() == 5
 
         with conn.cursor() as cur:
             cur.execute(
