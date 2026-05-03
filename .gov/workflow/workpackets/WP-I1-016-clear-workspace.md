@@ -2,27 +2,34 @@
 
 ## Header
 
-- **Owner**: TBD (operator)
+- **Owner**: assistant
 - **Date Opened**: 2026-05-02
-- **Status**: DRAFT
+- **Status**: IN-PROGRESS
 - **Iteration**: I1
-- **Workflow Version**: 1.0
+- **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
 - **Effort Estimate**: XS
 - **Linked Spec**: `.gov/spec/openrepose_v0_1.md` LLM Control Surface (add command).
 
 ## Intent
 
-A `clear_workspace` command + a "Clear workspace" toolbar button that drops the active rig, resets yaw to `0`, and clears the viewports back to "no rig loaded". Distinct from `clear_outputs` (which only purges the state arrays). Does NOT touch OptionsPane settings, avatar slug, run tag, channel toggles, or log.
+A `clear_workspace` command + a "Clear workspace" toolbar button (placed immediately next to the Open button) that drops the rig of the **active document**, resets its yaw to `0`, and clears the viewports back to "no rig loaded". Distinct from `clear_outputs` (which only purges the state arrays). Does NOT touch OptionsPane settings, avatar slug, run tag, channel toggles, log, or any inactive document tucked in another tab.
+
+Today the application has a single-document model so "active document" == "the only loaded portrait"; the contract is written this way to remain correct after WP-I1-036 lands the multi-file workspace.
 
 ## Linked Workpackets
 
 - **Predecessor(s)**: WP-I0-004 must reach DONE.
 
-## Reality Boundary
+## Research Notes
 
-- **Real Seam**: new `_h_clear_workspace` handler clears `dispatcher._rig`, calls `state.set_rig(status="none", ...)`, calls `state.set_yaw(value_deg=0.0, bin_label="0")`, calls `state.set_portrait(None)`. Toolbar button + `Edit → Clear workspace` menu entry both dispatch the command.
-- **User-Visible Win**: operator clicks Clear workspace; viewports go blank; status bar reads `rig=none`; settings tab is unchanged.
+| Date | Source | URL | Takeaway | Verdict |
+|------|--------|-----|----------|---------|
+| 2026-05-04 | Local codebase | `.product/src/openrepose/state.py` (set_rig / set_yaw / set_portrait), `.product/src/openrepose/commands.py` (existing `_h_clear_outputs` for handler shape), `.product/src/openrepose/gui/toolbar.py`, `.product/src/openrepose/gui/main_window.py` | All primitives required by the contract already exist. Handler composes existing state setters; toolbar receives a new QAction adjacent to Open. No new external dependency. | adopt |
+| 2026-05-04 | Operator decision (kickoff) | n/a | Scope = active document only (forward-compat with WP-I1-036). Today active == only loaded portrait, so handler addresses `dispatcher._rig` directly; refactor to a `state.active_document_id` indirection lands when WP-I1-036 ships. | adopt |
+
+- **Real Seam**: new `_h_clear_workspace` handler clears the active document's rig (`dispatcher._rig` today), calls `state.set_rig(status="none", ...)`, calls `state.set_yaw(value_deg=0.0, bin_label="0")`, calls `state.set_portrait(None)`. Toolbar button (next to Open) + `Edit → Clear workspace` menu entry both dispatch the command. Scope = active document only; non-active documents (when WP-I1-036 lands) are untouched.
+- **User-Visible Win**: operator clicks Clear workspace; viewports go blank; status bar reads `rig=none`; settings tab is unchanged. After WP-I1-036, only the active tab clears.
 - **Proof Target**: pytest covers the clear command and verifies state changes; full project suite still green.
 
 ## In Scope
@@ -48,7 +55,9 @@ A `clear_workspace` command + a "Clear workspace" toolbar button that drops the 
 
 - [ ] Command works headlessly and via the toolbar button.
 - [ ] OptionsPane settings, log, and channel toggles are confirmed unchanged after clear.
+- [ ] Toolbar button placed immediately next to the Open button (left-of or right-of, picked during implementation for visual balance).
 - [ ] `pytest` zero failures.
+- [ ] Manual Impact: Yes — extends `feature-1-yaw-exporter.md` with the Clear workspace command + button + the active-document scope note.
 
 ## Linked Requirements / Spec Sections
 
@@ -111,7 +120,8 @@ A `clear_workspace` command + a "Clear workspace" toolbar button that drops the 
 
 ## Decisions Log
 
-- (none yet at DRAFT stage; populate during implementation)
+- 2026-05-04 (kickoff): scope = ACTIVE document only. Forward-compat with WP-I1-036 multi-file workspace. Today active == only loaded portrait, but the handler is written to address `state.active_document` (or equivalent) rather than mutating all documents. Reason: operator-stated preference; avoids a future breaking-semantics change.
+- 2026-05-04 (kickoff): toolbar button placement = adjacent to the Open button (not at the end of the toolbar). Reason: operator-stated preference; pairs the destructive workspace action with its constructive sibling.
 
 ## Fallback Register
 
@@ -151,3 +161,4 @@ A `clear_workspace` command + a "Clear workspace" toolbar button that drops the 
 
 - 2026-05-02: WP drafted, status DRAFT.
 - 2026-05-02: Enhanced with full template sections (Files Touched, Test Plan, Risks, Rollback, Exit Criteria, etc.) for session-survivability.
+- 2026-05-04: Promoted DRAFT → IN-PROGRESS as part of polish bundle (with WP-I1-003 + WP-I1-005). Workflow Version bumped 1.0 → 1.1; Manual Impact line added; active-document scope frozen; button placement frozen (next to Open).

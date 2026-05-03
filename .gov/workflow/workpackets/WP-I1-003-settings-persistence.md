@@ -2,22 +2,29 @@
 
 ## Header
 
-- **Owner**: TBD (operator)
+- **Owner**: assistant
 - **Date Opened**: 2026-05-02
-- **Status**: DRAFT
+- **Status**: IN-PROGRESS
 - **Iteration**: I1
-- **Workflow Version**: 1.0
+- **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
 - **Effort Estimate**: S
 - **Linked Spec**: `.gov/spec/openrepose_v0_1.md` Feature 1 / GUI Requirements (Options tab fields) — add persistence rule.
 
 ## Intent
 
-Persist OptionsPane settings (avatar slug, run tag, export folders, projection mode, channel toggles, log level, etc.) to a JSON file in the user's local app-data directory so settings survive across launches. Currently each launch starts with defaults. Recorded as a documented fallback in WP-I0-004.
+Persist OptionsPane settings (avatar slug, run tag, export folders, projection mode, channel toggles, log level, etc.) to `outputs/.runtime/settings.json` so settings survive across launches. Same runtime-surface neighbourhood as `state.json`, `inbox/`, `processed/`, and the snapshot manifest. Currently each launch starts with defaults. Recorded as a documented fallback in WP-I0-004.
 
 ## Linked Workpackets
 
 - **Predecessor(s)**: WP-I0-004 must reach DONE.
+
+## Research Notes
+
+| Date | Source | URL | Takeaway | Verdict |
+|------|--------|-----|----------|---------|
+| 2026-05-04 | Local codebase | `.product/src/openrepose/state.py`, `.product/src/openrepose/commands.py`, `.product/src/openrepose/gui/options.py`, `.product/src/openrepose/snapshot.py` | The runtime-surface pattern (`outputs/.runtime/state.json`, snapshots, inbox/processed) is already established. Adding `settings.json` next to it follows the existing convention; no new external dependency required. | adopt |
+| 2026-05-04 | Qt for Python (PySide6) docs | https://doc.qt.io/qtforpython-6/PySide6/QtCore/QSettings.html | `QSettings` is the platform-native settings store (registry on Windows, plist on macOS, INI on Linux). Rejected: ties the file location to per-user OS app-data, breaks the disk-agnostic + repo-portable runtime surface this project uses. JSON-on-disk under `outputs/.runtime/` matches the rest of the surface and is LLM-readable without extra parsing. | reject |
 
 ## Reality Boundary
 
@@ -50,6 +57,7 @@ Persist OptionsPane settings (avatar slug, run tag, export folders, projection m
 - [ ] OptionsPane state survives app restart.
 - [ ] 3 new commands work; tests cover them.
 - [ ] Full project suite green.
+- [ ] Manual Impact: Yes — extends `feature-1-yaw-exporter.md` with the settings-persistence behaviour and the 3 new headless commands.
 
 ## Linked Requirements / Spec Sections
 
@@ -114,7 +122,7 @@ Persist OptionsPane settings (avatar slug, run tag, export folders, projection m
 
 ## Decisions Log
 
-- (none yet at DRAFT stage; populate during implementation)
+- 2026-05-04 (kickoff): settings file lives at `outputs/.runtime/settings.json`, NOT in a per-user OS app-data directory. Reason: the rest of the LLM-readable runtime surface lives there; settings travel with the repo on disk-agnostic moves; matches operator-stated preference.
 
 ## Fallback Register
 
@@ -155,3 +163,4 @@ Persist OptionsPane settings (avatar slug, run tag, export folders, projection m
 
 - 2026-05-02: WP drafted, status DRAFT.
 - 2026-05-02: Enhanced with full template sections (Files Touched, Test Plan, Risks, Rollback, Exit Criteria, etc.) for session-survivability.
+- 2026-05-04: Promoted DRAFT → IN-PROGRESS as part of polish bundle (with WP-I1-005 + WP-I1-016). Workflow Version bumped 1.0 → 1.1; Manual Impact line added; settings location frozen to `outputs/.runtime/settings.json`.

@@ -2,11 +2,11 @@
 
 ## Header
 
-- **Owner**: TBD (operator)
+- **Owner**: assistant
 - **Date Opened**: 2026-05-02
-- **Status**: DRAFT
+- **Status**: IN-PROGRESS
 - **Iteration**: I1
-- **Workflow Version**: 1.0
+- **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
 - **Effort Estimate**: XS
 - **Linked Spec**: `.gov/spec/openrepose_v0_1.md` Feature 1 / GUI Requirements.
@@ -19,7 +19,12 @@ Operator drags a PNG/JPG file from Explorer into the OpenRepose window; OpenRepo
 
 - **Predecessor(s)**: WP-I0-004 must reach DONE.
 
-## Reality Boundary
+## Research Notes
+
+| Date | Source | URL | Takeaway | Verdict |
+|------|--------|-----|----------|---------|
+| 2026-05-04 | Qt for Python (PySide6) docs | https://doc.qt.io/qtforpython-6/PySide6/QtGui/QDragEnterEvent.html ; https://doc.qt.io/qtforpython-6/PySide6/QtGui/QDropEvent.html | Standard Qt drag-and-drop pattern: `setAcceptDrops(True)` on the receiving widget, override `dragEnterEvent` to accept based on `mimeData().hasUrls()` and image MIME types, override `dropEvent` to read `mimeData().urls()` and dispatch. Image MIME detection via `Qt.QMimeDatabase.mimeTypeForFile()`. | adopt |
+| 2026-05-04 | Local codebase | `.product/src/openrepose/gui/main_window.py`, `.product/src/openrepose/gui/viewport_3d.py`, `.product/src/openrepose/gui/viewport_openpose.py`, `.product/src/openrepose/commands.py` (`import_portrait`) | Existing `import_portrait` command + `MainWindow` provide the dispatch site; viewports forward drops to MainWindow so there is one canonical drop handler. No new external dependency. | adopt |
 
 - **Real Seam**: enable `setAcceptDrops(True)` on `MainWindow`; implement `dragEnterEvent` (accept image MIME types) and `dropEvent` (extract path, dispatch `import_portrait`).
 - **User-Visible Win**: drag-and-drop works on the central widget area and on either viewport pane.
@@ -45,6 +50,7 @@ Operator drags a PNG/JPG file from Explorer into the OpenRepose window; OpenRepo
 - [ ] Drag a portrait into the window; rig fits; viewports populate.
 - [ ] Non-image drops rejected with a log WARN, no crash.
 - [ ] Tests cover both happy and rejection paths.
+- [ ] Manual Impact: Yes — extends `feature-1-yaw-exporter.md` Import section with the drag-and-drop flow + multi-file policy + the link to WP-I1-036 for true multi-file workspace support.
 
 ## Linked Requirements / Spec Sections
 
@@ -106,7 +112,8 @@ Operator drags a PNG/JPG file from Explorer into the OpenRepose window; OpenRepo
 
 ## Decisions Log
 
-- (none yet at DRAFT stage; populate during implementation)
+- 2026-05-04 (kickoff): multi-file drop policy = accept the first image, log WARN listing the ignored entries; do NOT silently iterate, do NOT reject the whole drop. Reason: operator wants multi-file workspace ASAP via WP-I1-036; in the interim a multi-drop should still produce one usable import rather than nothing.
+- 2026-05-04 (kickoff): drop targets = MainWindow central widget + both viewport panes; viewports forward drops to MainWindow (single dispatch site).
 
 ## Fallback Register
 
@@ -146,3 +153,4 @@ Operator drags a PNG/JPG file from Explorer into the OpenRepose window; OpenRepo
 
 - 2026-05-02: WP drafted, status DRAFT.
 - 2026-05-02: Enhanced with full template sections (Files Touched, Test Plan, Risks, Rollback, Exit Criteria, etc.) for session-survivability.
+- 2026-05-04: Promoted DRAFT → IN-PROGRESS as part of polish bundle (with WP-I1-003 + WP-I1-016). Workflow Version bumped 1.0 → 1.1; Manual Impact line added; multi-file drop policy frozen.
