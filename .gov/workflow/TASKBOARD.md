@@ -9,7 +9,7 @@ Live status of all OpenRepose workpackets. Update in the same session as any wor
 - WPs in flight (READY + IN-PROGRESS): 0
 - WPs pending review (REVIEW): 0
 - WPs blocked (BLOCKED): 0
-- WPs draft (DRAFT, eligible to promote): 21 (19 original + WP-I1-028 + WP-I1-030 + WP-I1-031; WP-I1-027 + WP-I1-029 + WP-I1-023 in REVIEW)
+- WPs draft (DRAFT, eligible to promote): 21 (19 original + WP-I1-028 + WP-I1-030 + WP-I1-031; WP-I1-027 + WP-I1-029 + WP-I1-023 in REVIEW; WP-I1-032 + WP-I1-033 in flight)
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
 - WPs done (I0): 4 (WP-I0-001/002/003/004) — I0 CLOSED 2026-05-02
 - WPs done (I1): 3 (WP-I1-025, WP-I1-026, WP-I1-001)
@@ -22,8 +22,8 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-
-_(none — fast-track batch back in REVIEW after viewport regression fix)_
+| WP-I1-032 | GUI Polish Bundle | assistant | READY | IMPLEMENTATION | M | 2026-05-03 |
+| WP-I1-033 | Feature 3 Spec (Library + ComfyUI + PostgreSQL) | assistant | READY | DOCUMENTATION | L | 2026-05-03 |
 
 ## Pending Review
 
