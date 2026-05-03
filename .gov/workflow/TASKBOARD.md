@@ -22,7 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-_(none — fast-track batch complete; WP-I1-028/029/030/031 all signed off and archived 2026-05-03)_
+| WP-I1-034 | Calibration overview mode + drag/delete + add-marker + mesh inspector | assistant | IN-PROGRESS | IMPLEMENTATION | L | 2026-05-03 |
 
 ## Pending Review
 
