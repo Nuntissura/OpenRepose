@@ -181,6 +181,36 @@ class AppState:
             "last_register_at": None,
             "pending_writes": 0,
             "locked_entries": [],
+            # WP-I3-004: intake & triage state.
+            "intake": {
+                "active_task_id": None,
+                "active_task_slug": None,
+                "received_count": 0,
+                "pending_count": 0,
+                "triaging_count": 0,
+                "soft_accepted_count": 0,
+                "promoted_count": 0,
+                "rejected_count": 0,
+                "diagnostic_count": 0,
+                "abandoned_count": 0,
+                "current_card_id": None,
+                "queue_depth": 0,
+            },
+            # WP-I3-004: self-documenting guidance for cold-start LLMs.
+            "guidance": {
+                "current_focus": None,
+                "next_valid_actions": [],
+                "active_rules": [],
+                "recent_operator_corrections": [],
+                "manual_index": ".gov/doc/manual/index.md",
+                "topic_pointers": {
+                    "intake": ".gov/doc/manual/intake-and-triage.md",
+                    "amood": ".gov/doc/manual/amood-workflow.md",
+                    "rules": ".gov/doc/manual/adult-production-boundary.md",
+                    "targets": ".gov/doc/manual/targets-and-progress.md",
+                    "requirements": ".gov/doc/manual/requirements-and-targets.md",
+                },
+            },
         }
     )
 
@@ -414,6 +444,73 @@ class AppState:
     def clear_library_locks(self) -> None:
         with self._lock:
             self.library = {**self.library, "locked_entries": []}
+
+    # --- WP-I3-004: intake + guidance ------------------------------------
+
+    def set_intake_state(
+        self,
+        *,
+        active_task_id: str | None,
+        active_task_slug: str | None,
+        received_count: int = 0,
+        pending_count: int = 0,
+        triaging_count: int = 0,
+        soft_accepted_count: int = 0,
+        promoted_count: int = 0,
+        rejected_count: int = 0,
+        diagnostic_count: int = 0,
+        abandoned_count: int = 0,
+        current_card_id: str | None = None,
+        queue_depth: int = 0,
+    ) -> None:
+        """Replace the `state.library.intake` block. Called by intake
+        command handlers after each command (WP-I3-004)."""
+        with self._lock:
+            self.library = {
+                **self.library,
+                "intake": {
+                    "active_task_id": active_task_id,
+                    "active_task_slug": active_task_slug,
+                    "received_count": int(received_count),
+                    "pending_count": int(pending_count),
+                    "triaging_count": int(triaging_count),
+                    "soft_accepted_count": int(soft_accepted_count),
+                    "promoted_count": int(promoted_count),
+                    "rejected_count": int(rejected_count),
+                    "diagnostic_count": int(diagnostic_count),
+                    "abandoned_count": int(abandoned_count),
+                    "current_card_id": current_card_id,
+                    "queue_depth": int(queue_depth),
+                },
+            }
+
+    def set_guidance(
+        self,
+        *,
+        current_focus: str | None,
+        next_valid_actions: list[str] | None = None,
+        active_rules: list[str] | None = None,
+    ) -> None:
+        """Update guidance block. Caps `active_rules` at 20 and
+        `recent_operator_corrections` at 10 per spec."""
+        with self._lock:
+            current = dict(self.library.get("guidance") or {})
+            current["current_focus"] = current_focus
+            if next_valid_actions is not None:
+                current["next_valid_actions"] = list(next_valid_actions)[:20]
+            if active_rules is not None:
+                current["active_rules"] = list(active_rules)[-20:]
+            self.library = {**self.library, "guidance": current}
+
+    def add_operator_correction(self, message: str) -> None:
+        """Append a recent-operator-correction line; capped at 10."""
+        with self._lock:
+            guidance = dict(self.library.get("guidance") or {})
+            current = list(guidance.get("recent_operator_corrections") or [])
+            current.append({"message": message, "at": _now()})
+            current = current[-10:]
+            guidance["recent_operator_corrections"] = current
+            self.library = {**self.library, "guidance": guidance}
 
     def begin_command(self, command: str) -> None:
         with self._lock:

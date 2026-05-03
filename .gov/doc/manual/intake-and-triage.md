@@ -75,6 +75,8 @@ Fix: emit intake_soft_accept; operator runs intake_finalize.
 
 Soft-accept is reversible until finalize. After finalize, demotion is out of scope for v0.1.
 
+The operator-only commands (`intake_finalize`, `promote_to_library`, `task_reject_wholesale`) require an `operator_token` field on the command payload. The token is derived from operator settings (slug + library_root) and is not exposed to the LLM control surface — the GUI session computes it; LLM agents running headlessly never see one. The DB-level CHECK constraint `lib_outputs_intake_001_two_stage_acceptance` is the actual kill switch (status='promoted' requires `finalized_by NOT NULL`); the dispatcher token gate is defense-in-depth so the LLM gets the canonical INTAKE-001 citation before the SQL even runs.
+
 ## Default intake target {#default-intake}
 
 The ComfyUI bridge writes to `outputs/intake/<task_id>/raw/` by default. Direct library writes require an operator-issued session token. Without a task_id and without a token, the bridge refuses with `INTAKE-002`.
@@ -178,20 +180,54 @@ Cold-start LLM agents read `state.library.intake` and `state.library.guidance` t
 
 ## Commands
 
-```text
-project_create        slug, name, owner_slug -> project_id
-task_create           project_id, slug, expected_count, source, llm_model -> task_id, intake_dir
-task_summary          task_id -> pre-flight summary
-task_inspect          task_id -> task row + linked batches + linked runs
-intake_list           task_id, status filter, limit, offset -> [output rows]
-intake_inspect        output_id -> output row + paired pose guide + card metadata + scorecard skeleton + requirements
-intake_soft_accept    output_id [, scorecard fields] -> soft_accepted (LLM-issuable)
-intake_reject         output_id, primary_rejection_reason [, notes] -> rejected (LLM-issuable)
-intake_finalize       output_id -> promoted (OPERATOR-ONLY, token-gated)
-promote_to_library    task_id -> bulk-finalize all soft_accepted (OPERATOR-ONLY)
-intake_reroute        output_id, target_status -> auto-route reversal
-task_reject_wholesale task_id, reason -> all non-terminal to rejected; intake_dir deleted (OPERATOR-ONLY)
+Implemented in WP-I3-004; reachable through the existing HTTP localhost endpoint (`POST /command`) and file-watch inbox (`outputs/.runtime/inbox/`).
+
+| Command | Caller | Required fields | Returns |
+|---------|--------|-----------------|---------|
+| `project_create` | LLM or operator | `slug`, `name`, optional `owner_slug` | `project` row |
+| `project_list` | LLM or operator | optional `status` | `projects[]`, `count` |
+| `task_create` | LLM or operator | `project_id`, `slug`, optional `expected_count`/`source`/`llm_model` | `task` row + intake dir tree |
+| `task_list` | LLM or operator | optional `project_id`/`status` | `tasks[]`, `count` |
+| `task_summary` | LLM or operator | `task_id` | per-status counters + warnings |
+| `task_inspect` | LLM or operator | `task_id` | task row + batches + run_count |
+| `intake_register_output` | bridge / LLM | `run_id`, `task_id`, `file_path`, `content_hash`, `width`, `height` | `output` row + `auto_route` decision |
+| `intake_list` | LLM or operator | optional `task_id`/`status`/`limit`/`offset` | `outputs[]`, `count` |
+| `intake_inspect` | LLM or operator | `output_id` | output row + pose_guide + diagnostics |
+| `intake_soft_accept` | **LLM-issuable** | `output_id`, optional `notes` | output row at `soft_accepted` |
+| `intake_reject` | LLM-issuable | `output_id`, `primary_rejection_reason`, optional `notes` | output row at `rejected` (file moved to `rejected/`) |
+| `intake_reroute` | LLM or operator | `output_id`, `target_status` ∈ {pending,diagnostic,rejected} | output row updated |
+| `intake_finalize` | **operator-only** | `output_id`, `operator_token` | output row at `promoted` |
+| `promote_to_library` | **operator-only** | `task_id`, `operator_token` | bulk-promoted ids |
+| `task_reject_wholesale` | **operator-only** | `task_id`, `reason`, `operator_token` | transitioned count + deleted intake_dir |
+
+### Worked example: LLM driving an intake flow
+
+```json
+// 1. Bridge or LLM registers each generated output:
+{ "command": "intake_register_output",
+  "run_id": "<uuid>", "task_id": "<uuid>",
+  "file_path": "intake/20260503-T-001/raw/out-042.png",
+  "content_hash": "sha256-...", "width": 1080, "height": 1440 }
+
+// 2. LLM lists pending and inspects:
+{ "command": "intake_list", "task_id": "<uuid>", "status": "pending", "limit": 50 }
+{ "command": "intake_inspect", "output_id": "<output-uuid>" }
+
+// 3. LLM may soft-accept or reject:
+{ "command": "intake_soft_accept", "output_id": "<output-uuid>", "notes": "looks clean" }
+{ "command": "intake_reject", "output_id": "<output-uuid>",
+  "primary_rejection_reason": "anatomy_failure", "notes": "broken hands" }
+
+// 4. Operator (only) finalizes via the GUI session, which supplies operator_token:
+{ "command": "intake_finalize", "output_id": "<output-uuid>",
+  "operator_token": "<gui-supplied-sha>" }
 ```
+
+Every response carries the canonical `adult_production_boundary` envelope (per WP-I3-002). Errors carry `rule_id` + `citation` fields when a rule fires (e.g. INTAKE-001 on operator-only commands without a token).
+
+### Auto-route on intake_register_output
+
+When a project has `library_rules` rows at `severity=auto-route`, every `intake_register_output` call evaluates each rule's `machine_check_fn` against the output's `width`/`height`. On failure, the output is set to `status=diagnostic`, a `library_diagnostics` row is written, and the file is moved into `outputs/intake/<task_dir>/diagnostic/<auto_route_to>/`. Empty rule set = pass-through; the output stays `pending`. Operators can re-route with `intake_reroute` when a rule mis-detects (per `REQ-002`).
 
 ## Safety boundary {#safety-boundary}
 

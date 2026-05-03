@@ -37,6 +37,7 @@ from .library import (
     create_entry,
     delete_entry,
     extract_smart_tags,
+    format_citation,
     get_entry,
     list_entry_tags,
     list_prompts,
@@ -46,6 +47,26 @@ from .library import (
     set_entry_tags,
     update_entry,
     write_entry_files,
+)
+from .library.intake import (
+    IntakeOutputError,
+    bulk_promote_task,
+    create_project,
+    create_task,
+    finalize_output,
+    get_output,
+    get_project,
+    get_task,
+    list_outputs,
+    list_projects,
+    list_tasks,
+    register_output,
+    reject_output,
+    reroute_output,
+    soft_accept_output,
+    task_summary,
+    verify_operator_token,
+    wholesale_reject_task,
 )
 from .log import Logger
 from .openpose_schema import (
@@ -84,6 +105,18 @@ class OpenReposeLibraryError(RuntimeError):
     structured error response can branch on `type` ("library_disabled"
     is reflected via the dispatcher's normal error envelope).
     """
+
+
+class OpenReposeIntakeError(OpenReposeLibraryError):
+    """Raised by intake command handlers (WP-I3-004). Carries `rule_id`
+    and a pre-formatted `citation` so the dispatcher's error envelope
+    surfaces the canonical citation shape from openrepose_rules_v0_1.md.
+    """
+
+    def __init__(self, message: str, *, rule_id: str | None = None, citation: str | None = None) -> None:
+        super().__init__(message)
+        self.rule_id = rule_id
+        self.citation = citation
 
 
 @dataclass(frozen=True)
@@ -163,6 +196,7 @@ class CommandDispatcher:
             LibraryEntryError,
             LibraryEntryLockedError,
             LibraryTagError,
+            IntakeOutputError,
             FileNotFoundError,
             NotImplementedError,
         ) as e:
@@ -170,10 +204,18 @@ class CommandDispatcher:
             self.state.end_command(status="error")
             self.state.write()
             self.log.err(f"cmd.{cmd}", reason=str(e))
+            payload: dict[str, Any] = {"reason": str(e), "type": type(e).__name__}
+            # WP-I3-004: surface intake rule citations in the error envelope.
+            rule_id = getattr(e, "rule_id", None)
+            if rule_id:
+                payload["rule_id"] = rule_id
+            citation = getattr(e, "citation", None)
+            if citation:
+                payload["citation"] = citation
             return CommandResult(
                 command=cmd,
                 status="error",
-                payload={"reason": str(e), "type": type(e).__name__},
+                payload=payload,
             )
         except Exception as e:
             # Catch-all for typed errors raised from downstream subsystems
@@ -1702,6 +1744,384 @@ def _h_dump_library_schema(
     }
 
 
+# ---------------------------------------------------------------------------
+# Intake & triage commands (WP-I3-004)
+# ---------------------------------------------------------------------------
+
+
+def _intake_outputs_root(d: "CommandDispatcher") -> Path:  # noqa: ANN001
+    """Outputs root for intake filesystem operations. Same as the
+    dispatcher's `outputs_root` (where `outputs/.runtime/`, `outputs/intake/`,
+    `outputs/library/` all live)."""
+    return Path(d.outputs_root)
+
+
+def _require_operator_token(
+    d: "CommandDispatcher", cmd: dict[str, Any], command: str
+) -> None:  # noqa: ANN001
+    """Raise INTAKE-001 OpenReposeIntakeError if the payload does not
+    carry a valid operator_token. The DB CHECK constraint is the kill
+    switch; this gate is defense-in-depth + early citation."""
+    if not verify_operator_token(cmd, d.settings):
+        citation = format_citation(
+            command=command,
+            rule_id="INTAKE-001",
+            action_result="blocked",
+            fix_action="emit intake_soft_accept; operator runs the finalize/promote command from the GUI session",
+        )
+        raise OpenReposeIntakeError(citation, rule_id="INTAKE-001", citation=citation)
+
+
+def _refresh_intake_state(
+    d: "CommandDispatcher", task_uuid: str | None = None
+) -> None:  # noqa: ANN001
+    """Read task_summary for the active task (or clear) and write
+    `state.library.intake` accordingly."""
+    if not task_uuid:
+        d.state.set_intake_state(active_task_id=None, active_task_slug=None)
+        return
+    pool = _ensure_pool(d)
+    with pool.connection() as conn:
+        summary = task_summary(conn, task_id=task_uuid)
+    queue_depth = summary["pending_count"] + summary["triaging_count"]
+    d.state.set_intake_state(
+        active_task_id=summary["task_id"],
+        active_task_slug=summary["task_slug"],
+        received_count=summary["received_count"] or 0,
+        pending_count=summary["pending_count"],
+        triaging_count=summary["triaging_count"],
+        soft_accepted_count=summary["soft_accepted_count"],
+        promoted_count=summary["promoted_count"],
+        rejected_count=summary["rejected_count"],
+        diagnostic_count=summary["diagnostic_count"],
+        abandoned_count=summary["abandoned_count"],
+        queue_depth=queue_depth,
+    )
+
+
+def _h_project_create(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    slug = cmd.get("slug")
+    name = cmd.get("name")
+    owner_slug = cmd.get("owner_slug") or _operator_slug(d) or ""
+    if not isinstance(slug, str) or not slug:
+        raise OpenReposeCommandError("project_create requires non-empty 'slug'")
+    if not isinstance(name, str) or not name:
+        raise OpenReposeCommandError("project_create requires non-empty 'name'")
+    with pool.connection() as conn:
+        project = create_project(conn, slug=slug, name=name, owner_slug=owner_slug)
+    d.state.set_guidance(
+        current_focus=f"project {project.slug} created",
+        next_valid_actions=["task_create", "project_list", "project_set_target_tree"],
+        active_rules=["INTAKE-001", "INTAKE-002"],
+    )
+    return {"project": project.to_dict()}
+
+
+def _h_project_list(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    status = cmd.get("status")
+    with pool.connection() as conn:
+        projects = list_projects(conn, status=status)
+    return {"projects": [p.to_dict() for p in projects], "count": len(projects)}
+
+
+def _h_task_create(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    project_id = cmd.get("project_id")
+    slug = cmd.get("slug")
+    expected_count = cmd.get("expected_count")
+    source = cmd.get("source")
+    llm_model = cmd.get("llm_model")
+    if not isinstance(project_id, str) or not project_id:
+        raise OpenReposeCommandError("task_create requires 'project_id'")
+    if not isinstance(slug, str) or not slug:
+        raise OpenReposeCommandError("task_create requires non-empty 'slug'")
+    with pool.connection() as conn:
+        task = create_task(
+            conn,
+            project_id=project_id,
+            slug=slug,
+            expected_count=expected_count,
+            source=source,
+            llm_model=llm_model,
+            outputs_root=_intake_outputs_root(d),
+        )
+    _refresh_intake_state(d, str(task.id))
+    d.state.set_guidance(
+        current_focus=f"task {task.slug} created (intake_dir={task.intake_dir})",
+        next_valid_actions=["intake_register_output", "task_summary", "intake_list"],
+        active_rules=["INTAKE-001", "INTAKE-002"],
+    )
+    return {"task": task.to_dict()}
+
+
+def _h_task_list(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    project_id = cmd.get("project_id")
+    status = cmd.get("status")
+    with pool.connection() as conn:
+        tasks = list_tasks(conn, project_id=project_id, status=status)
+    return {"tasks": [t.to_dict() for t in tasks], "count": len(tasks)}
+
+
+def _h_task_summary(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    task_id = cmd.get("task_id")
+    if not isinstance(task_id, str) or not task_id:
+        raise OpenReposeCommandError("task_summary requires 'task_id'")
+    with pool.connection() as conn:
+        summary = task_summary(conn, task_id=task_id)
+    _refresh_intake_state(d, task_id)
+    return {"summary": summary}
+
+
+def _h_task_inspect(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    task_id = cmd.get("task_id")
+    if not isinstance(task_id, str) or not task_id:
+        raise OpenReposeCommandError("task_inspect requires 'task_id'")
+    with pool.connection() as conn:
+        task = get_task(conn, task_id=task_id)
+        if task is None:
+            raise OpenReposeCommandError(f"task {task_id} not found")
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, slug, tier FROM library_batches WHERE task_id = %s",
+                (task_id,),
+            )
+            batches = [
+                {"id": str(r[0]), "slug": r[1], "tier": r[2]} for r in cur.fetchall()
+            ]
+            cur.execute(
+                "SELECT COUNT(*) FROM library_runs WHERE task_id = %s", (task_id,)
+            )
+            run_count = int(cur.fetchone()[0])
+    return {"task": task.to_dict(), "batches": batches, "run_count": run_count}
+
+
+def _h_intake_register_output(
+    d: "CommandDispatcher", cmd: dict[str, Any]
+) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    run_id = cmd.get("run_id")
+    task_id = cmd.get("task_id")
+    file_path = cmd.get("file_path")
+    content_hash = cmd.get("content_hash")
+    width = cmd.get("width")
+    height = cmd.get("height")
+    if not isinstance(run_id, str) or not run_id:
+        raise OpenReposeCommandError("intake_register_output requires 'run_id'")
+    if not isinstance(task_id, str) or not task_id:
+        raise OpenReposeCommandError("intake_register_output requires 'task_id'")
+    if not isinstance(file_path, str) or not file_path:
+        raise OpenReposeCommandError("intake_register_output requires 'file_path'")
+    if not isinstance(content_hash, str) or not content_hash:
+        raise OpenReposeCommandError("intake_register_output requires 'content_hash'")
+    if not isinstance(width, int) or not isinstance(height, int):
+        raise OpenReposeCommandError("width and height must be integers")
+    with pool.connection() as conn:
+        task = get_task(conn, task_id=task_id)
+        if task is None:
+            raise OpenReposeCommandError(f"task {task_id} not found")
+        if task.status in ("rejected_wholesale", "aborted"):
+            raise OpenReposeCommandError(
+                f"task {task_id} is terminal (status={task.status}); cannot register"
+            )
+        output, auto = register_output(
+            conn,
+            run_id=run_id,
+            task_id=task_id,
+            project_id=str(task.project_id),
+            file_path=file_path,
+            content_hash=content_hash,
+            width=int(width),
+            height=int(height),
+            outputs_root=_intake_outputs_root(d),
+        )
+    _refresh_intake_state(d, task_id)
+    return {"output": output.to_dict(), "auto_route": auto.to_dict()}
+
+
+def _h_intake_list(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    task_id = cmd.get("task_id")
+    status = cmd.get("status")
+    limit = int(cmd.get("limit", 100))
+    offset = int(cmd.get("offset", 0))
+    with pool.connection() as conn:
+        rows = list_outputs(
+            conn, task_id=task_id, status=status, limit=limit, offset=offset
+        )
+    return {
+        "outputs": [r.to_dict() for r in rows],
+        "count": len(rows),
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+def _h_intake_inspect(
+    d: "CommandDispatcher", cmd: dict[str, Any]
+) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    output_id = cmd.get("output_id")
+    if not isinstance(output_id, str) or not output_id:
+        raise OpenReposeCommandError("intake_inspect requires 'output_id'")
+    with pool.connection() as conn:
+        output = get_output(conn, output_id=output_id)
+        if output is None:
+            raise OpenReposeCommandError(f"output {output_id} not found")
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT pg.png_path, pg.json_path, pg.guide_type "
+                "FROM library_runs r "
+                "LEFT JOIN library_pose_guides pg ON pg.id = r.pose_guide_id "
+                "WHERE r.id = %s",
+                (str(output.run_id),),
+            )
+            pose_row = cur.fetchone()
+            cur.execute(
+                "SELECT rule_id, bucket, reason FROM library_diagnostics "
+                "WHERE output_id = %s ORDER BY created_at ASC",
+                (output_id,),
+            )
+            diagnostics = [
+                {"rule_id": r[0], "bucket": r[1], "reason": r[2]}
+                for r in cur.fetchall()
+            ]
+    pose_guide = None
+    if pose_row and pose_row[0] is not None:
+        pose_guide = {
+            "png_path": pose_row[0],
+            "json_path": pose_row[1],
+            "guide_type": pose_row[2],
+        }
+    return {
+        "output": output.to_dict(),
+        "pose_guide": pose_guide,
+        "diagnostics": diagnostics,
+    }
+
+
+def _h_intake_soft_accept(
+    d: "CommandDispatcher", cmd: dict[str, Any]
+) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    output_id = cmd.get("output_id")
+    notes = cmd.get("notes")
+    if not isinstance(output_id, str) or not output_id:
+        raise OpenReposeCommandError("intake_soft_accept requires 'output_id'")
+    with pool.connection() as conn:
+        output = soft_accept_output(conn, output_id=output_id, notes=notes)
+    _refresh_intake_state(d, str(output.task_id))
+    return {"output": output.to_dict()}
+
+
+def _h_intake_reject(
+    d: "CommandDispatcher", cmd: dict[str, Any]
+) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    output_id = cmd.get("output_id")
+    primary_rejection_reason = cmd.get("primary_rejection_reason")
+    notes = cmd.get("notes")
+    if not isinstance(output_id, str) or not output_id:
+        raise OpenReposeCommandError("intake_reject requires 'output_id'")
+    if not isinstance(primary_rejection_reason, str) or not primary_rejection_reason:
+        raise OpenReposeCommandError("intake_reject requires 'primary_rejection_reason'")
+    with pool.connection() as conn:
+        output = reject_output(
+            conn,
+            output_id=output_id,
+            primary_rejection_reason=primary_rejection_reason,
+            notes=notes,
+            operator_slug=_operator_slug(d),
+            outputs_root=_intake_outputs_root(d),
+        )
+    _refresh_intake_state(d, str(output.task_id))
+    return {"output": output.to_dict()}
+
+
+def _h_intake_finalize(
+    d: "CommandDispatcher", cmd: dict[str, Any]
+) -> dict[str, Any]:
+    _require_operator_token(d, cmd, "intake_finalize")
+    pool = _ensure_pool(d)
+    output_id = cmd.get("output_id")
+    if not isinstance(output_id, str) or not output_id:
+        raise OpenReposeCommandError("intake_finalize requires 'output_id'")
+    op = _operator_slug(d) or ""
+    if not op:
+        raise OpenReposeCommandError(
+            "intake_finalize requires an operator_slug in settings"
+        )
+    with pool.connection() as conn:
+        output = finalize_output(conn, output_id=output_id, operator_slug=op)
+    _refresh_intake_state(d, str(output.task_id))
+    return {"output": output.to_dict()}
+
+
+def _h_intake_reroute(
+    d: "CommandDispatcher", cmd: dict[str, Any]
+) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    output_id = cmd.get("output_id")
+    target_status = cmd.get("target_status")
+    if not isinstance(output_id, str) or not output_id:
+        raise OpenReposeCommandError("intake_reroute requires 'output_id'")
+    if not isinstance(target_status, str) or not target_status:
+        raise OpenReposeCommandError("intake_reroute requires 'target_status'")
+    with pool.connection() as conn:
+        output = reroute_output(conn, output_id=output_id, target_status=target_status)
+    _refresh_intake_state(d, str(output.task_id))
+    return {"output": output.to_dict()}
+
+
+def _h_promote_to_library(
+    d: "CommandDispatcher", cmd: dict[str, Any]
+) -> dict[str, Any]:
+    _require_operator_token(d, cmd, "promote_to_library")
+    pool = _ensure_pool(d)
+    task_id = cmd.get("task_id")
+    if not isinstance(task_id, str) or not task_id:
+        raise OpenReposeCommandError("promote_to_library requires 'task_id'")
+    op = _operator_slug(d) or ""
+    if not op:
+        raise OpenReposeCommandError(
+            "promote_to_library requires operator_slug in settings"
+        )
+    with pool.connection() as conn:
+        promoted_ids = bulk_promote_task(conn, task_id=task_id, operator_slug=op)
+    _refresh_intake_state(d, task_id)
+    return {"promoted_ids": promoted_ids, "count": len(promoted_ids)}
+
+
+def _h_task_reject_wholesale(
+    d: "CommandDispatcher", cmd: dict[str, Any]
+) -> dict[str, Any]:
+    _require_operator_token(d, cmd, "task_reject_wholesale")
+    pool = _ensure_pool(d)
+    task_id = cmd.get("task_id")
+    reason = cmd.get("reason")
+    if not isinstance(task_id, str) or not task_id:
+        raise OpenReposeCommandError("task_reject_wholesale requires 'task_id'")
+    if not isinstance(reason, str) or not reason:
+        raise OpenReposeCommandError("task_reject_wholesale requires 'reason'")
+    op = _operator_slug(d) or ""
+    if not op:
+        raise OpenReposeCommandError("task_reject_wholesale requires operator_slug")
+    with pool.connection() as conn:
+        result = wholesale_reject_task(
+            conn,
+            task_id=task_id,
+            operator_slug=op,
+            reason=reason,
+            outputs_root=_intake_outputs_root(d),
+        )
+    _refresh_intake_state(d, task_id)
+    return result
+
+
 _HANDLERS = {
     "import_portrait": _h_import_portrait,
     "set_yaw": _h_set_yaw,
@@ -1736,4 +2156,20 @@ _HANDLERS = {
     "get_library_entry": _h_get_library_entry,
     "set_library_tags": _h_set_library_tags,
     "dump_library_schema": _h_dump_library_schema,
+    # Intake & triage commands (WP-I3-004).
+    "project_create": _h_project_create,
+    "project_list": _h_project_list,
+    "task_create": _h_task_create,
+    "task_list": _h_task_list,
+    "task_summary": _h_task_summary,
+    "task_inspect": _h_task_inspect,
+    "intake_register_output": _h_intake_register_output,
+    "intake_list": _h_intake_list,
+    "intake_inspect": _h_intake_inspect,
+    "intake_soft_accept": _h_intake_soft_accept,
+    "intake_reject": _h_intake_reject,
+    "intake_finalize": _h_intake_finalize,
+    "intake_reroute": _h_intake_reroute,
+    "promote_to_library": _h_promote_to_library,
+    "task_reject_wholesale": _h_task_reject_wholesale,
 }

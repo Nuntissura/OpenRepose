@@ -6,9 +6,17 @@ relation, the smart-tag extractor, and the filesystem layout under the
 operator's library root.
 
 LLM commands wrap these primitives in WP-I2-004; ComfyUI bridge in
-WP-I2-005; Library tab GUI in WP-I2-006.
+WP-I2-005; Library tab GUI in WP-I2-006. Intake & triage subpackage
+extension lands in WP-I3-004 (`library/intake/`).
 """
 
+from .citations import (
+    Rule,
+    RuleNotInRegistryError,
+    all_rule_ids,
+    format_citation,
+    get_rule,
+)
 from .entries import (
     LibraryEntry,
     LibraryEntryError,
@@ -40,16 +48,21 @@ __all__ = [
     "LibraryEntryLockedError",
     "LibraryTagError",
     "PromptRevision",
+    "Rule",
+    "RuleNotInRegistryError",
     "SearchResult",
     "TextRecord",
     "add_prompt",
     "add_tags",
     "add_text_record",
+    "all_rule_ids",
     "create_entry",
     "delete_entry",
     "ensure_entry_dir",
     "extract_smart_tags",
+    "format_citation",
     "get_entry",
+    "get_rule",
     "latest_prompt",
     "list_entries",
     "list_entry_tags",
