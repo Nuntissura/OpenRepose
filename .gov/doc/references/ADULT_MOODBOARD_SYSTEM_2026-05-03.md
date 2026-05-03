@@ -12,6 +12,7 @@ Record every blueprint change here so future assistants can see what shifted bet
 2026-05-03  initial blueprint
 2026-05-03  iter 1: added Changelog, Roles section, Tier Table, scope labels on the four sequence sections, Identity/Model-Family Adapter, Fast Triage Scoring, Abandonment Criteria, Accepted-Set Diversity Audit, Additive-Only Schema Rule, Chat-Only Output Mode, Worked Example AMB-0001
 2026-05-03  iter 2: inspection cleanup; clarified production-tier package requirements as mandatory, scoped deterministic build sequence to mini/production, removed non-ASCII section markers for copy-safe skill conversion
+2026-05-03  iter 3: rewrote Skill Conversion Block to mirror the Claude AMood SKILL.md — production-tier-only stance, canonical blueprint resolution order, required boot sequence, workflow per turn, boundary with the image/video pipeline, OpenRepose dual-mode operation (Mode A standalone vs Mode B in OpenRepose with dispatcher commands and I3 caveat), chat-only mode rules, update rules, hard rules (no hidden-camera / spycam / asleep / intoxicated / unconscious / juvenile-coded / school-coded / coercive framing; one kink + one archetype + one trigger per card; multi-seed acceptance), provider portability. Skill wrappers (Claude SKILL.md, GPT skill manifests, local-model system prompts) must mirror this section verbatim in intent.
 ```
 
 This file is intentionally provider/model agnostic. It can be quoted into any assistant, GPT skill, Claude skill, local model prompt, or repo automation without depending on OpenAI, Anthropic, Google, or a specific local model. Model-family details belong in the active workflow or model-family note, not in this blueprint.
@@ -1961,7 +1962,9 @@ The model-family and identity values above came from the `Identity / Model-Famil
 
 ## Skill Conversion Block
 
-This section is the quotable wrapper for turning the blueprint into a GPT skill, Claude skill, local assistant system prompt, or repo agent instruction.
+This section is the quotable wrapper for turning the blueprint into a GPT skill, Claude skill, local assistant system prompt, or repo agent instruction. It is the canonical MD form of the wrapper — providers that load skills (Claude `SKILL.md`, GPT skill manifests, etc.) must mirror this section verbatim in intent and stay in sync with it.
+
+The wrapper is production-tier only. There is no quick mode and no mini mode in any skill or assistant invocation built from this section. The blueprint itself still documents quick/mini tiers because they are valid for direct manual use, but a skill, assistant, or agent invoking this wrapper must refuse to deliver a quick or mini package and stop instead — let the operator either commit to a production package or invoke a separate quick/mini skill if one exists.
 
 Skill name:
 
@@ -1972,7 +1975,7 @@ adult-moodboard-blueprint
 Skill purpose:
 
 ```text
-Convert explicit adult production targets into structured moodboard cards, batch matrices, prompt blocks, run manifests, review manifests, scorecards, and anti-repetition ledgers for photorealistic adult image/video generation workflows.
+Plan and produce full production-tier moodboard packages for batch adult image and video production. Convert explicit adult production targets into the full package — folder, INDEX, moodboard cards, batch matrices, prompt blocks, manifests, scorecards, and anti-repetition ledgers — by reading this single-file blueprint and applying its production-tier rules. Planning-only: does not queue image/video runs and does not wrap project-specific runner pipelines.
 ```
 
 Provider-agnostic rule:
@@ -1981,16 +1984,166 @@ Provider-agnostic rule:
 Do not assume a specific LLM provider, image model, sampler, checkpoint, LoRA, node pack, or hosted service. Use this blueprint for concept, prompt, matrix, and review structure. Pull model-family settings from the active workflow or repo note.
 ```
 
-Skill entrypoint:
+Scope:
 
 ```text
-When the operator gives an explicit adult production target, create the required blueprint artifacts instead of giving only prose advice.
+In scope:
+- Plan a full production-tier moodboard batch for explicit adult image or video work.
+- Produce the full package: folder, INDEX, README, cards, moodboards, stories, batch matrices, quota plans, variant ladders, anti-repetition ledgers, prompt blocks, prompt/run/review manifests, scorecards, pose-guide folders, generated-image folders.
+- Apply the Identity / Model-Family Adapter to splice model-family and identity values into generic prompt blocks.
+- Run fast triage and the full rubric over inspected outputs the operator points at.
+- Run the accepted-set diversity audit after a promotion pass.
+- Apply abandonment criteria to dead cards.
+- Update the operator's workflow index when a card or scene branch changes status.
 
-For small exploratory work, create a moodboard card, prompt blocks, and a review/score plan.
+Out of scope:
+- Quick-tier or mini-tier output. Do not deliver a single card, a 4-card sketch, or any reduced package as a wrapper result. If the operator's request would naturally be a quick or mini batch, name that explicitly and stop.
+- Queuing image/video runs. The operator runs the queue command themselves; the wrapper does not call repo runner scripts or hosted generation services.
+- Wrapping or interacting with project-specific runner pipelines (for example, repo-internal exposure or training pipelines). They have their own dedicated workflows.
+- LoRA training orchestration.
+- Inventing model-family settings. Pull those from the active workflow note or the Identity / Model-Family Adapter slot.
+- Claiming acceptance from a single seed. Acceptance requires multiple inspected seeds per Batch Discipline.
+```
 
-For production-scale work, create the batch package folder first: INDEX, README, stories, moodboards, cards, batch matrix, quota plan, variant ladder, prompt manifest, pose/control guide manifest when needed, run manifest, review manifest, scorecard, anti-repetition ledger, prompt blocks, pose guide folders, and generated image folders.
+Canonical blueprint resolution:
 
-Always build from the explicit target outward. Always check compatibility before prompt assembly. Always score inspected outputs before promotion. Keep all generated artifact schemas compatible with the headers in this blueprint.
+```text
+This file (ADULT_MOODBOARD_SYSTEM_2026-05-03.md) is the single source of truth. No hardcoded absolute path lives in the wrapper — resolve it on every invocation in this order, stopping at the first hit:
+
+1. OpenRepose mode — if the OpenRepose detection in the OpenRepose dual-mode operation block matches, the blueprint is `<OPENREPOSE_ROOT>/.gov/doc/references/ADULT_MOODBOARD_SYSTEM_2026-05-03.md`. Do not fall back further when in this mode.
+2. Operator-supplied path for the current turn.
+3. Environment variable `AMOOD_BLUEPRINT` if set.
+4. Walk up from cwd looking for `comfyui-workbench/references/ADULT_MOODBOARD_SYSTEM_2026-05-03.md`; use it if found.
+5. Ask the operator for the path. Do not proceed from memory — the operator may have iterated the blueprint since the wrapper was written.
+
+The blueprint has a Changelog section near the top. Read it on every invocation so the wrapper catches structural changes between iterations. When reading tier-related sections, treat any `quick` or `mini` guidance as out of scope for the wrapper; only the production-tier sequence, package contract, matrices, scorecards, ledgers, and audits apply.
+```
+
+Required boot sequence:
+
+```text
+Every invocation:
+
+1. Load the blueprint from the path above. If absent, ask the operator.
+2. Read the Changelog so structural changes are caught.
+3. Read Roles, Identity / Model-Family Adapter, and the production-tier portion of the Operating Recipe. Skip the quick and mini rows of the Tier Table — they do not apply to the wrapper.
+4. Restate the operator's input contract (explicit target, workflow/model family, must-include, must-avoid). If the operator's framing implies a quick or mini batch, surface that conflict before producing anything.
+5. Confirm the Identity / Model-Family Adapter values. Propose values from the closest avatar/scene playbook in the active repo if the operator did not specify, then ask to confirm before producing prompt blocks.
+
+Do not skip the boot sequence. The blueprint is long and changes often; producing artifacts from memory is the most likely failure mode.
+```
+
+Workflow per turn:
+
+```text
+Turn 1 — intake and adapter confirmation:
+  Load the blueprint, confirm production package, propose the Identity / Model-Family Adapter from the closest playbook, ask the operator to confirm adapter and any must-include / must-avoid.
+
+Turn 2 — produce the full production package:
+  Create `references/prompts/<batch_slug>/` (or the OpenRepose path under Mode B) containing INDEX.md, README.md, cards/, moodboards/, stories/, matrices/ (batch_matrix.tsv, quota_plan.tsv, variant_ladder.tsv, anti_repetition_ledger.tsv), prompt_blocks/, manifests/ (prompt_manifest.tsv, run_manifest.tsv, review_manifest.tsv, scorecard.tsv skeleton), generated_images/ (.gitignore, raw/, accepted/, rejected/, diagnostic/), and pose-guide folders when the workflow needs them.
+  Every section is required. Do not skip moodboards, stories, quota plan, variant ladder, anti-repetition ledger, or any manifest because the batch is "small". A small production batch is still a production package.
+  Hand back to the operator: package path, axis coverage summary, what each card is testing, and the queue command they should run themselves (just the path to the API JSON or runner script — the wrapper does not queue).
+
+Turn 3 — operator runs the queue and points the wrapper at `generated_images/raw/`.
+
+Turn 4 — review and score:
+  1. Run fast triage (4 fields, fail-fast) on every output.
+  2. Run the full rubric only on triage survivors.
+  3. Sort files into accepted/, rejected/, diagnostic/.
+  4. Populate `manifests/<batch_slug>_scorecard.tsv` with one row per output.
+  5. Update the anti-repetition ledger.
+  6. Run the accepted-set diversity audit; record TSV per axis.
+  7. Apply abandonment criteria — flag cards meeting any Abandonment signal with the structural change required.
+  8. Update INDEX.md with current counts, accepted cards, rejected cards, blockers, next action.
+
+Turn 5 — promotion and next-batch planning:
+  1. Promote stable cards into the right scene/workflow branch.
+  2. Update the active repo's workflow index for any branch that changed status.
+  3. Propose the next batch focused on the priority axes from the diversity audit.
+```
+
+Boundary with the image/video pipeline:
+
+```text
+The wrapper plans, produces artifacts, scores, and audits. It does not generate pixels.
+
+- Pixel generation: the operator runs ComfyUI (or any equivalent image/video stack) and queues runs themselves — by loading the produced API JSON, by running their own runner script, or by any workflow they prefer. The wrapper stays planning-only.
+- Visual review: the operator opens images and may invoke a separate visual-QA assistant or skill. The wrapper consumes the resulting accepted/rejected sorting and writes the scorecard.
+- Acceptance: the operator owns acceptance. The wrapper records it.
+
+Do not couple the wrapper to repo-internal runner scripts or pipelines (for example, exposure or training pipelines). Those have their own owners.
+```
+
+OpenRepose dual-mode operation:
+
+```text
+The wrapper always writes the canonical TSV package. Where the package lands and whether it is also pushed into Postgres depends on whether the wrapper was invoked inside an OpenRepose repo.
+
+Detection:
+  On boot, walk up from the current working directory looking for `.gov/topology.yaml`. If found and the file contains `name: OpenRepose` under the `project:` block, set `OPENREPOSE_ROOT` to the directory holding `.gov/`. Otherwise the wrapper is in standalone mode.
+
+Mode A — Standalone (no OpenRepose detected):
+  - Blueprint path resolved via the Canonical blueprint resolution order (operator / env / workbench walk-up / ask).
+  - Package output at `references/prompts/<batch_slug>/`.
+  - No DB persistence; the TSV package is the artifact.
+
+Mode B — Inside OpenRepose:
+  Five changes apply for the invocation:
+
+  1. Blueprint path is `<OPENREPOSE_ROOT>/.gov/doc/references/ADULT_MOODBOARD_SYSTEM_2026-05-03.md`. The in-repo copy is the version the I3 spec lock pins. Do not fall back to a workbench path even if one exists.
+
+  2. Package output is `<OPENREPOSE_ROOT>/outputs/library/<project_slug>/<batch_slug>/` per `openrepose_amood_v0_1.md`. Resolve `project_slug` via `project_list` (or create with `project_create` first); use the batch_slug the operator names. Sanitize both for the OpenRepose Naming Convention (no spaces, kebab-case) before sending.
+
+  3. Postgres ingest — after the TSV package is on disk, push it through the OpenRepose dispatcher so it lands in the AMood tables. Send on whichever channel responds first:
+     - Preferred: POST http://127.0.0.1:8765/command with
+       {"command":"init_batch_package","args":{"project_slug":"...","batch_slug":"...","package_path":"<abs>"}}
+       then
+       {"command":"amood_import_tsv","args":{"package_path":"<abs>"}}
+     - Fallback: drop both payloads as JSON files into `<OPENREPOSE_ROOT>/outputs/.runtime/inbox/` named `<UTC-ms>_init_batch_package.json` and `<UTC-ms+1>_amood_import_tsv.json`. The inbox processes mtime-ascending, one at a time.
+     If both channels fail, do not pretend the import happened. Hand back the package path and the two payloads verbatim.
+
+  4. Adult Production Boundary acknowledgement — before issuing any dispatcher command, read `<OPENREPOSE_ROOT>/outputs/.runtime/state.json` and honor the `adult_production_boundary` object (RUL-000). Reading it is the acknowledgement step.
+
+  5. Triage / scoring (turn 4) — when the operator points at outputs, prefer dispatcher commands (`intake_register_output`, `intake_soft_accept`, `intake_reject`, `accepted_set_audit`) over local TSV manipulation. The local `scorecard.tsv` stays as the operator-readable mirror; the DB is the system of record.
+
+Caveats:
+  - The I3 implementation iteration may not have shipped yet. Until it has, the dispatcher will reject `init_batch_package`, `amood_import_tsv`, `intake_register_output`, `accepted_set_audit`, etc. as unknown commands. Run Mode B for the file layout, skip the dispatcher calls, and tell the operator the import is queued in the inbox for when the implementation ships.
+  - The wrapper never edits `.gov/`, `.product/`, or any tracked file in OpenRepose — those are operator / workpacket territory. Mode B writes only under `outputs/library/<project>/<batch>/` and `outputs/.runtime/inbox/`.
+```
+
+Chat-only mode:
+
+```text
+When invoked in an environment without filesystem access:
+
+1. Do not pretend files were created.
+2. Produce all artifacts inline as fenced blocks, labelled with the on-disk path they would have used.
+3. End with the Chat-Only Output Mode "on-disk paths to create (in order)" handback line so the operator can drop them on disk verbatim.
+
+The blueprint's Chat-Only Output Mode covers the full equivalence table. Apply only the production-tier portion of that table.
+```
+
+Update rules:
+
+```text
+After every batch handoff:
+
+1. Update the package INDEX.md with current counts, accepted, rejected, blockers, next action.
+2. Update the active repo's workflow index for any reusable branch that changed status (a card promoted into a scene branch, a card abandoned with a documented reason, a new package created).
+3. If the operator iterates on the blueprint itself, append a Changelog entry inside ADULT_MOODBOARD_SYSTEM_2026-05-03.md and bump the entry in the workflow index.
+
+Do not update the blueprint silently. Structural changes go in the changelog with a date and a one-line reason.
+```
+
+Hard rules:
+
+```text
+- Production package only. No quick, no mini, no abbreviated handoff. If the operator wants something lighter, name it and stop; do not improvise a smaller wrapper result.
+- Build from the explicit target outward. The trigger is the anchor; the story supports it.
+- Reject hidden-camera, spycam, asleep, intoxicated, unconscious, juvenile-coded, school-coded, or coercive framing at the row level — not at the seed level. A card that produces those outputs gets killed, not just reseeded.
+- One primary kink cue + one porn archetype + one explicit trigger per card. Do not stack.
+- A passing API call, saved file, or single lucky seed is not a pass. Acceptance requires multiple inspected seeds per Batch Discipline.
+- Do not split the blueprint into separate files unless the operator explicitly asks. Generated artifacts go in the package folder; the blueprint stays single-file.
 ```
 
 Required assistant behavior:
@@ -2010,6 +2163,12 @@ Required assistant behavior:
 12. Review visually and score outputs before accepting.
 13. Update ledgers and package INDEX so future batches avoid repetition.
 14. Keep provider/model-specific settings outside this blueprint unless they are copied into a generated artifact for the active workflow.
+```
+
+Provider portability:
+
+```text
+This wrapper is provider-agnostic. A Claude skill, GPT skill, local-model system prompt, or chat-only assistant follows the same blueprint by reading this canonical file and applying this Skill Conversion Block. Changes to behavior land in the blueprint first, then propagate to whichever skill wrappers exist.
 ```
 
 Skill input schema:
