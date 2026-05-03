@@ -356,7 +356,7 @@ def test_delete_removes_db_row_and_filesystem_folder(lib_app):
 def test_dump_library_schema_returns_version_and_tables(lib_app):
     r = lib_app.handle_command({"command": "dump_library_schema"})
     assert r.status == "ok"
-    assert r.payload["schema_version"] == 4
+    assert r.payload["schema_version"] == 5
     tables = set(r.payload["tables"])
     expected = {
         "schema_version",

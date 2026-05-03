@@ -148,7 +148,7 @@ def test_pool_open_health_check_against_real_db(pool_pg):
 def test_app_boots_with_live_db_and_runs_migrations(pool_pg, tmp_path: Path):
     """End-to-end: construct an `App` with `library_db_url` pointing at
     the ephemeral DB; verify the migrator runs and `state.library`
-    reflects connected=true / schema_version=4 (001 + I3 trio 002/003/004)."""
+    reflects connected=true / schema_version=5 (001 + I3 trio 002/003/004 + AMood views 005)."""
     import json
 
     from openrepose.app import App
@@ -174,13 +174,13 @@ def test_app_boots_with_live_db_and_runs_migrations(pool_pg, tmp_path: Path):
         # Pool is connected and migrations ran.
         assert app.library_pool.is_open is True
         assert app.library_pool.is_connected is True
-        assert app.library_pool.schema_version() == 4
+        assert app.library_pool.schema_version() == 5
         # state.json reflects the library block.
         state = json.loads((tmp_path / "state.json").read_text(encoding="utf-8"))
         lib = state.get("library", {})
         assert lib.get("connected") is True
         assert lib.get("configured") is True
-        assert lib.get("schema_version") == 4
+        assert lib.get("schema_version") == 5
         assert lib.get("operator_slug") == "test-op"
         assert lib.get("db_url_redacted")  # non-empty (redacted form)
     finally:
@@ -192,8 +192,8 @@ def test_app_boots_with_live_db_and_runs_migrations(pool_pg, tmp_path: Path):
     reason="no system Postgres",
 )
 def test_pool_schema_version_after_migration(pool_pg):
-    """After applying every shipped migration (001 + I3 trio 002/003/004),
-    schema_version() reads 4."""
+    """After applying every shipped migration (001 + I3 trio 002/003/004 + AMood views 005),
+    schema_version() reads 5."""
     import psycopg
 
     from openrepose.db.migrator import Migrator
@@ -208,6 +208,6 @@ def test_pool_schema_version_after_migration(pool_pg):
         # Apply migration via a separate connection.
         with psycopg.connect(dsn) as conn:
             Migrator(conn, migrations_dir=migrations_dir).apply_pending()
-        assert p.schema_version() == 4
+        assert p.schema_version() == 5
     finally:
         p.close()
