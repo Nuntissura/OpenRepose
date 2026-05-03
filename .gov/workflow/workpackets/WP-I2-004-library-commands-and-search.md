@@ -62,6 +62,7 @@ Wire the Feature 3 spec's 7 LLM commands into the dispatcher: `register_library_
 - [ ] Row-level lock collision returns structured error with retry_after.
 - [ ] state.json library block updates on each command.
 - [ ] pytest zero failures; audit clean.
+- [ ] **Manual Impact**: Yes — `feature-3-library-postgresql.md` needs an LLM Commands subsection enumerating the 7 commands + payload schemas.
 
 ## Headless LLM Operation Compliance
 

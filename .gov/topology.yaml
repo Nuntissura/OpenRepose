@@ -36,6 +36,12 @@ repo_rules:
       - "Vendor and university research papers (arXiv, vendor research blogs)"
       - "Forums, Discord summaries, and blog posts when they contain concrete settings or evidence"
     rationale: "Someone may have already shipped a better solution. Implementing without checking is a known anti-pattern in this domain."
+  manual_impact_rule:
+    rule: "Every IMPLEMENTATION-class workpacket at Workflow Version 1.1+ must contain a 'Manual Impact:' line in its Definition Of Done. Bug-fix WPs may use 'Manual Impact: N/A (bug fix)'. Other WPs answer Yes (with the affected manual topic) or No (with brief reason)."
+    enforcement: "scripts/audit-repo.ps1 wp-manual-impact check on active workpackets (workpackets/, not archive/)"
+    manual_location: ".gov/doc/manual/"
+    rationale: "Without an enforced reminder, the in-app manual decays. Operator self-review on every product change keeps it current."
+    grandfather: "WPs in .gov/workflow/archive/ are exempt; the rule was introduced mid-iteration via WP-I1-035."
   deletion_protocol:
     rule: "No manual rm / Remove-Item / del on tracked files or repo folders. All deletions go through the /safe-delete slash command (Claude side) or scripts/safe-delete.ps1 (operator side)."
     forbidden: "Do not use 'cd ..' followed by deletion. Do not use absolute paths in deletion commands. Do not use Remove-Item with -Recurse on a parent that contains the repo."

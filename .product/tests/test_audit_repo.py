@@ -161,6 +161,7 @@ Test WP without Research Notes.
 def test_wp_with_research_notes_passes(tmp_path: Path) -> None:
     repo = _stage_repo(tmp_path)
     wp_dir = repo / ".gov" / "workflow" / "workpackets"
+    # WP-I1-035: must also include Manual Impact line for IMPLEMENTATION v1.1+.
     (wp_dir / "WP-I9-100-test-impl-ok.md").write_text(
         """# WP-I9-100 - Test OK
 
@@ -181,6 +182,10 @@ Checked existing approaches; none ship.
 ## Intent
 
 Has Research Notes.
+
+## Definition Of Done
+
+- [ ] Manual Impact: No — internal refactor with no operator-facing change.
 """,
         encoding="utf-8",
     )
@@ -241,6 +246,142 @@ Documentation WPs are not subject to Research Notes rule.
     assert result.returncode == 0, (
         f"DOCUMENTATION WP flagged:\n{result.stdout}\n{result.stderr}"
     )
+
+
+def test_wp_missing_manual_impact_detected(tmp_path: Path) -> None:
+    """WP-I1-035: active IMPLEMENTATION at v1.1+ without Manual Impact fails."""
+    repo = _stage_repo(tmp_path)
+    wp_dir = repo / ".gov" / "workflow" / "workpackets"
+    (wp_dir / "WP-I9-200-no-manual-impact.md").write_text(
+        """# WP-I9-200 - Test
+
+## Header
+
+- **Workflow Version**: `1.1`
+- **Packet Class**: `IMPLEMENTATION`
+
+## Research Notes
+
+Has notes.
+
+## Intent
+
+Missing Manual Impact line.
+""",
+        encoding="utf-8",
+    )
+    _commit(repo, "inject WP without manual impact")
+
+    result = _run_audit(repo)
+    assert result.returncode == 1
+    assert "[wp-manual-impact]" in result.stdout
+    assert "WP-I9-200-no-manual-impact.md" in result.stdout
+
+
+def test_wp_with_manual_impact_passes(tmp_path: Path) -> None:
+    repo = _stage_repo(tmp_path)
+    wp_dir = repo / ".gov" / "workflow" / "workpackets"
+    (wp_dir / "WP-I9-201-with-manual-impact.md").write_text(
+        """# WP-I9-201 - OK
+
+## Header
+
+- **Workflow Version**: `1.1`
+- **Packet Class**: `IMPLEMENTATION`
+
+## Research Notes
+
+Has notes.
+
+## Intent
+
+Has Manual Impact: Yes — extends getting-started.md with new flow.
+""",
+        encoding="utf-8",
+    )
+    _commit(repo, "WP with manual impact")
+
+    result = _run_audit(repo)
+    assert result.returncode == 0, (
+        f"WP with Manual Impact flagged:\n{result.stdout}"
+    )
+
+
+def test_wp_manual_impact_n_a_bug_fix_form_passes(tmp_path: Path) -> None:
+    repo = _stage_repo(tmp_path)
+    wp_dir = repo / ".gov" / "workflow" / "workpackets"
+    (wp_dir / "WP-I9-202-bug-fix.md").write_text(
+        """# WP-I9-202 - Bug fix
+
+## Header
+
+- **Workflow Version**: `1.1`
+- **Packet Class**: `IMPLEMENTATION`
+
+## Research Notes
+
+Reproduced the bug; fix is local.
+
+## Definition Of Done
+
+- [ ] **Manual Impact**: N/A (bug fix) — fixes off-by-one in serializer.
+""",
+        encoding="utf-8",
+    )
+    _commit(repo, "bug-fix WP with N/A form")
+
+    result = _run_audit(repo)
+    assert result.returncode == 0, result.stdout
+
+
+def test_archived_wp_not_required_to_have_manual_impact(tmp_path: Path) -> None:
+    """Archived WPs are grandfathered (rule introduced mid-iteration via WP-I1-035)."""
+    repo = _stage_repo(tmp_path)
+    archive_dir = repo / ".gov" / "workflow" / "archive"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    (archive_dir / "WP-I9-203-archived.md").write_text(
+        """# WP-I9-203 - Archived
+
+## Header
+
+- **Workflow Version**: `1.1`
+- **Packet Class**: `IMPLEMENTATION`
+
+## Research Notes
+
+Has notes.
+""",
+        encoding="utf-8",
+    )
+    _commit(repo, "archived WP without manual impact")
+
+    result = _run_audit(repo)
+    assert result.returncode == 0, (
+        f"archived WP should be grandfathered for manual-impact rule:\n{result.stdout}"
+    )
+
+
+def test_documentation_class_not_required_to_have_manual_impact(tmp_path: Path) -> None:
+    repo = _stage_repo(tmp_path)
+    wp_dir = repo / ".gov" / "workflow" / "workpackets"
+    (wp_dir / "WP-I9-204-doc.md").write_text(
+        """# WP-I9-204 - Doc
+
+## Header
+
+- **Workflow Version**: `1.1`
+- **Packet Class**: `DOCUMENTATION`
+
+## Intent
+
+DOCUMENTATION class is exempt from manual-impact too.
+""",
+        encoding="utf-8",
+    )
+    _commit(repo, "doc class WP")
+
+    result = _run_audit(repo)
+    assert result.returncode == 0, result.stdout
 
 
 def test_multiple_violations_all_reported(tmp_path: Path) -> None:

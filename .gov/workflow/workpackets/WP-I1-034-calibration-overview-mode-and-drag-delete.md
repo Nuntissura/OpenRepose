@@ -82,6 +82,7 @@ Operator-feedback follow-up to WP-I1-001 / WP-I1-028. Picks up everything deferr
 - [ ] pytest zero failures; junit XML at `target/test-artifacts/WP-I1-034/`.
 - [ ] Audit clean.
 - [ ] Operator confirms manual Overview → drag → export cycle on Aeri.
+- [ ] **Manual Impact**: Yes — extends `feature-2-calibration-overlay.md` with Overview mode + drag/delete + add+place workflow + new `delete_markers` command.
 
 ## Test Coverage Plan
 

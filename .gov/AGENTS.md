@@ -264,6 +264,22 @@ Past disasters: wrong git tooling and accidental directory-climbing deleted enti
 
 When the safe-delete helper refuses a path, do not work around it — investigate why. If the legitimate target really is outside the repo root, the operator runs the deletion by hand consciously.
 
+## Manual Impact Rule
+
+Every IMPLEMENTATION-class workpacket at Workflow Version 1.1+ MUST contain a `Manual Impact:` line in its Definition Of Done section. The author explicitly answers whether the in-app manual (`.gov/doc/manual/`) needs an update for this change.
+
+Acceptable forms:
+
+- `Manual Impact: Yes — extends <topic-file>.md with <what>` (or names a new topic file).
+- `Manual Impact: No — internal refactor with no operator-facing surface change.`
+- `Manual Impact: N/A (bug fix)` — when the WP only fixes a defect in existing behavior. Brief reason recommended.
+
+Bug-fix WPs may use the `N/A (bug fix)` form. Other WPs must answer Yes or No truthfully and update the manual in the same WP if the answer is Yes.
+
+The audit script (`scripts/audit-repo.ps1`) enforces field presence on **active** workpackets in `.gov/workflow/workpackets/`. Archived WPs are grandfathered (the rule was introduced mid-iteration via WP-I1-035). The check is mechanical (line presence, not truthfulness); operator self-review enforces the spirit of the rule.
+
+The manual itself lives as Markdown topic files under `.gov/doc/manual/`. The Help tab in the GUI renders the index + selected topic. Future assistants and human collaborators use the manual to onboard the app without reading the spec.
+
 ## Headless Verification Checklist
 
 Use this checklist when reviewing or signing off any IMPLEMENTATION-class workpacket that adds an operator-facing or visual feature:

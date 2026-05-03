@@ -67,6 +67,7 @@ Implement the Library tab per spec: top-level dock tab with a search bar (autoco
 - [ ] Lock indicator shows for entries held by other operators.
 - [ ] No focus-stealing API calls (runtime test on 40 search + edit events).
 - [ ] pytest zero failures; audit clean.
+- [ ] **Manual Impact**: Yes — `feature-3-library-postgresql.md` needs a Library Tab UI walkthrough subsection (search, list, detail, sub-tabs, lock indicator).
 
 ## Headless LLM Operation Compliance
 

@@ -3,13 +3,21 @@ param()
 
 # scripts/audit-repo.ps1
 #
-# Quarterly governance audit. Checks three rules from .gov/AGENTS.md:
+# Quarterly governance audit. Checks four rules from .gov/AGENTS.md:
 #
 #   1. Disk-Agnostic Rule       - no hardcoded absolute paths in committed files.
 #   2. Naming Convention Rule   - no blank-space characters in committed paths.
 #   3. Research-First Rule      - IMPLEMENTATION / RESEARCH workpackets at
 #                                 Workflow Version 1.1+ have a "## Research Notes"
 #                                 section. Workflow Version 1.0 WPs are grandfathered.
+#   4. Manual Impact Rule       - active IMPLEMENTATION workpackets at Workflow
+#                                 Version 1.1+ contain a "Manual Impact:" line so
+#                                 the operator has explicitly considered whether
+#                                 the in-app manual needs an update. Bug-fix WPs
+#                                 may use "Manual Impact: N/A (bug fix)". Only
+#                                 active WPs in workpackets/ are checked;
+#                                 archive/ is grandfathered (rule introduced
+#                                 mid-iteration via WP-I1-035).
 #
 # Exit codes:
 #   0  clean
@@ -134,11 +142,37 @@ foreach ($dir in $wpDirs) {
     }
 }
 
+# ---------- Check 4: Manual Impact line on active IMPLEMENTATION WPs at v1.1+ ----------
+#
+# Only active WPs (workpackets/) are checked. Archived WPs are grandfathered
+# because this rule was introduced mid-iteration by WP-I1-035.
+
+$activeWpDir = Join-Path $RepoRoot '.gov/workflow/workpackets'
+if (Test-Path -LiteralPath $activeWpDir) {
+    Get-ChildItem -LiteralPath $activeWpDir -Filter 'WP-*.md' -File | ForEach-Object {
+        $content = Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8
+
+        if ($content -notmatch '(?m)^\s*-\s*\*\*Workflow Version\*\*:\s*`?1\.1`?') {
+            return
+        }
+        if ($content -notmatch '(?m)^\s*-\s*\*\*Packet Class\*\*:\s*`?IMPLEMENTATION`?') {
+            return
+        }
+        # Allow optional markdown bold around the label, then a colon, then
+        # any text. Examples that match: "Manual Impact: Yes",
+        # "**Manual Impact**: N/A (bug fix)", "  - **Manual Impact**: ..."
+        if ($content -notmatch '(?m)Manual Impact[\*\s]{0,5}:') {
+            $rel = $_.FullName.Substring($RepoRoot.Length).TrimStart('\','/').Replace('\','/')
+            Add-Violation 'wp-manual-impact' "$rel  active IMPLEMENTATION at Workflow Version 1.1+ missing 'Manual Impact:' line"
+        }
+    }
+}
+
 # ---------- Report ----------
 
 Write-Output ""
 Write-Output "audit-repo  root=$RepoRoot  tracked=$($trackedFiles.Count)"
-Write-Output "checks: hardcoded-paths  blank-space-paths  wp-research-notes"
+Write-Output "checks: hardcoded-paths  blank-space-paths  wp-research-notes  wp-manual-impact"
 
 if ($violations.Count -eq 0) {
     Write-Output ""

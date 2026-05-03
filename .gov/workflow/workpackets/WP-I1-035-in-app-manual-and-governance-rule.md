@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: IN-PROGRESS
+- **Status**: REVIEW
 - **Iteration**: I1
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -127,3 +127,13 @@ The manual lives in `.gov/doc/manual/` as Markdown (one topic per file). The Hel
 ## Progress Log
 
 - 2026-05-03: WP drafted at status DRAFT. Operator approved scope; awaits explicit promotion + fast-track authorization.
+- 2026-05-03: Operator authorized fast-track. Implementation:
+  - 6 Markdown topic files under `.gov/doc/manual/` (index + getting-started + feature-1 + feature-2 + feature-3 + keyboard-shortcuts).
+  - `gui/help_pane.py` rewritten as a manual browser (QSplitter with QListWidget topic index + QTextBrowser Markdown viewer; resolves manual root by walking up from `__file__` so packaged builds gracefully degrade with a "manual not bundled" placeholder).
+  - `.gov/AGENTS.md` gains a new "Manual Impact Rule" section between Deletion Protocol and Headless Verification Checklist.
+  - `.gov/topology.yaml` `repo_rules:` block extended with `manual_impact_rule` entry (rule + enforcement + manual_location + grandfather note).
+  - `.gov/templates/WP_TEMPLATE.md` Definition Of Done section adds the Manual Impact checkbox with the three accepted forms.
+  - `scripts/audit-repo.ps1`: 4th check `wp-manual-impact` only on `.gov/workflow/workpackets/` (active); archived WPs grandfathered. Regex tolerates markdown bold around the label (`**Manual Impact**:` matches via `Manual Impact[\*\s]{0,5}:` pattern). Output banner updated.
+  - 6 active IMPLEMENTATION WPs at v1.1+ patched with `**Manual Impact**:` lines (WP-I1-034 + WP-I2-003/004/005/006/007). Existing test_audit_repo fixture updated to include Manual Impact in the v1.1 IMPLEMENTATION case.
+  - 4 new audit tests + 4 new manual-browser tests cover: missing field detected, present field passes, N/A bug-fix form passes, archived WP grandfathered, DOCUMENTATION class exempt, manual root resolves, topic list populates, index loads by default, no focus-stealing APIs in help_pane.
+  - Full suite 346/346 (was 342/342; +4 manual browser tests; audit tests run as part of the full suite). Audit clean. Status IN-PROGRESS -> REVIEW.

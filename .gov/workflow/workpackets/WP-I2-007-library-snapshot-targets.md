@@ -55,6 +55,7 @@ Add the two new snapshot targets per spec: `library_entry` (selected entry's sid
 - [ ] Snapshot tests for both pass.
 - [ ] No focus theft.
 - [ ] pytest zero failures; audit clean.
+- [ ] **Manual Impact**: Yes — `feature-3-library-postgresql.md` lists the new `library_entry` + `library_search_results` snapshot targets.
 
 ## Headless LLM Operation Compliance
 

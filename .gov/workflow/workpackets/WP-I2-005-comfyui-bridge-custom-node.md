@@ -62,6 +62,7 @@ Ship the `comfyui-openrepose-bridge` custom node: a ComfyUI custom node that POS
 - [ ] POST failure logs WARN; does not block image save.
 - [ ] pytest payload + metadata extraction tests pass.
 - [ ] Operator installs node + runs ComfyUI + image save triggers entry creation in OpenRepose.
+- [ ] **Manual Impact**: Yes — add `feature-3-library-postgresql.md` ComfyUI Bridge subsection with operator install instructions (copy folder into ComfyUI's custom_nodes/), node-input fields explainer, troubleshooting.
 
 ## Headless LLM Operation Compliance
 

@@ -104,6 +104,7 @@ Concrete checklist. Each item must be testable. No vague items.
 - [ ] `<concrete checkbox>`
 - [ ] `<concrete checkbox>`
 - [ ] `<concrete checkbox>`
+- [ ] **Manual Impact**: `Yes — <topic file + what>` | `No — <brief reason>` | `N/A (bug fix) — <brief reason>` (REQUIRED for IMPLEMENTATION-class WPs at Workflow Version 1.1+; enforced by audit).
 
 ## Test Coverage Plan
 

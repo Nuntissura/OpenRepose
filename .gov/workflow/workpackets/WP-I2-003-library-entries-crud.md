@@ -64,6 +64,7 @@ Implement CRUD on `library_entries` and the M-to-N `entry_tags` relation. Includ
 - [ ] Filesystem layout `outputs/library/<entry-uuid>/{openpose.json,openpose.png,generated.png,workflow.json,metadata.json,portrait.png}` created on register.
 - [ ] Row-level lock on update/delete; conflict raises structured error.
 - [ ] pytest zero failures; audit clean.
+- [ ] **Manual Impact**: Yes — `feature-3-library-postgresql.md` references the entries+tags primitives; extend with operator-facing notes on the smart-tag extractor and the storage layout when this WP lands.
 
 ## Headless LLM Operation Compliance
 
