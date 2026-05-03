@@ -52,6 +52,10 @@ if TYPE_CHECKING:
 
 ALL_MARKER_NAMES_ORDERED: tuple[str, ...] = REQUIRED_MARKERS + OPTIONAL_MARKERS
 
+# WP-I1-034: marker dropdown sentinel entries.
+DROPDOWN_PLACEHOLDER = "— pick one —"
+DROPDOWN_OVERVIEW = "Overview (drag any marker)"
+
 
 class _ZoomableImageView(QGraphicsView):
     """QGraphicsView with mouse-wheel zoom + click-drag pan + click-to-place.
@@ -68,12 +72,15 @@ class _ZoomableImageView(QGraphicsView):
     """
 
     clicked = Signal(int, int)
+    marker_dragged = Signal(str, int, int)  # name, image_x, image_y
+    marker_right_clicked = Signal(str)  # name
 
     DOCK_WIDTH_CAP = 320
     MIN_ZOOM = 0.1
     MAX_ZOOM = 8.0
     ZOOM_STEP = 1.15
     CLICK_THRESHOLD_PX = 4
+    MARKER_HIT_RADIUS_PX = 14
 
     def __init__(self) -> None:
         super().__init__()
@@ -83,6 +90,15 @@ class _ZoomableImageView(QGraphicsView):
         self._image_size: tuple[int, int] = (0, 0)
         self._press_pos: QPoint | None = None
         self._space_held = False
+        # WP-I1-034: marker hit-detection state.
+        # _marker_positions: list of (name, image_x, image_y) for operator
+        # markers that should be hit-tested. Set via set_marker_positions().
+        # _draggable_names: subset of names that can be dragged in the
+        # current mode. Empty = none draggable.
+        self._marker_positions: list[tuple[str, float, float]] = []
+        self._draggable_names: set[str] = set()
+        self._dragging_marker: str | None = None
+        self._drag_start_scene: QPoint | None = None
         self.setRenderHint(self.renderHints())  # default
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
@@ -143,6 +159,29 @@ class _ZoomableImageView(QGraphicsView):
                 self._pixmap_item, Qt.AspectRatioMode.KeepAspectRatio
             )
 
+    def set_marker_positions(
+        self,
+        positions: list[tuple[str, float, float]],
+        draggable_names: set[str],
+    ) -> None:
+        """WP-I1-034: tell the view which operator markers exist + which
+        of them are draggable in the current mode. Used for hit-testing on
+        mouse events. Visual rendering still happens via the cv2 pixmap;
+        these positions are only for drag / right-click detection.
+        """
+        self._marker_positions = list(positions)
+        self._draggable_names = set(draggable_names)
+
+    def _hit_test_marker(self, scene_pt) -> str | None:  # noqa: ANN001
+        """Return the name of a marker within MARKER_HIT_RADIUS of
+        scene_pt, or None. Hit radius is in scene (image) units, so a
+        zoomed-in view doesn't make hit-testing easier or harder."""
+        sx, sy = scene_pt.x(), scene_pt.y()
+        for name, mx, my in self._marker_positions:
+            if (sx - mx) ** 2 + (sy - my) ** 2 <= self.MARKER_HIT_RADIUS_PX ** 2:
+                return name
+        return None
+
     def wheelEvent(self, event: QWheelEvent) -> None:  # noqa: D401
         if self._pixmap_item is None:
             return
@@ -186,11 +225,25 @@ class _ZoomableImageView(QGraphicsView):
         super().keyReleaseEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.RightButton and not self._space_held:
+            # WP-I1-034: right-click hit-tests against operator markers and
+            # emits marker_right_clicked. Suppress the default context menu.
+            scene_pt = self.mapToScene(event.pos())
+            name = self._hit_test_marker(scene_pt)
+            if name is not None:
+                self.marker_right_clicked.emit(name)
+                event.accept()
+                return
         if event.button() == Qt.MouseButton.LeftButton and not self._space_held:
-            # Track press for click-vs-drag detection. When space is held
-            # we let Qt's ScrollHandDrag handle the gesture and DO NOT
-            # interpret the release as a marker placement.
             self._press_pos = event.pos()
+            # WP-I1-034: if the press is on a draggable marker, enter
+            # drag mode for that marker.
+            if self._image_size != (0, 0) and self._pixmap_item is not None:
+                scene_pt = self.mapToScene(event.pos())
+                name = self._hit_test_marker(scene_pt)
+                if name is not None and name in self._draggable_names:
+                    self._dragging_marker = name
+                    self._drag_start_scene = scene_pt
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
@@ -203,8 +256,27 @@ class _ZoomableImageView(QGraphicsView):
             dx = release_pos.x() - self._press_pos.x()
             dy = release_pos.y() - self._press_pos.y()
             self._press_pos = None
-            # Treat as click only when cursor barely moved.
-            if abs(dx) > self.CLICK_THRESHOLD_PX or abs(dy) > self.CLICK_THRESHOLD_PX:
+            moved_far = (
+                abs(dx) > self.CLICK_THRESHOLD_PX
+                or abs(dy) > self.CLICK_THRESHOLD_PX
+            )
+
+            # WP-I1-034 drag end: if we were dragging a marker AND the
+            # cursor actually moved, fire marker_dragged.
+            if self._dragging_marker is not None:
+                if moved_far:
+                    scene_pt = self.mapToScene(release_pos)
+                    iw, ih = self._image_size
+                    ix = max(0, min(iw - 1, int(round(scene_pt.x()))))
+                    iy = max(0, min(ih - 1, int(round(scene_pt.y()))))
+                    self.marker_dragged.emit(self._dragging_marker, ix, iy)
+                self._dragging_marker = None
+                self._drag_start_scene = None
+                super().mouseReleaseEvent(event)
+                return
+
+            # Plain click → marker placement (when no drag).
+            if moved_far:
                 super().mouseReleaseEvent(event)
                 return
             if self._image_size == (0, 0) or self._pixmap_item is None:
@@ -236,11 +308,17 @@ class CalibrationPane(QWidget):
         layout.setSpacing(6)
 
         # Top row: marker selector + completeness.
+        # WP-I1-034: dropdown defaults to a "— pick one —" placeholder + an
+        # "Overview" entry that makes ALL markers draggable. Single-marker
+        # entries restrict drag to that one + still allow click-to-place.
         top = QHBoxLayout()
         marker_label = QLabel("active marker:")
         marker_label.setObjectName("inspector-key")
         self._marker_combo = QComboBox()
+        self._marker_combo.addItem(DROPDOWN_PLACEHOLDER)
+        self._marker_combo.addItem(DROPDOWN_OVERVIEW)
         self._marker_combo.addItems(ALL_MARKER_NAMES_ORDERED)
+        self._marker_combo.currentTextChanged.connect(self._on_marker_changed)
         self._completeness = QLabel("calibration: none")
         self._completeness.setObjectName("inspector-value")
         top.addWidget(marker_label)
@@ -252,6 +330,11 @@ class CalibrationPane(QWidget):
         # Portrait display with zoom + pan (WP-I1-028).
         self._portrait = _ZoomableImageView()
         self._portrait.clicked.connect(self._on_portrait_clicked)
+        # WP-I1-034: drag + right-click signals.
+        self._portrait.marker_dragged.connect(self._on_marker_dragged)
+        self._portrait.marker_right_clicked.connect(
+            self._on_marker_right_clicked
+        )
         layout.addWidget(self._portrait, 1)
 
         # Bottom row: action buttons.
@@ -288,10 +371,12 @@ class CalibrationPane(QWidget):
     def refresh(self) -> None:
         """Render the portrait + current calibration overlay.
 
-        WP-I1-028: also passes detected_positions so the always-on dim
-        MediaPipe dots render even before the operator places any
-        operator marker. Detected positions come from the active rig's
-        raw_face_mesh at the canonical FaceMesh indices for each marker.
+        WP-I1-028: passes detected_positions so the always-on dim MediaPipe
+        dots render even before the operator places any operator marker.
+        WP-I1-034: also feeds the operator-marker positions to the
+        ZoomableImageView so it can hit-test for drag + right-click;
+        draggable subset depends on the dropdown selection (Overview = all,
+        single marker name = just that one, placeholder = none).
         """
         cal = self._load_active_calibration()
         portrait_path = self._app.state.portrait
@@ -301,6 +386,22 @@ class CalibrationPane(QWidget):
         )
         h, w = bgr.shape[:2]
         self._portrait.set_overlay(bgr, image_size=(w, h))
+
+        # WP-I1-034: feed marker positions + draggable filter.
+        marker_positions: list[tuple[str, float, float]] = []
+        if cal is not None:
+            for m in cal.markers:
+                marker_positions.append(
+                    (m.name, float(m.operator_xy[0]), float(m.operator_xy[1]))
+                )
+        active = self._marker_combo.currentText()
+        if active == DROPDOWN_OVERVIEW:
+            draggable = {n for n, _, _ in marker_positions}
+        elif active in ALL_MARKER_NAMES_ORDERED:
+            draggable = {active}
+        else:
+            draggable = set()
+        self._portrait.set_marker_positions(marker_positions, draggable)
 
         completeness = "none"
         marker_count = 0
@@ -332,19 +433,88 @@ class CalibrationPane(QWidget):
 
     # --- operator action handlers ----------------------------------------
 
+    def _on_marker_changed(self, name: str) -> None:
+        """Refresh draggable marker set when the dropdown selection changes."""
+        self.refresh()
+
     def _on_portrait_clicked(self, x: int, y: int) -> None:
         avatar = self._app.state.avatar_slug
         if not avatar:
             return  # no portrait loaded; click is a no-op
         marker = self._marker_combo.currentText()
+        # WP-I1-034: placeholder + Overview do not place a marker on click.
+        # In Overview, drag is the editing model; click is a no-op so the
+        # operator doesn't accidentally drop a marker for "the wrong name".
+        if marker not in ALL_MARKER_NAMES_ORDERED:
+            return
+
+        # WP-I1-034 add+place workflow: when the marker is undetected
+        # (state.detected_markers reports False for its corresponding
+        # face_70 / body_18 index, OR there's no rig yet), the click
+        # stores both operator_xy AND mediapipe_xy as the operator's
+        # picked point. The dispatcher is the source of truth for
+        # mediapipe_xy normally — supplying it here overrides.
+        explicit_mp_xy: list[int] | None = None
+        rig = self._app.dispatcher.rig
+        if rig is None:
+            explicit_mp_xy = [x, y]
+        else:
+            from ..calibration import MEDIAPIPE_FACEMESH_INDEX_BY_MARKER
+
+            idx = MEDIAPIPE_FACEMESH_INDEX_BY_MARKER.get(marker)
+            face = (
+                rig.raw_face_mesh
+                if rig.raw_face_mesh is not None
+                else rig.face_mesh
+            )
+            if (
+                idx is None
+                or idx >= face.shape[0]
+                or (
+                    abs(float(face[idx, 0])) < 1.0
+                    and abs(float(face[idx, 1])) < 1.0
+                )
+            ):
+                # No detection at this MediaPipe index — operator-supplied.
+                explicit_mp_xy = [x, y]
+
+        marker_payload: dict = {
+            "name": marker,
+            "operator_xy": [x, y],
+        }
+        if explicit_mp_xy is not None:
+            marker_payload["mediapipe_xy"] = explicit_mp_xy
         self._app.handle_command(
             {
                 "command": "set_calibration_points",
-                "markers": [
-                    {"name": marker, "operator_xy": [x, y]},
-                ],
+                "markers": [marker_payload],
                 "merge": True,
             }
+        )
+        self.refresh()
+
+    def _on_marker_dragged(self, name: str, x: int, y: int) -> None:
+        """WP-I1-034: drag end → set_calibration_points (merge=true) for
+        that marker at the new position."""
+        avatar = self._app.state.avatar_slug
+        if not avatar or name not in ALL_MARKER_NAMES_ORDERED:
+            return
+        self._app.handle_command(
+            {
+                "command": "set_calibration_points",
+                "markers": [{"name": name, "operator_xy": [x, y]}],
+                "merge": True,
+            }
+        )
+        self.refresh()
+
+    def _on_marker_right_clicked(self, name: str) -> None:
+        """WP-I1-034: right-click on operator marker → delete_markers."""
+        avatar = self._app.state.avatar_slug
+        if not avatar:
+            return
+        self._app.handle_command(
+            {"command": "delete_markers", "names": [name]}
         )
         self.refresh()
 

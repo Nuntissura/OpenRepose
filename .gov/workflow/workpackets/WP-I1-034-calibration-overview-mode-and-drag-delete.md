@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: IN-PROGRESS
+- **Status**: REVIEW
 - **Iteration**: I1
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -123,3 +123,4 @@ Operator-feedback follow-up to WP-I1-001 / WP-I1-028. Picks up everything deferr
 ## Progress Log
 
 - 2026-05-03: WP drafted at status DRAFT. Operator approved scope; awaits explicit promotion + fast-track authorization.
+- 2026-05-03: Operator authorized fast-track. Implementation: new `delete_markers` LLM command (validates avatar + names + non-empty list; bulk + single forms; no-match returns ok with deleted_count=0). `_ZoomableImageView` extended with `set_marker_positions(positions, draggable_names)` + `_hit_test_marker(scene_pt)`; `mousePressEvent`/`mouseReleaseEvent` detect drag-on-marker (vs click-to-place) and fire `marker_dragged(name, x, y)`; right-button press hit-tests + fires `marker_right_clicked(name)`. `CalibrationPane` dropdown now has `— pick one —` placeholder + `Overview (drag any marker)` entry; `currentTextChanged` triggers refresh which feeds the draggable subset back to the view (placeholder = none draggable; Overview = all; single name = just that one). Click-to-place with placeholder/Overview is a no-op (drag is the editing model in Overview). Add+place workflow: when the operator clicks for a marker whose MediaPipe-detected position is at origin (no detection) or no rig is loaded, the click stores both `operator_xy` and `mediapipe_xy` as the same point, treating it as operator-supplied detection. `marker_dragged` and `marker_right_clicked` dispatch `set_calibration_points` (merge=true) and `delete_markers` respectively. **Mesh inspector deferred to WP-I1-036** (split out to keep WP-I1-034 from blowing scope; the always-on dim-dot overlay from WP-I1-028 mostly serves the operator's "which landmark is which" need). 13 new tests across `test_delete_markers_command.py` (8) and `test_calibration_gui.py` (5: placeholder default, click-with-placeholder is no-op, drag dispatches set_calibration_points, right-click dispatches delete_markers, _hit_test_marker semantics). Updated 2 existing GUI tests for the new dropdown shape. Full suite 342/342. Audit clean. Status IN-PROGRESS -> REVIEW.

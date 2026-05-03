@@ -72,7 +72,13 @@ def test_markers_body_18_rows_colored_per_openpose_limb(
 def test_calibration_pane_has_all_marker_names_in_dropdown(
     app_and_window,
 ) -> None:
+    """WP-I1-034 update: dropdown now leads with placeholder + Overview
+    entries, then the 10 anatomical names."""
     from openrepose.calibration import OPTIONAL_MARKERS, REQUIRED_MARKERS
+    from openrepose.gui.calibration import (
+        DROPDOWN_OVERVIEW,
+        DROPDOWN_PLACEHOLDER,
+    )
 
     _app, window = app_and_window
     pane = window._calibration
@@ -80,7 +86,12 @@ def test_calibration_pane_has_all_marker_names_in_dropdown(
         pane._marker_combo.itemText(i)
         for i in range(pane._marker_combo.count())
     ]
-    assert items == list(REQUIRED_MARKERS) + list(OPTIONAL_MARKERS)
+    expected = (
+        [DROPDOWN_PLACEHOLDER, DROPDOWN_OVERVIEW]
+        + list(REQUIRED_MARKERS)
+        + list(OPTIONAL_MARKERS)
+    )
+    assert items == expected
 
 
 def test_calibration_pane_completeness_default_none(app_and_window) -> None:
@@ -110,8 +121,8 @@ def test_calibration_pane_click_without_avatar_is_noop(app_and_window) -> None:
 def test_calibration_pane_click_after_import_records_marker(
     app_and_window, aeri_master: Path, qtbot
 ) -> None:
-    """Click on portrait while a portrait is loaded should fire
-    set_calibration_points and update state.calibration."""
+    """Click on portrait while a portrait is loaded AND a single marker is
+    selected fires set_calibration_points and updates state.calibration."""
     app, window = app_and_window
     app.handle_command(
         {
@@ -121,6 +132,8 @@ def test_calibration_pane_click_after_import_records_marker(
         }
     )
     pane = window._calibration
+    # WP-I1-034: dropdown defaults to placeholder; pick a single marker
+    # before clicking.
     pane._marker_combo.setCurrentText("eye_outer_left")
     pane._on_portrait_clicked(412, 487)
     qtbot.wait(20)
@@ -142,6 +155,8 @@ def test_calibration_pane_clear_button_resets_state(
         }
     )
     pane = window._calibration
+    # WP-I1-034: pick a marker first; placeholder is a no-op on click.
+    pane._marker_combo.setCurrentText("eye_outer_left")
     pane._on_portrait_clicked(100, 200)
     qtbot.wait(20)
     assert app.state.calibration["marker_count"] >= 1
@@ -271,6 +286,129 @@ def test_calibration_view_pan_via_spacebar_left_click(
     )
     view.keyReleaseEvent(release)
     assert view.dragMode() == QGraphicsView.DragMode.NoDrag
+
+
+def test_calibration_pane_marker_dropdown_starts_with_placeholder(
+    app_and_window,
+) -> None:
+    """WP-I1-034: dropdown defaults to '— pick one —' placeholder; the
+    second entry is the Overview mode; then the 10 anatomical names."""
+    from openrepose.gui.calibration import (
+        ALL_MARKER_NAMES_ORDERED,
+        DROPDOWN_OVERVIEW,
+        DROPDOWN_PLACEHOLDER,
+    )
+
+    _app, window = app_and_window
+    combo = window._calibration._marker_combo
+    assert combo.itemText(0) == DROPDOWN_PLACEHOLDER
+    assert combo.itemText(1) == DROPDOWN_OVERVIEW
+    items = [combo.itemText(i) for i in range(2, combo.count())]
+    assert items == list(ALL_MARKER_NAMES_ORDERED)
+    assert combo.currentText() == DROPDOWN_PLACEHOLDER
+
+
+def test_calibration_pane_click_with_placeholder_selected_is_noop(
+    app_and_window, aeri_master: Path, qtbot
+) -> None:
+    """WP-I1-034: with the dropdown on the placeholder, clicking the
+    portrait must NOT place a marker."""
+    app, window = app_and_window
+    app.handle_command(
+        {
+            "command": "import_portrait",
+            "path": str(aeri_master),
+            "avatar_slug": "aeri",
+        }
+    )
+    window._calibration._on_portrait_clicked(412, 487)
+    qtbot.wait(20)
+    # No marker created.
+    assert app.state.calibration["marker_count"] == 0
+
+
+def test_calibration_pane_drag_dispatches_set_calibration_points(
+    app_and_window, aeri_master: Path, qtbot
+) -> None:
+    """WP-I1-034: marker_dragged → set_calibration_points (merge=true) for
+    that marker at the new position."""
+    app, window = app_and_window
+    app.handle_command(
+        {
+            "command": "import_portrait",
+            "path": str(aeri_master),
+            "avatar_slug": "aeri",
+        }
+    )
+    # Place a marker so it exists to drag.
+    app.handle_command(
+        {
+            "command": "set_calibration_points",
+            "markers": [
+                {
+                    "name": "eye_outer_left",
+                    "operator_xy": [100, 200],
+                }
+            ],
+            "merge": True,
+        }
+    )
+    # Simulate drag end.
+    window._calibration._on_marker_dragged("eye_outer_left", 555, 666)
+    qtbot.wait(20)
+    d = app.handle_command({"command": "dump_calibration"})
+    markers = d.payload["calibration"]["markers"]
+    el = next(m for m in markers if m["name"] == "eye_outer_left")
+    assert el["operator_xy"] == [555.0, 666.0]
+
+
+def test_calibration_pane_right_click_dispatches_delete_markers(
+    app_and_window, aeri_master: Path, qtbot
+) -> None:
+    """WP-I1-034: marker_right_clicked → delete_markers."""
+    app, window = app_and_window
+    app.handle_command(
+        {
+            "command": "import_portrait",
+            "path": str(aeri_master),
+            "avatar_slug": "aeri",
+        }
+    )
+    app.handle_command(
+        {
+            "command": "set_calibration_points",
+            "markers": [
+                {"name": "eye_outer_left", "operator_xy": [100, 200]},
+                {"name": "eye_outer_right", "operator_xy": [300, 200]},
+            ],
+            "merge": True,
+        }
+    )
+    window._calibration._on_marker_right_clicked("eye_outer_left")
+    qtbot.wait(20)
+    d = app.handle_command({"command": "dump_calibration"})
+    names = [m["name"] for m in d.payload["calibration"]["markers"]]
+    assert "eye_outer_left" not in names
+    assert "eye_outer_right" in names
+
+
+def test_calibration_view_hit_test_marker(app_and_window) -> None:
+    """WP-I1-034: _hit_test_marker returns the name of the closest marker
+    within MARKER_HIT_RADIUS_PX, else None."""
+    from PySide6.QtCore import QPointF
+
+    _app, window = app_and_window
+    view = window._calibration._portrait
+    view.set_marker_positions(
+        [("eye_outer_left", 100.0, 200.0), ("mouth_corner_right", 300.0, 400.0)],
+        draggable_names={"eye_outer_left", "mouth_corner_right"},
+    )
+    # Within radius of the first marker.
+    pt = QPointF(102.0, 201.0)
+    assert view._hit_test_marker(pt) == "eye_outer_left"
+    # Far from any marker.
+    pt = QPointF(800.0, 800.0)
+    assert view._hit_test_marker(pt) is None
 
 
 def test_calibration_pane_compute_detected_positions_uses_rig(

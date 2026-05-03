@@ -760,6 +760,92 @@ def _h_dump_calibration(
     }
 
 
+def _h_delete_markers(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Remove operator markers by name from the active calibration.
+
+    Payload: `{"names": ["eye_outer_left", ...]}`. Names not currently in
+    the calibration are silently skipped (no-op for those). Unknown
+    anatomical names raise a structured error. WP-I1-034.
+    """
+    avatar_slug = d.state.avatar_slug
+    if not avatar_slug:
+        raise OpenReposeCommandError(
+            "delete_markers requires an active avatar"
+        )
+    raw_names = cmd.get("names")
+    if not isinstance(raw_names, list) or not raw_names:
+        raise OpenReposeCommandError(
+            "delete_markers requires 'names' as a non-empty list of strings"
+        )
+    to_delete: set[str] = set()
+    for n in raw_names:
+        if not isinstance(n, str):
+            raise OpenReposeCommandError(
+                f"delete_markers names must be strings; got {type(n).__name__}"
+            )
+        if n not in ALL_MARKER_NAMES:
+            raise OpenReposeCommandError(
+                f"unknown marker name {n!r}; allowed: {sorted(ALL_MARKER_NAMES)}"
+            )
+        to_delete.add(n)
+
+    cal_p = calibration_path(d.outputs_root, avatar_slug)
+    existing = load_calibration(cal_p)
+    if existing is None or not existing.markers:
+        return {
+            "avatar_slug": avatar_slug,
+            "deleted_count": 0,
+            "remaining": 0,
+            "names": list(to_delete),
+        }
+
+    remaining = tuple(m for m in existing.markers if m.name not in to_delete)
+    deleted = len(existing.markers) - len(remaining)
+    if deleted == 0:
+        return {
+            "avatar_slug": avatar_slug,
+            "deleted_count": 0,
+            "remaining": len(remaining),
+            "names": list(to_delete),
+        }
+
+    new_cal = Calibration(
+        avatar_slug=existing.avatar_slug or avatar_slug,
+        image_path=existing.image_path,
+        image_size=existing.image_size,
+        mediapipe_version=existing.mediapipe_version,
+        markers=remaining,
+        created_at=existing.created_at,
+        updated_at="",
+    )
+    save_calibration(new_cal, cal_p)
+
+    if d._rig is not None:
+        d._rig = d._rig.with_calibration(new_cal)
+
+    _refresh_calibration_state(
+        d.state,
+        active_avatar=avatar_slug,
+        calibration=new_cal,
+        loaded_from=str(cal_p),
+    )
+    d.state.write()
+    d.log.ok(
+        "calibration.delete_markers",
+        avatar=avatar_slug,
+        deleted=deleted,
+        names=",".join(sorted(to_delete)),
+    )
+    return {
+        "avatar_slug": avatar_slug,
+        "deleted_count": deleted,
+        "remaining": len(remaining),
+        "names": list(to_delete),
+    }
+
+
 def _h_clear_calibration(
     d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
@@ -1142,6 +1228,7 @@ _HANDLERS = {
     "set_calibration_points": _h_set_calibration_points,
     "dump_calibration": _h_dump_calibration,
     "clear_calibration": _h_clear_calibration,
+    "delete_markers": _h_delete_markers,
     "get_calibration_status": _h_get_calibration_status,
     "set_body_part_visibility": _h_set_body_part_visibility,
     "get_body_part_visibility": _h_get_body_part_visibility,
