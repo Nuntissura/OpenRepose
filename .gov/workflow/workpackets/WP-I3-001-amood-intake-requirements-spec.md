@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: IN-PROGRESS
+- **Status**: REVIEW
 - **Iteration**: I3
 - **Workflow Version**: 1.1
 - **Packet Class**: DOCUMENTATION
@@ -184,11 +184,40 @@ DOCUMENTATION-class. No new tests in this WP. Verification is the audit + the sp
 
 ## Change Ledger
 
-(filled at REVIEW)
-
-- **What Became Real**: TBD at REVIEW.
-- **What Remains Simulated**: TBD at REVIEW.
-- **Next Blocking Real Seam**: TBD at REVIEW (expected: I3 implementation iteration kickoff — first WPs likely WP-I3-002 INFRASTRUCTURE for new DB tables + migrations, WP-I3-003 IMPLEMENTATION for default-staging bridge change, WP-I3-004 IMPLEMENTATION for triage GUI tab, etc.).
+- **What Became Real**:
+  - 4 NEW spec files under `.gov/spec/`:
+    - `openrepose_amood_v0_1.md` (~15KB): AMood blueprint operationalization. 16 new card-schema columns on `library_entries`, `library.dedupe_check` SQL function, 7 commands (init_batch_package / library_create_card / library_create_variants / compatibility_check / accepted_set_audit / amood_export_tsv / amood_import_tsv), AMood TSV-as-DB-view contract, AMOOD-001..004 rule_ids, blueprint-provenance pointer to operator-canonical reference at `.gov/doc/references/`. Out Of Scope + Reality Boundary populated.
+    - `openrepose_intake_v0_1.md` (~14KB): 3 new tables (library_projects/library_tasks/library_outputs) + library_pose_guides; 4 FK extensions on existing I2 tables; unified status enum across the entire hierarchy; `outputs/intake/` + `outputs/library/` folder layout; three-layer triage (pre-flight summary / auto-prefilter / per-card variant strip); two-stage acceptance (LLM may soft_accept; operator-only finalize); default-staging ComfyUI bridge contract (INTAKE-002); 16 dispatcher commands; INTAKE-001..004 rule_ids; 3 snapshot targets; `state.library.intake` + `state.library.guidance` blocks specified.
+    - `openrepose_rules_v0_1.md` (~13KB): rule registry shape, 4 severity tiers (auto-route / block / warn / info), error citation contract (uniform across all dispatcher commands), global-vs-project-scoped split (topology.yaml for global; library_rules table for project-scoped), audit coverage requirements, initial registry of 25 rule_ids covering RUL-000..007 + AMOOD-001..004 + INTAKE-001..004 + TARGET-001..003 + REQ-001..003 + SAFE-001..003. Out Of Scope + Reality Boundary populated.
+    - `openrepose_requirements_v0_1.md` (~13KB): 8-kind taxonomy (hard_output / body / pose / face / crop / quality / clothing_story / structural / custom); inheritance (lower scope wins); target tree (library_target_groups + library_target_cards); counters from library_outputs.status (single source); satisfaction semantics (count_satisfied AND quota_satisfied = fully_satisfied); forecast warning; complete EXP120 worked example with operator markdown round-tripping to structured rows; 8 commands. Out Of Scope + Reality Boundary populated.
+  - 3 NEW manual topics under `.gov/doc/manual/`:
+    - `intake-and-triage.md`: operator-facing flow doc with status enum, two-stage acceptance, three-layer triage, worked example of an incoming-task walkthrough, all rule_ids cited.
+    - `targets-and-progress.md`: count-vs-quota satisfaction, forecast signal, stable-vs-complete distinction, worked example of an 80/960 task progressing, LLM self-pacing loop documented.
+    - `requirements-and-targets.md`: 8 kinds, 4 severity tiers, EXP120 worked example (markdown ↔ structured rows), inheritance visualization, completeness checklist.
+  - `.gov/doc/manual/amood-workflow.md` left as-authored by operator (tag-conventions layer compatible with the new structural specs; previously-untracked file now landing through this WP).
+  - `.gov/doc/manual/index.md` extended with 3 new topic links (composes alongside operator's Adult Production Boundary entry from WP-I3-002).
+  - `.gov/spec/README.md` Active Specs table extended with the 4 new spec files (each with one-line scope summary + DRAFT status).
+  - `.gov/topology.yaml` extended with: `rule_registry:` block (severity tiers + citation format + 25 rule_ids covering RUL/AMOOD/INTAKE/TARGET/REQ/SAFE families + project_scoped registry contract); `requirements_kinds:` enum (8 canonical + custom); `intake_layout:` (per-task isolated directory pattern + status enum); `state_file_schema:` (i3_blocks documenting state.library.{intake,targets,requirements,guidance,amood}); `i3_command_surface:` (16 + 7 + 8 + 1 = 32 commands listed by family); `i3_snapshot_targets:` (5 new headless-compliant targets).
+  - `.gov/doc/references/ADULT_MOODBOARD_SYSTEM_2026-05-03.md` (operator-authored 2070-line canonical blueprint) tracked in Git as the structural source of truth that the four specs operationalize.
+  - Composition with parallel WP-I3-002 (operator-authored Adult Production Boundary first rule + LLM stance acknowledgement primitives): RUL-000 included in registry and cross-references the existing `repo_rules.adult_production_boundary` block; AMood and intake specs reference the `adult_production_boundary` envelope for command responses; manual topics cite `adult-production-boundary.md` as the foundational stance.
+- **What Remains Simulated / Deferred to I3 IMPLEMENTATION WPs**:
+  - All DB migrations (new tables + ALTER TABLEs + new columns + view + indexes + CHECK constraints). Lands in I3 INFRASTRUCTURE WP(s).
+  - ComfyUI bridge default-staging behavior change. Lands in I3 IMPLEMENTATION WP (custom node update + `OPENREPOSE_TASK_ID` env handling).
+  - Triage GUI tab as 7th Library sub-pane (pre-flight summary view + per-card variant strip + requirements panel). Lands in I3 IMPLEMENTATION WP.
+  - Requirements editor + markdown round-trip importer/exporter. Lands in I3 IMPLEMENTATION WP.
+  - Audit script extension to verify rule-registry coverage (every rule_id resolves to a manual anchor; every command has help; every error string cites a real rule_id). Lands in I3 INFRASTRUCTURE WP.
+  - First-run walkthrough (one-shot guided project/task/batch creation flow). Lands in I3 IMPLEMENTATION WP.
+  - Probabilistic auto-prefilter (face-age / hand-sanity ML heuristics). Specified as advisory only in v0.1; ML-backed implementations are separate RESEARCH+IMPLEMENTATION WPs.
+- **Next Blocking Real Seam**: I3 IMPLEMENTATION iteration kickoff. Recommended sequence:
+  - WP-I3-003 INFRASTRUCTURE: PG migrations for the 4 new tables + 4 FK extensions + view + CHECK constraints + indexes. Predecessor: this WP (DONE).
+  - WP-I3-004 IMPLEMENTATION: dispatcher commands for project/task/intake (intake_register_output, intake_soft_accept, intake_reject, intake_finalize, etc.) + state.library.intake population. Predecessor: WP-I3-003.
+  - WP-I3-005 IMPLEMENTATION: ComfyUI bridge default-staging change + `OPENREPOSE_TASK_ID` env handling + INTAKE-002 enforcement. Predecessor: WP-I3-004.
+  - WP-I3-006 IMPLEMENTATION: AMood data-model commands (init_batch_package / library_create_card / library_create_variants / compatibility_check / accepted_set_audit / amood_export_tsv / amood_import_tsv) + `library.dedupe_check` SQL function. Predecessor: WP-I3-003.
+  - WP-I3-007 IMPLEMENTATION: requirements editor + markdown round-trip + target tree commands. Predecessor: WP-I3-003.
+  - WP-I3-008 IMPLEMENTATION: Triage GUI tab (7th Library sub-pane) + per-card variant strip + requirements panel + auto-prefilter advisory hints. Predecessor: WP-I3-004 + WP-I3-006.
+  - WP-I3-009 INFRASTRUCTURE: audit script extension verifying rule-registry coverage + manual-anchor resolution. Predecessor: this WP.
+  - WP-I3-010 VERIFICATION: end-to-end EXP120-style task walked from bridge → intake → triage → soft_accept → finalize → library; markdown round-trip on EXP120 example; closes I3 v0.1.
+  - WP-I3-002 (operator-authored, IN-PROGRESS): LLM stance acknowledgement primitives — runs in parallel; not blocked by this spec lock.
 
 ## Checkpoint Commit Plan
 
@@ -218,14 +247,13 @@ DOCUMENTATION-class. No new tests in this WP. Verification is the audit + the sp
 
 ## Evidence
 
-(filled at REVIEW)
-
-- **Spec Diff**: TBD — `git show <commit>` will reveal 4 new spec files + spec README + manual + topology updates.
-- **Audit Run**: TBD — `pwsh scripts/audit-repo.ps1` exits 0 expected.
-- **Build Artifacts**: spec/manual authoring only.
-- **Operator Sign-off**: TBD.
+- **Spec Diff**: `git show 95bbe92` (kickoff: WP file + taskboard row + AMood reference tracked); subsequent REVIEW commit shows 4 new specs + 3 new manual topics + spec README extension + manual index extension + topology.yaml extension.
+- **Audit Run**: `pwsh scripts/audit-repo.ps1` to be run before sign-off; expected exit 0 (DOCUMENTATION-class; no product code; Workflow Version 1.1 fields all populated).
+- **Build Artifacts**: spec/manual authoring only — no product code.
+- **Operator Sign-off**: pending.
 
 ## Progress Log
 
 - 2026-05-03: WP drafted at IN-PROGRESS (governance refactor; pre-work commit rule satisfied by kickoff commit; no `.product/` touches). Design conversation captured in Decisions Log + Research Notes.
-- 2026-05-03: Kickoff commit pending — WP file + taskboard row + I3 iteration note + tracked AMood reference.
+- 2026-05-03: Kickoff commit `95bbe92` — WP file + taskboard row + I3 iteration note + AMood blueprint reference tracked. Push: origin/main up-to-date (operator's parallel WP-I3-002 kickoff `769a9e9` landed alongside establishing the Adult Production Boundary first rule + LLM stance acknowledgement primitives in topology.yaml).
+- 2026-05-03: Spec authoring complete. 4 new spec files + 3 new manual topics + spec README extension + manual index extension + topology.yaml extension (rule_registry, requirements_kinds, intake_layout, state_file_schema, i3_command_surface, i3_snapshot_targets). The existing operator-authored `amood-workflow.md` retained as-is (tag-conventions layer; complementary to the new structural specs). Status IN-PROGRESS → REVIEW awaiting operator sign-off.

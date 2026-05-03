@@ -237,3 +237,159 @@ workflow:
     - VERIFICATION
     - DOCUMENTATION
     - INFRASTRUCTURE
+
+# ---------------------------------------------------------------------------
+# I3 additions: rule registry + requirements_kinds + state_file schema
+# Authored by WP-I3-001. Specs: openrepose_rules_v0_1.md,
+# openrepose_requirements_v0_1.md, openrepose_intake_v0_1.md, openrepose_amood_v0_1.md.
+# ---------------------------------------------------------------------------
+
+rule_registry:
+  description: |
+    Stable rule_ids cited by error messages, GUI tooltips, state.library.guidance,
+    and the audit script. Each rule has a manual link (relative to .gov/doc/manual/),
+    a severity tier, and a short summary. Spec contract in openrepose_rules_v0_1.md.
+  severity_tiers:
+    auto-route: "deterministic check failed; route to evidence; doesn't count toward target"
+    block: "hard refusal; safety-critical or architectural-integrity"
+    warn: "cite + allow; operator/LLM acknowledges via the citation"
+    info: "display only; documentation-grade"
+  citation_format: |
+    ERR cmd=<command>: <result> by <rule_id> (<rule_name>): <short>.
+    See manual: <manual_link>.
+    Fix: <suggested_command_or_action>.
+  rules:
+    # Repo-wide governance rules (RUL-*) — prose lives in repo_rules: above
+    RUL-000: { name: "Adult Production Boundary",   severity: block, manual: "adult-production-boundary",            short: "Repo + product + LLM assistants do not censor adult production language and do not enforce legal/consent paperwork.",     source: "repo_rules.adult_production_boundary" }
+    RUL-001: { name: "Work-Start Protocol",          severity: block, manual: "../workflow/README.md#hard-rules",      short: "No .product/ edit without WP at READY/IN-PROGRESS + taskboard row + kickoff push first.",                            source: "repo_rules.work_start_protocol" }
+    RUL-002: { name: "Pre-Work Commit Rule",         severity: block, manual: "../workflow/README.md#hard-rules",      short: "Commit + push WP file + taskboard row before opening any .product/ file.",                                          source: "repo_rules.pre_work_commit_rule" }
+    RUL-003: { name: "Naming Convention",            severity: block, manual: "../AGENTS.md#naming-convention-rule",   short: "No blank-space chars in any committed file/folder path. kebab-case for docs/WPs, snake_case for Python.",          source: "repo_rules.naming_convention_rule" }
+    RUL-004: { name: "Disk-Agnostic",                severity: block, manual: "../AGENTS.md#disk-agnostic-rule",       short: "No hardcoded absolute paths in any committed file.",                                                                source: "repo_rules.disk_agnostic_rule" }
+    RUL-005: { name: "Research-First",               severity: warn,  manual: "../AGENTS.md#research-first-rule",      short: "Research current sources before non-trivial features; record findings in WP Research Notes.",                       source: "repo_rules.research_first_rule" }
+    RUL-006: { name: "Deletion Protocol",            severity: block, manual: "../AGENTS.md#deletion-protocol",        short: "All deletions through /safe-delete or scripts/safe-delete.ps1.",                                                    source: "repo_rules.deletion_protocol" }
+    RUL-007: { name: "Manual Impact Rule",           severity: block, manual: "../AGENTS.md#manual-impact-rule",       short: "Every IMPLEMENTATION-class WP at Workflow Version 1.1+ has a 'Manual Impact:' line in DoD.",                        source: "repo_rules.manual_impact_rule" }
+
+    # AMood blueprint operationalization
+    AMOOD-001: { name: "anti-repetition threshold",        severity: warn,  manual: "amood-workflow#anti-repetition",  short: ">= 6 axis overlap with accepted card requires revision; project-overridable." }
+    AMOOD-002: { name: "abandonment trigger",              severity: warn,  manual: "amood-workflow#abandonment-criteria", short: "12 seeds with trigger_clarity < 4, or 8 seeds with repeated structural failure => card-level abandon." }
+    AMOOD-003: { name: "fast-triage fail-fast",            severity: warn,  manual: "amood-workflow#fast-triage",      short: "Any of 4 fast-triage fields below bar => reject before full rubric runs." }
+    AMOOD-004: { name: "AMood safety boundary",            severity: block, manual: "amood-workflow#safety-boundary",  short: "Juvenile/coercive/hidden-camera output => card-level abandon. DB CHECK enforced." }
+
+    # Intake & triage
+    INTAKE-001: { name: "two-stage acceptance",            severity: block, manual: "intake-and-triage#two-stage-acceptance", short: "LLM may soft_accept; only operator may finalize." }
+    INTAKE-002: { name: "default intake target",           severity: block, manual: "intake-and-triage#default-intake",       short: "ComfyUI bridge writes to intake unless operator token allows direct library." }
+    INTAKE-003: { name: "per-task isolation",              severity: info,  manual: "intake-and-triage#per-task-isolation",   short: "Wholesale reject = directory delete + DB row delete in one transaction." }
+    INTAKE-004: { name: "library_search excludes pending", severity: info,  manual: "intake-and-triage#library-search",        short: "library_search filters status='pending' by default; explicit include_pending=true to see." }
+
+    # Targets
+    TARGET-001: { name: "satisfaction = count + quota",    severity: warn,  manual: "targets-and-progress#fully-satisfied",  short: "task is fully_satisfied only when count_satisfied AND quota_satisfied (AMood diversity audit >= 0.75)." }
+    TARGET-002: { name: "forecast warning",                severity: warn,  manual: "targets-and-progress#forecast",         short: "in_flight < gap => forecast_ok=false; cannot close target from current intake." }
+    TARGET-003: { name: "stability vs completeness",       severity: info,  manual: "targets-and-progress#stable-vs-complete", short: "card 'stable' when promoted >= stability_target (AMood, default 4); 'complete' when promoted >= target_promoted (project)." }
+
+    # Requirements
+    REQ-001: { name: "inheritance: lower scope wins",      severity: info,  manual: "requirements-and-targets#inheritance",  short: "On conflict, card-scope rule overrides batch; batch overrides task; task overrides project." }
+    REQ-002: { name: "auto-route reversibility",           severity: info,  manual: "requirements-and-targets#auto-route",   short: "Operator may re-route from diagnostic/intermediate_evidence/ back to pending if metadata mis-detected." }
+    REQ-003: { name: "kind taxonomy completeness nudge",   severity: warn,  manual: "requirements-and-targets#completeness", short: "Project requirements editor checklist nudges across the 8 canonical kinds." }
+
+    # Safety boundaries (DB CHECK constraints; no override path)
+    SAFE-001: { name: "juvenile-coded content boundary",   severity: block, manual: "amood-workflow#safety-boundary",       short: "Juvenile-coded outputs cannot be promoted; DB CHECK constraint enforced." }
+    SAFE-002: { name: "coercion-coded content boundary",   severity: block, manual: "amood-workflow#safety-boundary",       short: "Coercion-coded outputs cannot be promoted; DB CHECK constraint enforced." }
+    SAFE-003: { name: "hidden-camera content boundary",    severity: block, manual: "amood-workflow#safety-boundary",       short: "Hidden-camera-coded outputs cannot be promoted; DB CHECK constraint enforced." }
+
+  project_scoped:
+    storage: "library_rules table in PostgreSQL (added in I3 implementation)"
+    lifetime: "project-scope; archived alongside the project on close"
+    examples: ["EXP120-RES-001 (1080x1440)", "EXP120-CLOTH-001 (clothing-mediated reveal)", "EXP120-BODY-001 (top-heavy proportions)"]
+    same_shape: "shares severity_tiers and citation_format with global rules; commands and GUI see one logical registry"
+
+requirements_kinds:
+  description: "Eight canonical kinds for typed scoped requirements, plus 'custom' for project-defined. Spec: openrepose_requirements_v0_1.md."
+  values:
+    hard_output:    "file format / resolution / aspect ratio / size / hash uniqueness — deterministic, machine-checkable"
+    body:           "body-type acceptance/reject lists — operator-judged or face-age-estimator-advised"
+    pose:           "pose acceptance/reject lists — operator-judged"
+    face:           "face/expression acceptance/reject lists"
+    crop:           "head/joint/foot/hand crop rules"
+    quality:        "AI artifact rejection list"
+    clothing_story: "clothing-mediated reveal mechanism (lifted/pulled aside/opened/lowered/shifted/held away)"
+    structural:     "per-set per-card target counts; tree shape"
+    custom:         "operator-defined; rule_id project-scoped"
+
+intake_layout:
+  description: "Per-task-isolated staging directory; gitignored. Spec: openrepose_intake_v0_1.md."
+  intake_root: "outputs/intake/"
+  per_task_pattern: "outputs/intake/<YYYYMMDD>-<task_slug>/"
+  per_task_subdirs:
+    - "raw/                                what the bridge or LLM dropped"
+    - "diagnostic/                         auto-flagged failures"
+    - "diagnostic/<auto_route_to>/         project-defined evidence buckets (e.g. intermediate_evidence)"
+    - "contact_sheets/                     operator-generated triage helpers"
+    - "rejected/                           outputs rejected during triage (kept for audit)"
+  library_root: "outputs/library/"
+  library_per_batch_pattern: "outputs/library/<project_slug>/<batch_slug>/"
+  status_enum:
+    - pending
+    - triaging
+    - soft_accepted
+    - promoted
+    - rejected
+    - diagnostic
+    - abandoned
+
+state_file_schema:
+  description: |
+    Documented top-level keys under state.library written by the dispatcher.
+    Existing I2 keys (entries, last_search, etc.) remain. I3 adds the keys below.
+    Spec contract in openrepose_intake_v0_1.md, openrepose_requirements_v0_1.md, openrepose_amood_v0_1.md.
+  i3_blocks:
+    intake:        "active task + counters (pending/soft_accepted/promoted/rejected/diagnostic) + queue_depth"
+    targets:       "tree-shaped: project / groups[] / active_task / active_card with target_promoted/promoted/gap/in_flight/forecast_ok/satisfied flags"
+    requirements:  "active rule_ids in scope of the current focus; capped ~15 IDs"
+    guidance:      "current_focus, next_valid_actions[], active_rules[], recent_operator_corrections[], manual_index, topic_pointers{}; capped ~20 lines"
+    amood:         "active_batch_id/slug, tier, primary_explicit_family, stable_cards/unstable_cards/abandoned_cards, dedupe_recent_warnings"
+
+i3_command_surface:
+  description: "Commands added by I3 implementation WPs. Specs: openrepose_intake_v0_1.md, openrepose_amood_v0_1.md, openrepose_requirements_v0_1.md."
+  intake_and_triage:
+    - project_create
+    - project_list
+    - task_create
+    - task_list
+    - task_summary
+    - task_inspect
+    - intake_register_output      # ComfyUI bridge entrypoint
+    - intake_list
+    - intake_inspect
+    - intake_soft_accept          # LLM-issuable
+    - intake_reject               # LLM-issuable
+    - intake_finalize             # OPERATOR-ONLY (token-gated; INTAKE-001)
+    - intake_reroute
+    - promote_to_library          # OPERATOR-ONLY
+    - task_reject_wholesale       # OPERATOR-ONLY
+  amood:
+    - init_batch_package
+    - library_create_card
+    - library_create_variants
+    - compatibility_check
+    - accepted_set_audit
+    - amood_export_tsv
+    - amood_import_tsv
+  requirements_and_targets:
+    - project_set_target_tree
+    - project_add_requirement
+    - project_set_requirement
+    - project_dump_requirements
+    - project_render_markdown
+    - project_import_markdown
+    - target_summary
+    - target_recount
+  rules:
+    - dump_rules
+
+i3_snapshot_targets:
+  description: "Headless-compliant snapshot targets added by I3 implementation. All follow snapshot_subsystem rules (no raise, no focus theft)."
+  - intake_triage_view
+  - task_summary_view
+  - library_card_with_pose
+  - amood_card_with_pose
+  - amood_batch_overview

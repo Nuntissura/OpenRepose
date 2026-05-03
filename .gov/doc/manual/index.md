@@ -11,6 +11,9 @@ The in-app reference for OpenRepose. Open this from the **Help** tab. OpenRepose
 - [Feature 2: Calibration overlay](feature-2-calibration-overlay.md) — marking reference points so MediaPipe's average-face fit doesn't dominate stylized avatars.
 - [Feature 3: Library + ComfyUI coupling](feature-3-library-postgresql.md) — PostgreSQL-backed library, ComfyUI bridge, multi-operator concurrency.
 - [AMood prompting in the Library](amood-workflow.md) - attach project, task, workflow, prompt requirements, OpenPose guides, generated images, and review decisions to Library entries.
+- [Intake and triage](intake-and-triage.md) — staging surface for new outputs, two-stage acceptance, per-task isolation, default-staging ComfyUI bridge.
+- [Targets and progress](targets-and-progress.md) — operator-declared targets, derived counters, satisfaction (count + quota), forecast warning.
+- [Requirements and target trees](requirements-and-targets.md) — typed scoped project requirements (8 kinds), inheritance, EXP120 worked example, markdown round-trip.
 - [Keyboard shortcuts](keyboard-shortcuts.md) — Ctrl+O, Ctrl+E, Ctrl+Shift+E, etc.
 
 ## Operator stance
