@@ -16,6 +16,11 @@ def test_state_default_shape(tmp_path: Path) -> None:
     s.write()
     obj = json.loads(s.state_path.read_text(encoding="utf-8"))
     assert obj["version"] == "0.1"
+    stance = obj["adult_production_boundary"]
+    assert stance["acknowledgement_required"] is True
+    assert "adult porn production tool" in stance["stance"]
+    assert stance["not_a_compliance_record"] is True
+    assert stance["not_command_blocking"] is True
     assert "started_at" in obj
     assert obj["rig"]["status"] == "none"
     assert obj["yaw"]["axis"] == "y"

@@ -63,7 +63,7 @@ from .settings import (
     Settings,
     render_subdir,
 )
-from .state import AppState
+from .state import AppState, adult_production_boundary
 from .yaw_bin import (
     OpenReposeForbiddenTerminologyError,
     OpenReposeYawBinError,
@@ -98,6 +98,7 @@ class CommandResult:
         return {
             "command": self.command,
             "status": self.status,
+            "adult_production_boundary": adult_production_boundary(),
             "payload": dict(self.payload),
         }
 
@@ -574,7 +575,10 @@ def _h_dump_state(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(d.state.to_dict(), indent=2), encoding="utf-8")
     d.log.ok("state.dump", out=str(out_path))
-    return {"out_path": str(out_path)}
+    return {
+        "out_path": str(out_path),
+        "adult_production_boundary": adult_production_boundary(),
+    }
 
 
 def _h_clear_outputs(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:

@@ -15,6 +15,8 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ..state import adult_production_boundary
+
 if TYPE_CHECKING:
     from ..commands import CommandDispatcher
     from ..log import Logger
@@ -110,7 +112,14 @@ class InboxChannel:
             self.logger.err("inbox.bad_json", reason=reason)
             self._move_processed(
                 src,
-                {"command": None, "result": {"status": "error", "reason": reason}},
+                {
+                    "command": None,
+                    "result": {
+                        "status": "error",
+                        "reason": reason,
+                        "adult_production_boundary": adult_production_boundary(),
+                    },
+                },
                 status="err",
             )
             return

@@ -1,13 +1,13 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (I3 active: WP-I3-001 spec lock + WP-I3-002 LLM stance acknowledgement primitives; I2 sequence still at REVIEW)
+Last Updated: 2026-05-03 (WP-I3-002 REVIEW: LLM stance acknowledgement primitives; I2 sequence still at REVIEW)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 2 (WP-I3-001 DOCUMENTATION spec lock; WP-I3-002 IMPLEMENTATION LLM stance acknowledgement primitives)
-- WPs pending review (REVIEW): 8 (overnight I2 sequence; WP-I2-001..008)
+- WPs in flight (READY + IN-PROGRESS): 1 (WP-I3-001 DOCUMENTATION spec lock)
+- WPs pending review (REVIEW): 9 (overnight I2 sequence WP-I2-001..008 + WP-I3-002)
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 21 (I1 backlog)
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
@@ -23,7 +23,6 @@ Workpackets currently progressing toward DONE.
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
 | WP-I3-001 | AMood + Intake + Requirements Spec Lock | assistant | IN-PROGRESS | DOCUMENTATION | L | 2026-05-03 |
-| WP-I3-002 | LLM Stance Acknowledgement Primitives | assistant | IN-PROGRESS | IMPLEMENTATION | S | 2026-05-03 |
 
 ## Pending Review
 
@@ -39,6 +38,7 @@ Implementation claims to be done; awaiting operator verification.
 | WP-I2-006 | Library tab GUI | assistant | IMPLEMENTATION | 2026-05-03 | gui/library/ pane (toolbar + list + side-by-side detail + 6 sub-tabs); MainWindow registration; lock indicator; 8 pytest-qt smoke tests |
 | WP-I2-007 | Library snapshot targets | assistant | IMPLEMENTATION | 2026-05-03 | render/draw_library + snapshot.py wiring + state.library.last_entry/last_search_results; 9 tests (7 unit + 2 dispatcher round-trip) |
 | WP-I2-008 | Library multi-operator tests + setup doc | assistant | VERIFICATION | 2026-05-03 | 6 tests (multi-pool + lock collision + advisory lock race + interleaved writes + 100-entry soak + pg_dump round-trip); operator setup doc at .gov/doc/i2-library-setup.md; closes I2 |
+| WP-I3-002 | LLM stance acknowledgement primitives | assistant | IMPLEMENTATION | 2026-05-03 | `adult_production_boundary` in state.json, dump_state, command envelopes, HTTP responses, and inbox processed results; 24 focused tests |
 
 ## Blocked
 

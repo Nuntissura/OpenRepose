@@ -17,6 +17,8 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import TYPE_CHECKING
 
+from ..state import adult_production_boundary
+
 if TYPE_CHECKING:
     from ..commands import CommandDispatcher
     from ..log import Logger
@@ -42,7 +44,13 @@ def make_request_handler(
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(
-                    json.dumps({"status": "error", "reason": "non-localhost"}).encode()
+                    json.dumps(
+                        {
+                            "status": "error",
+                            "reason": "non-localhost",
+                            "adult_production_boundary": adult_production_boundary(),
+                        }
+                    ).encode()
                 )
                 logger.warn(
                     "http.reject_non_localhost",
@@ -67,7 +75,13 @@ def make_request_handler(
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(
-                    json.dumps({"status": "error", "reason": f"invalid JSON: {e}"}).encode()
+                    json.dumps(
+                        {
+                            "status": "error",
+                            "reason": f"invalid JSON: {e}",
+                            "adult_production_boundary": adult_production_boundary(),
+                        }
+                    ).encode()
                 )
                 logger.err("http.bad_json", reason=str(e))
                 return

@@ -12,10 +12,18 @@ from openrepose.app import App
 
 @pytest.fixture
 def app(tmp_path: Path) -> App:
+    export_root = tmp_path / "exports"
+    export_root.mkdir()
+    settings_path = tmp_path / "settings.json"
+    settings_path.write_text(
+        json.dumps({"schema_version": 2, "export_folder": str(export_root)}),
+        encoding="utf-8",
+    )
     return App(
         outputs_root=tmp_path / "outputs",
         log_dir=tmp_path / "logs",
         state_path=tmp_path / "state.json",
+        settings_path=settings_path,
     )
 
 
@@ -23,6 +31,9 @@ def test_unknown_command_returns_error(app: App) -> None:
     r = app.handle_command({"command": "nonexistent"})
     assert r.status == "error"
     assert "unknown" in r.payload["reason"].lower()
+    envelope = r.to_dict()
+    assert envelope["adult_production_boundary"]["acknowledgement_required"] is True
+    assert "legal" in envelope["adult_production_boundary"]["operator_responsibility"]
 
 
 def test_import_portrait_then_set_yaw_then_export_single(app: App, aeri_master: Path) -> None:
@@ -98,10 +109,12 @@ def test_snapshot_without_rig_fails_for_viewport_targets(app: App) -> None:
 def test_dump_state_writes_file(app: App) -> None:
     r = app.handle_command({"command": "dump_state"})
     assert r.status == "ok"
+    assert r.payload["adult_production_boundary"]["acknowledgement_required"] is True
     out = Path(r.payload["out_path"])
     assert out.exists()
     parsed = json.loads(out.read_text(encoding="utf-8"))
     assert parsed["version"] == "0.1"
+    assert parsed["adult_production_boundary"]["acknowledgement_required"] is True
 
 
 def test_clear_outputs_scope_validation(app: App) -> None:

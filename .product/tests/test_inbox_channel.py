@@ -48,6 +48,7 @@ def test_inbox_processes_command_file(inbox_app: App) -> None:
     assert len(matches) == 1
     wrapper = json.loads(matches[0].read_text(encoding="utf-8"))
     assert wrapper["result"]["status"] == "ok"
+    assert wrapper["result"]["adult_production_boundary"]["acknowledgement_required"] is True
     assert wrapper["result"]["payload"]["bin"] == "her-left 30"
 
 
@@ -100,4 +101,5 @@ def test_inbox_malformed_json_moved_to_err(inbox_app: App, tmp_path: Path) -> No
     assert len(err_files) == 1
     wrapper = json.loads(err_files[0].read_text(encoding="utf-8"))
     assert wrapper["result"]["status"] == "error"
+    assert wrapper["result"]["adult_production_boundary"]["acknowledgement_required"] is True
     assert "JSONDecodeError" in wrapper["result"]["reason"] or "json" in wrapper["result"]["reason"].lower()

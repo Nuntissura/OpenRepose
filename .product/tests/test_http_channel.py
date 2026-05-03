@@ -21,10 +21,18 @@ def _free_port() -> int:
 
 @pytest.fixture
 def http_app(tmp_path: Path) -> App:
+    export_root = tmp_path / "exports"
+    export_root.mkdir()
+    settings_path = tmp_path / "settings.json"
+    settings_path.write_text(
+        json.dumps({"schema_version": 2, "export_folder": str(export_root)}),
+        encoding="utf-8",
+    )
     app = App(
         outputs_root=tmp_path / "outputs",
         log_dir=tmp_path / "logs",
         state_path=tmp_path / "state.json",
+        settings_path=settings_path,
     )
     port = _free_port()
     app._test_port = port  # type: ignore[attr-defined]
@@ -59,6 +67,7 @@ def test_post_command_returns_200_for_unknown(http_app: App) -> None:
     code, payload = _post(http_app, {"command": "nonexistent"})
     assert code == 400
     assert payload["status"] == "error"
+    assert payload["adult_production_boundary"]["acknowledgement_required"] is True
 
 
 def test_post_set_yaw_bin(http_app: App) -> None:
@@ -73,6 +82,7 @@ def test_get_state(http_app: App) -> None:
     assert code == 200
     state = json.loads(body)
     assert state["version"] == "0.1"
+    assert state["adult_production_boundary"]["acknowledgement_required"] is True
 
 
 def test_get_log(http_app: App) -> None:
@@ -94,6 +104,8 @@ def test_invalid_json_rejected(http_app: App) -> None:
             assert r.status == 400
     except urllib.error.HTTPError as e:
         assert e.code == 400
+        payload = json.loads(e.read())
+        assert payload["adult_production_boundary"]["acknowledgement_required"] is True
 
 
 def test_post_full_pipeline(http_app: App, aeri_master: Path) -> None:
