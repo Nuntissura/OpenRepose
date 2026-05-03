@@ -129,6 +129,33 @@ class OptionsPane(QWidget):
         bpv_row.addStretch(1)
         form.addRow(QLabel("Body part visibility"), self._wrap_row(bpv_row))
 
+        # Library configuration (WP-I2-002). Empty `library_db_url` keeps
+        # the library subsystem dormant; the rest of the app continues to
+        # work. `library_root` blank resolves to <export_folder>/library/.
+        # `operator_slug` blank resolves to the OS username at runtime.
+        self.library_db_url_edit = QLineEdit()
+        self.library_db_url_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.library_db_url_edit.setPlaceholderText(
+            "blank = library disabled (no DB connection)"
+        )
+        self.library_db_url_edit.setToolTip(
+            "PostgreSQL DSN, e.g. postgresql://user:pass@localhost:5432/openrepose"
+        )
+        form.addRow(QLabel("Library DB URL"), self.library_db_url_edit)
+
+        self.library_root_edit = QLineEdit()
+        self.library_root_edit.setPlaceholderText("blank = <export_folder>/library/")
+        self.btn_browse_library = QPushButton("Browse...")
+        self.btn_browse_library.clicked.connect(self._on_browse_library_root)
+        lib_row = QHBoxLayout()
+        lib_row.addWidget(self.library_root_edit, 1)
+        lib_row.addWidget(self.btn_browse_library)
+        form.addRow(QLabel("Library root"), self._wrap_row(lib_row))
+
+        self.operator_slug_edit = QLineEdit()
+        self.operator_slug_edit.setPlaceholderText("blank = OS username")
+        form.addRow(QLabel("Operator slug"), self.operator_slug_edit)
+
         # LLM control surface toggles.
         self.http_check = QCheckBox("Enable HTTP localhost channel")
         self.http_port_edit = QLineEdit("8765")
@@ -175,6 +202,9 @@ class OptionsPane(QWidget):
                 "projection_mode": self.proj_combo.currentText(),
                 "focal_length": self.focal_edit.text().strip(),
                 "canvas_match_input": self.canvas_match_check.isChecked(),
+                "library_db_url": self.library_db_url_edit.text().strip(),
+                "library_root": self.library_root_edit.text().strip(),
+                "operator_slug": self.operator_slug_edit.text().strip(),
                 "http_enabled": self.http_check.isChecked(),
                 "http_port": self.http_port_edit.text().strip(),
                 "inbox_enabled": self.inbox_check.isChecked(),
@@ -182,6 +212,20 @@ class OptionsPane(QWidget):
                 "clean_on_close": self.clean_on_close_check.isChecked(),
             }
         )
+
+    def _on_browse_library_root(self) -> None:
+        """Operator-triggered folder picker for the library root. Never
+        fired by an LLM-driven path (no command surface entry exists for
+        opening file dialogs)."""
+        current = self.library_root_edit.text().strip()
+        chosen = QFileDialog.getExistingDirectory(
+            self,
+            "Select library root folder",
+            current,
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if chosen:
+            self.library_root_edit.setText(chosen)
 
     def _on_browse_export(self) -> None:
         """Open a folder picker. Triggered only by operator click on the
@@ -201,6 +245,9 @@ class OptionsPane(QWidget):
         self.export_folder_edit.setText(str(settings.export_folder or ""))
         self.single_export_edit.setText(settings.single_export_subdir_template)
         self.batch_export_edit.setText(settings.batch_export_subdir_template)
+        self.library_db_url_edit.setText(str(getattr(settings, "library_db_url", "") or ""))
+        self.library_root_edit.setText(str(getattr(settings, "library_root", "") or ""))
+        self.operator_slug_edit.setText(str(getattr(settings, "operator_slug", "") or ""))
 
     def load_body_part_visibility(self, bpv: dict) -> None:  # noqa: ANN001
         """Sync checkboxes from state without firing the toggled signal."""

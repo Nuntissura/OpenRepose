@@ -320,6 +320,9 @@ class MainWindow(QMainWindow):
             batch_export_subdir_template=payload.get(
                 "batch_export_subdir_template", "{avatar}/{run_tag}"
             ),
+            library_db_url=payload.get("library_db_url", ""),
+            library_root=payload.get("library_root", ""),
+            operator_slug=payload.get("operator_slug", ""),
         )
         resolved, default_used = (
             self._app.settings.export_folder_resolved_with_fallback_flag()

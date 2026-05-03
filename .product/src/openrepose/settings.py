@@ -1,27 +1,37 @@
-"""Cross-launch operator settings (export folder, subdir templates).
+"""Cross-launch operator settings (export folder, subdir templates,
+library config).
 
 Spec: `.gov/spec/openrepose_v0_1.md` Feature 1 / GUI Requirements (Options
 tab) and Feature 1 / CLI Requirements (export honors operator-chosen
-folder).
+folder). v2 fields land per `.gov/spec/openrepose_library_v0_1.md`
+Storage Layout (`library_db_url`, `library_root`, `operator_slug`).
 
 Settings are stored as plain JSON at `<AppConfigLocation>/openrepose/
 settings.json` (resolved via Qt's `QStandardPaths` for cross-platform
 correctness). Plain JSON over `QSettings` because the operator can
 inspect, edit, and back up the file directly — matches the rest of the
 repo (state.json, calibration.json are all plain JSON).
+
+Schema migration policy: `load()` accepts schema_version <
+`SETTINGS_SCHEMA_VERSION` and patches in defaults for new fields, then
+re-saves the file at the current schema_version. Schema_version >
+`SETTINGS_SCHEMA_VERSION` raises (a future version of the app
+downgrading is not supported).
 """
 
 from __future__ import annotations
 
 import datetime
+import getpass
 import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-SETTINGS_SCHEMA_VERSION = 1
+SETTINGS_SCHEMA_VERSION = 2
 DEFAULT_EXPORT_DIR_NAME = "openrepose-output"
+DEFAULT_LIBRARY_DIR_NAME = "library"
 
 
 class OpenReposeSettingsError(ValueError):
@@ -39,6 +49,9 @@ class Settings:
     batch_export_subdir_template: str = "{avatar}/{run_tag}"
     last_portrait_dir: str = ""
     canvas_border_color: str = "#ffffff"
+    library_db_url: str = ""
+    library_root: str = ""
+    operator_slug: str = ""
     settings_path: Path | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -49,6 +62,9 @@ class Settings:
             "batch_export_subdir_template": str(self.batch_export_subdir_template),
             "last_portrait_dir": str(self.last_portrait_dir),
             "canvas_border_color": str(self.canvas_border_color),
+            "library_db_url": str(self.library_db_url),
+            "library_root": str(self.library_root),
+            "operator_slug": str(self.operator_slug),
             "updated_at": _now_iso(),
         }
 
@@ -91,6 +107,9 @@ class Settings:
             "batch_export_subdir_template",
             "last_portrait_dir",
             "canvas_border_color",
+            "library_db_url",
+            "library_root",
+            "operator_slug",
         }
         for k, v in kwargs.items():
             if k not in valid:
@@ -100,6 +119,32 @@ class Settings:
             setattr(self, k, v)
         if self.settings_path is not None and Path(self.settings_path).name:
             self.save()
+
+    def resolved_library_root(self) -> Path:
+        """Return the operator's `library_root` if set, else
+        `<resolved_export_folder>/library/`. Does not mkdir; the library
+        machinery is responsible for creating the directory when the DB
+        connection actually succeeds."""
+        if self.library_root:
+            return Path(self.library_root)
+        return self.resolved_export_folder() / DEFAULT_LIBRARY_DIR_NAME
+
+    def effective_operator_slug(self) -> str:
+        """Return the operator slug, falling back to the OS username when
+        unset. Used for `library_entries.created_by` / `locked_by` and the
+        state.json `library.operator_slug` reflection."""
+        if self.operator_slug:
+            return self.operator_slug
+        return _default_operator_slug()
+
+    def redacted_db_url(self) -> str:
+        """Return `library_db_url` with the password component masked.
+
+        Example: `postgresql://user:secret@host:5432/db` →
+        `postgresql://user:***@host:5432/db`. Empty input returns empty."""
+        if not self.library_db_url:
+            return ""
+        return _redact_db_url(self.library_db_url)
 
 
 def settings_path() -> Path:
@@ -135,8 +180,10 @@ def default_export_folder() -> Path:
 
 def load(path: Path | str) -> Settings | None:
     """Load settings from JSON. Returns None if the file does not exist
-    (caller should construct defaults). Raises on malformed JSON or wrong
-    schema version."""
+    (caller should construct defaults). Raises on malformed JSON or
+    schema_version > current. Older schema_versions are migrated forward
+    in place: defaults are patched in for new fields and the file is
+    re-saved at the current `SETTINGS_SCHEMA_VERSION`."""
     p = Path(path)
     if not p.exists():
         return None
@@ -153,14 +200,20 @@ def load(path: Path | str) -> Settings | None:
         )
 
     schema_version = data.get("schema_version")
-    if schema_version != SETTINGS_SCHEMA_VERSION:
+    if not isinstance(schema_version, int):
         raise OpenReposeSettingsError(
-            f"unsupported schema_version {schema_version!r}; expected "
-            f"{SETTINGS_SCHEMA_VERSION}"
+            f"schema_version must be an int; got {schema_version!r} at {p}"
+        )
+    if schema_version > SETTINGS_SCHEMA_VERSION:
+        raise OpenReposeSettingsError(
+            f"unsupported schema_version {schema_version!r}; this app "
+            f"version supports up to {SETTINGS_SCHEMA_VERSION}"
         )
 
-    return Settings(
-        schema_version=int(schema_version),
+    needs_migration = schema_version < SETTINGS_SCHEMA_VERSION
+
+    settings = Settings(
+        schema_version=SETTINGS_SCHEMA_VERSION,
         export_folder=str(data.get("export_folder", "")),
         single_export_subdir_template=str(
             data.get("single_export_subdir_template", "{avatar}")
@@ -170,8 +223,18 @@ def load(path: Path | str) -> Settings | None:
         ),
         last_portrait_dir=str(data.get("last_portrait_dir", "")),
         canvas_border_color=str(data.get("canvas_border_color", "#ffffff")),
+        library_db_url=str(data.get("library_db_url", "")),
+        library_root=str(data.get("library_root", "")),
+        operator_slug=str(data.get("operator_slug", "")),
         settings_path=p,
     )
+
+    if needs_migration:
+        # Re-emit at the current schema_version with defaults patched in.
+        # Atomic via Settings.save (temp file + os.replace).
+        settings.save()
+
+    return settings
 
 
 def load_or_default(path: Path | str | None = None) -> Settings:
@@ -207,3 +270,39 @@ def _now_iso() -> str:
     """ISO-8601 UTC timestamp with millisecond precision (matches state.py)."""
     now = datetime.datetime.now(tz=datetime.UTC)
     return now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{now.microsecond // 1000:03d}Z"
+
+
+def _default_operator_slug() -> str:
+    """OS username, lowercased, with whitespace stripped. Empty if the
+    underlying lookup fails (rare; sandboxed environments)."""
+    try:
+        name = getpass.getuser()
+    except Exception:
+        return ""
+    return name.strip().lower()
+
+
+def _redact_db_url(url: str) -> str:
+    """Mask the password in a `scheme://user:password@host[:port]/db` URL.
+
+    Returns the input unchanged when no password component is present.
+    Pure-string parsing (no urllib import) so the function stays cheap and
+    handles odd vendor URL shapes consistently with `psycopg`'s parser
+    behavior (it treats everything between `:` and `@` as the password).
+    """
+    scheme_sep = "://"
+    idx = url.find(scheme_sep)
+    if idx < 0:
+        return url
+    head = url[: idx + len(scheme_sep)]
+    rest = url[idx + len(scheme_sep) :]
+    at = rest.rfind("@")
+    if at < 0:
+        return url
+    creds = rest[:at]
+    tail = rest[at:]
+    colon = creds.find(":")
+    if colon < 0:
+        return url
+    user = creds[:colon]
+    return f"{head}{user}:***{tail}"

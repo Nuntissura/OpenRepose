@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: IN-PROGRESS
+- **Status**: REVIEW
 - **Iteration**: I2
 - **Workflow Version**: 1.1
 - **Packet Class**: INFRASTRUCTURE
@@ -53,11 +53,11 @@ Bump `Settings` schema_version 1 → 2 to add `library_db_url`, `library_root` (
 
 ## Definition Of Done
 
-- [ ] `Settings.schema_version = 2` with new fields + defaults.
-- [ ] v1 settings.json loads cleanly + migrates to v2.
-- [ ] Options pane has Library section.
-- [ ] pytest zero failures; audit clean.
-- [ ] **Manual Impact**: No — operator-facing surface change is a small Library section in Options that mirrors three new persisted fields. The DB connection / library workflow itself is documented in WP-I2-001 + WP-I2-008. No new manual topic file required for this WP alone.
+- [x] `Settings.schema_version = 2` with new fields + defaults.
+- [x] v1 settings.json loads cleanly + migrates to v2.
+- [x] Options pane has Library section.
+- [x] pytest zero failures; audit clean.
+- [x] **Manual Impact**: No — operator-facing surface change is a small Library section in Options that mirrors three new persisted fields. The DB connection / library workflow itself is documented in WP-I2-001 + WP-I2-008. No new manual topic file required for this WP alone.
 
 ## Headless LLM Operation Compliance
 
@@ -65,13 +65,24 @@ Bump `Settings` schema_version 1 → 2 to add `library_db_url`, `library_root` (
 
 ## Change Ledger
 
-- (filled at REVIEW)
+- **What Became Real**:
+  - `settings.py` bumped `SETTINGS_SCHEMA_VERSION` from 1 to 2; added three persisted fields (`library_db_url`, `library_root`, `operator_slug`); added `resolved_library_root()`, `effective_operator_slug()`, `redacted_db_url()` helpers; rewrote `load()` to migrate older schema_versions forward in place (defaults patched in + re-saved at the current version) and to raise only on schema_version > current.
+  - `gui/options.py` gained a Library section (DB URL field with password echo mode, Library root + Browse..., Operator slug). `_on_apply` emits the new keys; `load_from_settings()` populates them.
+  - `gui/main_window.py` `_on_settings_changed` now persists the three new fields alongside the existing ones.
+  - `commands.py` `_h_dump_settings` now redacts `library_db_url` (`postgresql://user:***@host/db`) so an LLM agent reading the dump cannot exfiltrate the password; also returns `resolved_library_root` and `effective_operator_slug`.
+  - 19 new tests in `test_settings_store.py` (schema constant, defaults, to_dict + roundtrip + update for the new fields, v1→v2 migration in place, resolved/effective helpers, redaction utility); 3 new tests in `test_export_folder.py` (dump_settings redaction + resolved-fields exposure + empty-URL handling).
+- **What Remains Simulated**: nothing — this WP only touches the Settings primitive + form + dispatcher dump; no live DB. The dispatcher does not yet use `library_db_url` (that's WP-I2-001).
+- **Next Blocking Real Seam**: WP-I2-001 reads `Settings.library_db_url`, opens a `psycopg_pool.ConnectionPool`, applies migrations, and reflects `library` block in `state.json`.
 
 ## Evidence
 
-- (filled at close)
+- **Test Suite Execution**: `target/test-artifacts/WP-I2-002/pytest_results.xml` (full run after settings change, 383 passed; one pre-existing Windows-only `PermissionError` warning in `test_state_write_atomic_no_par0` fixture-cleanup race, unchanged from baseline).
+- **Targeted run**: `pytest .product/tests/test_settings_store.py .product/tests/test_export_folder.py -v` → 53 passed in 4.46s.
+- **Audit**: `powershell scripts/audit-repo.ps1` → `audit-repo: OK   no violations` (153 tracked files).
+- **Operator Sign-off**: pending (operator overnight handoff).
 
 ## Progress Log
 
 - 2026-05-03: WP drafted at DRAFT.
 - 2026-05-03: Promoted DRAFT → READY → IN-PROGRESS (kickoff commit). Owner: assistant. Operator overnight autonomous I2 sequence.
+- 2026-05-03: Implementation + tests landed; all 383 tests pass; audit clean. Status → REVIEW.

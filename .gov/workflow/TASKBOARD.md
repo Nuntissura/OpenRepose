@@ -1,12 +1,12 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (I2 sequence kickoff: WP-I2-002 promoted DRAFT → IN-PROGRESS for autonomous overnight implementation)
+Last Updated: 2026-05-03 (overnight I2 sequence: WP-I2-002 → REVIEW; WP-I2-001 IN-PROGRESS next)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 1 (WP-I2-002 IN-PROGRESS — assistant overnight)
+- WPs in flight (READY + IN-PROGRESS): 0 (WP-I2-002 → REVIEW; WP-I2-001 promotion next)
 - WPs pending review (REVIEW): 0
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 21 + 8 new I2 WPs (drafting in this session)
@@ -22,7 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I2-002 | Settings extension: library config (schema 1→2) | assistant | IN-PROGRESS | INFRASTRUCTURE | S | 2026-05-03 |
+_(none — WP-I2-002 → REVIEW)_
 
 ## Pending Review
 
@@ -30,8 +30,7 @@ Implementation claims to be done; awaiting operator verification.
 
 | WP-ID | Title | Owner | Class | Updated | Verify |
 |-------|-------|-------|-------|---------|--------|
-
-_(none — 5 WPs signed off 2026-05-03; WP-I1-029 rejected to IN-PROGRESS)_
+| WP-I2-002 | Settings extension: library config (schema 1→2) | assistant | INFRASTRUCTURE | 2026-05-03 | dump_settings + Options pane Library section + v1→v2 migration |
 
 ## Blocked
 

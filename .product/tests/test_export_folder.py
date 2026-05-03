@@ -124,6 +124,44 @@ def test_dump_settings_returns_effective_state(app: App, tmp_path: Path):
     )
 
 
+def test_dump_settings_redacts_library_db_password(app: App, tmp_path: Path):
+    """WP-I2-002: dump_settings is exposed to LLM agents; the
+    library_db_url password component must be masked so callers cannot
+    exfiltrate it."""
+    app.settings.update(library_db_url="postgresql://op:secret@localhost:5432/db")
+    r = app.handle_command({"command": "dump_settings"})
+    assert r.status == "ok"
+    assert r.payload["settings"]["library_db_url"] == (
+        "postgresql://op:***@localhost:5432/db"
+    )
+
+
+def test_dump_settings_includes_library_resolved_fields(
+    app: App, tmp_path: Path
+):
+    """WP-I2-002: dump_settings exposes resolved_library_root and
+    effective_operator_slug so an LLM agent can introspect the library
+    configuration without reading the disk file."""
+    target_root = tmp_path / "exports"
+    target_root.mkdir()
+    app.settings.update(
+        export_folder=str(target_root),
+        library_root="",  # explicitly blank → derived from export folder
+        operator_slug="ilja",
+    )
+    r = app.handle_command({"command": "dump_settings"})
+    assert r.status == "ok"
+    assert r.payload["resolved_library_root"] == str(target_root / "library")
+    assert r.payload["effective_operator_slug"] == "ilja"
+
+
+def test_dump_settings_omits_redaction_when_url_unset(app: App):
+    """An empty library_db_url stays empty (not the literal '***')."""
+    r = app.handle_command({"command": "dump_settings"})
+    assert r.status == "ok"
+    assert r.payload["settings"]["library_db_url"] == ""
+
+
 def test_state_json_has_settings_block(app: App, tmp_path: Path):
     target_root = tmp_path / "exports"
     target_root.mkdir()

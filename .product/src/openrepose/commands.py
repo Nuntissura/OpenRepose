@@ -1185,8 +1185,13 @@ def _h_get_frame(
 
 def _h_dump_settings(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     """Return the effective settings JSON (operator-chosen export folder +
-    subdir templates), the resolved export folder, and whether the default
-    fallback is in use."""
+    subdir templates + library config), the resolved export folder, and
+    whether the default fallback is in use.
+
+    `library_db_url` is redacted (`postgresql://user:***@host/db`) so an
+    LLM agent reading the dump cannot exfiltrate the database password.
+    The unredacted value stays on disk in `settings.json` and is used
+    internally by the dispatcher only."""
     if d.settings is None:
         return {
             "present": False,
@@ -1197,11 +1202,16 @@ def _h_dump_settings(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any
     resolved, default_used = (
         d.settings.export_folder_resolved_with_fallback_flag()
     )
+    settings_dict = d.settings.to_dict()
+    if settings_dict.get("library_db_url"):
+        settings_dict["library_db_url"] = d.settings.redacted_db_url()
     return {
         "present": True,
-        "settings": d.settings.to_dict(),
+        "settings": settings_dict,
         "settings_path": str(d.settings.settings_path),
         "resolved_export_folder": str(resolved),
+        "resolved_library_root": str(d.settings.resolved_library_root()),
+        "effective_operator_slug": d.settings.effective_operator_slug(),
         "default_used": default_used,
     }
 
