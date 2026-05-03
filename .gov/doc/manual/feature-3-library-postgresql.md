@@ -7,7 +7,8 @@ Status (2026-05-03):
 - **WP-I2-001 (REVIEW)**: PostgreSQL pool, hand-rolled migrator, initial schema (`001_library_initial.sql`), `state.library` block, `docker-compose.yml`.
 - **WP-I2-002 (REVIEW)**: Settings v2 (`library_db_url`, `library_root`, `operator_slug`); v1 migration; Options pane Library section; redacted DSN in `dump_settings`.
 - **WP-I2-003 (REVIEW)**: Library data layer (`openrepose.library` package): CRUD on `library_entries`, M-to-N tags, smart-tag extractor, filesystem storage layout under `outputs/library/<entry-uuid>/`.
-- WP-I2-004..008 still drafted; LLM commands, ComfyUI bridge, GUI, snapshots, and verification land sequentially.
+- **WP-I2-004 (REVIEW)**: 7 LLM commands wired into the dispatcher (`register_library_entry`, `update_library_entry`, `delete_library_entry`, `library_search`, `get_library_entry`, `set_library_tags`, `dump_library_schema`); prompts / story_beats / notes helpers; `library_search()` Python wrapper; state.library activity tracking.
+- WP-I2-005..008 still drafted; ComfyUI bridge, GUI, snapshots, and verification land sequentially.
 
 ## What it will do
 
@@ -55,6 +56,25 @@ outputs/library/<entry-uuid>/
 ```
 
 Each file is written atomically (write to `*.tmp`, rename) so an in-flight registration cannot leave a half-flushed file behind. The DB stores filesystem paths relative to `library_root` for portability across drives.
+
+## LLM commands (WP-I2-004)
+
+The dispatcher exposes seven library commands over the existing HTTP + inbox channels. All accept the standard `{ "command": "<name>", ... }` envelope; failures land as `{ "status": "error", "payload": { "reason": "...", "type": "OpenReposeLibraryError" } }`.
+
+| Command | Required fields | Notes |
+|---------|-----------------|-------|
+| `register_library_entry` | `avatar_slug` | Either `*_path` (existing files) **or** `*` (base64 bytes) for `portrait` / `openpose_json` / `openpose_png` / `generated_image`. Optional: `comfyui_workflow`, `metadata`, `tags`, `prompts {positive, negative}`, `story_beats` (str or list), `notes` (str or list). Auto-applies smart tags. Returns `{entry_id, created_at, smart_tags}`. |
+| `update_library_entry` | `entry_id` + ≥1 patch field | Acquires `SELECT … FOR UPDATE NOWAIT`. Lock contention returns a structured error containing `retry_after`; the entry is added to `state.library.locked_entries`. |
+| `delete_library_entry` | `entry_id` | Cascades to tags / prompts / beats / notes via FKs. Removes the `outputs/library/<entry-uuid>/` folder. Returns `{entry_id, deleted}`. |
+| `library_search` | `query` (non-empty) | Optional `limit` (default 50, max 200). Returns `{query, count, results[]}` ranked by `library_search()`. |
+| `get_library_entry` | `entry_id` | Optional `include` list (`tags`, `prompts`, `story_beats`, `notes`, `workflow`, `metadata`); defaults to all but workflow / metadata. |
+| `set_library_tags` | `entry_id`, `tags[]` | Optional `replace` (default false). With `replace=true`, manual tags are dropped but `auto:` tags are preserved per spec. |
+| `dump_library_schema` | – | Returns `{schema_version, tables[], functions[], ddl_hash}` so an LLM agent can verify drift against source control. |
+
+State reflection (`outputs/.runtime/state.json` → `library`):
+
+- `last_register_at`, `last_search_query`, `last_search_count`, `last_search_at` — filled by the corresponding command handlers.
+- `locked_entries` — momentary list of entries that another operator's transaction is holding; consumed by the GUI lock indicator.
 
 ## ComfyUI bridge
 

@@ -307,8 +307,8 @@ class AppState:
     ) -> None:
         """Update the `library` block's connection status (WP-I2-001).
 
-        Other library fields (last_search_*, pending_writes, locked_entries)
-        are mutated by the library command handlers landed in WP-I2-004."""
+        Activity fields (last_search_*, last_register_at, locked_entries)
+        are mutated by the library command handlers (WP-I2-004)."""
         with self._lock:
             self.library = {
                 **self.library,
@@ -320,6 +320,35 @@ class AppState:
                 "library_root": str(library_root),
                 "last_error": last_error,
             }
+
+    def mark_library_register(self) -> None:
+        """Record the timestamp of the last `register_library_entry`."""
+        with self._lock:
+            self.library = {**self.library, "last_register_at": _now()}
+
+    def mark_library_search(self, *, query: str, count: int) -> None:
+        with self._lock:
+            self.library = {
+                **self.library,
+                "last_search_query": query,
+                "last_search_count": int(count),
+                "last_search_at": _now(),
+            }
+
+    def add_library_lock(self, entry_id: str, locked_by: str | None) -> None:
+        """Append an entry id to `locked_entries` (deduped). The dispatcher
+        clears the list at the start of each command via
+        `clear_library_locks`."""
+        with self._lock:
+            current = list(self.library.get("locked_entries") or [])
+            tag = {"entry_id": str(entry_id), "locked_by": locked_by}
+            if tag not in current:
+                current.append(tag)
+            self.library = {**self.library, "locked_entries": current}
+
+    def clear_library_locks(self) -> None:
+        with self._lock:
+            self.library = {**self.library, "locked_entries": []}
 
     def begin_command(self, command: str) -> None:
         with self._lock:

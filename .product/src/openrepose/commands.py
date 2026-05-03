@@ -1,12 +1,16 @@
 """Command schema, dispatch, and handlers for the LLM control surface.
 
 Spec: `.gov/spec/openrepose_v0_1.md` section "LLM Control Surface".
+Library commands (Feature 3) per `.gov/spec/openrepose_library_v0_1.md`.
 """
 
 from __future__ import annotations
 
+import base64
 import datetime
+import hashlib
 import json
+import shutil
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,6 +25,27 @@ from .calibration import (
     calibration_path,
     load as load_calibration,
     save as save_calibration,
+)
+from .library import (
+    AUTO_TAG_PREFIX,
+    LibraryEntryError,
+    LibraryEntryLockedError,
+    LibraryTagError,
+    add_prompt,
+    add_tags,
+    add_text_record,
+    create_entry,
+    delete_entry,
+    extract_smart_tags,
+    get_entry,
+    list_entry_tags,
+    list_prompts,
+    list_text_records,
+    relative_to_root,
+    search as library_search_fn,
+    set_entry_tags,
+    update_entry,
+    write_entry_files,
 )
 from .log import Logger
 from .openpose_schema import (
@@ -49,6 +74,16 @@ from .yaw_bin import (
 
 class OpenReposeCommandError(ValueError):
     """Raised when a command is malformed or rejected."""
+
+
+class OpenReposeLibraryError(RuntimeError):
+    """Raised by library command handlers when the operation cannot
+    complete (DB unreachable, payload invalid, lock contention, etc.).
+
+    Distinct from `OpenReposeCommandError` so callers reading the
+    structured error response can branch on `type` ("library_disabled"
+    is reflected via the dispatcher's normal error envelope).
+    """
 
 
 @dataclass(frozen=True)
@@ -123,6 +158,10 @@ class CommandDispatcher:
             OpenReposeYawBinError,
             OpenReposeCalibrationError,
             OpenReposeSettingsError,
+            OpenReposeLibraryError,
+            LibraryEntryError,
+            LibraryEntryLockedError,
+            LibraryTagError,
             FileNotFoundError,
             NotImplementedError,
         ) as e:
@@ -1229,6 +1268,410 @@ def _mediapipe_version_string() -> str:
         return "unknown"
 
 
+# ---------------------------------------------------------------------------
+# Library command handlers (WP-I2-004; spec
+# `.gov/spec/openrepose_library_v0_1.md` Command Surface).
+#
+# All 7 handlers share three preconditions enforced via _ensure_pool():
+#   1. The library subsystem is enabled (settings.library_db_url set).
+#   2. The pool is open and connected.
+#   3. The dispatcher has a `library_pool` attached (set by App.__init__).
+# A failure raises `OpenReposeLibraryError` which the dispatcher returns
+# as `{status: "error", payload: {reason, type}}`.
+# ---------------------------------------------------------------------------
+
+
+def _ensure_pool(d: "CommandDispatcher"):  # noqa: ANN001
+    pool = getattr(d, "library_pool", None)
+    if pool is None or not getattr(pool, "is_open", False):
+        raise OpenReposeLibraryError(
+            "library subsystem is disabled (no library_db_url configured "
+            "or DB unreachable)"
+        )
+    return pool
+
+
+def _operator_slug(d: "CommandDispatcher") -> str | None:  # noqa: ANN001
+    if d.settings is None:
+        return None
+    slug = d.settings.effective_operator_slug()
+    return slug or None
+
+
+def _library_root(d: "CommandDispatcher") -> Path:  # noqa: ANN001
+    """Resolved library root for filesystem writes; falls back to
+    `<outputs_root>/library/` when no settings are present (covers
+    headless tests that build a dispatcher directly)."""
+    if d.settings is not None:
+        return Path(d.settings.resolved_library_root())
+    return d.outputs_root / "library"
+
+
+def _decode_payload(
+    paths_or_b64: dict[str, Any], path_key: str, b64_key: str
+) -> bytes | None:
+    """Read either an existing file path or base64-encoded bytes.
+
+    Returns None when neither key is present. Raises
+    `OpenReposeLibraryError` on malformed b64 / unreadable path."""
+    path_value = paths_or_b64.get(path_key)
+    b64_value = paths_or_b64.get(b64_key)
+    if path_value:
+        try:
+            return Path(path_value).read_bytes()
+        except OSError as e:
+            raise OpenReposeLibraryError(
+                f"cannot read {path_key}={path_value!r}: {e}"
+            ) from e
+    if b64_value:
+        if not isinstance(b64_value, str):
+            raise OpenReposeLibraryError(f"{b64_key} must be a base64 string")
+        try:
+            return base64.b64decode(b64_value, validate=True)
+        except (ValueError, TypeError) as e:
+            raise OpenReposeLibraryError(
+                f"{b64_key} is not valid base64: {e}"
+            ) from e
+    return None
+
+
+def _h_register_library_entry(
+    d: "CommandDispatcher", cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Insert a new library entry. Either supply pre-existing paths
+    (`portrait_path`, `openpose_json_path`, …) OR base64-encoded bytes
+    (`portrait`, `openpose_json`, …); paths win when both are supplied.
+
+    Auto-applies smart tags from `metadata` + `comfyui_workflow`. Per
+    spec: returns `{entry_id, created_at}`."""
+    pool = _ensure_pool(d)
+    avatar_slug = cmd.get("avatar_slug")
+    if not isinstance(avatar_slug, str) or not avatar_slug:
+        raise OpenReposeCommandError(
+            "register_library_entry requires non-empty 'avatar_slug'"
+        )
+
+    title = cmd.get("title", "") or ""
+    yaw_bin = cmd.get("yaw_bin")
+    metadata = cmd.get("metadata") or {}
+    workflow = cmd.get("comfyui_workflow")
+    operator_tags = list(cmd.get("tags") or [])
+    prompts_payload = cmd.get("prompts") or None
+    story_beats_payload = cmd.get("story_beats") or None
+    notes_payload = cmd.get("notes") or None
+    completeness = cmd.get("completeness")
+    op = _operator_slug(d)
+
+    portrait_b = _decode_payload(cmd, "portrait_path", "portrait")
+    openpose_json_b = _decode_payload(cmd, "openpose_json_path", "openpose_json")
+    openpose_png_b = _decode_payload(cmd, "openpose_png_path", "openpose_png")
+    generated_b = _decode_payload(cmd, "generated_image_path", "generated_image")
+
+    library_root = _library_root(d)
+
+    with pool.connection() as conn:
+        try:
+            entry = create_entry(
+                conn,
+                avatar_slug=avatar_slug,
+                title=title,
+                yaw_bin=yaw_bin,
+                metadata=metadata,
+                comfyui_workflow=workflow,
+                completeness=completeness,
+                created_by=op,
+            )
+
+            # Filesystem layout — write whatever payloads the caller gave us.
+            files = write_entry_files(
+                library_root,
+                entry.id,
+                portrait_bytes=portrait_b,
+                openpose_json_bytes=openpose_json_b,
+                openpose_png_bytes=openpose_png_b,
+                generated_image_bytes=generated_b,
+                workflow=workflow,
+                metadata=metadata,
+            )
+
+            # Patch the relative paths back onto the row so future SELECTs
+            # carry them. Only the ones we wrote.
+            patch: dict[str, Any] = {}
+            if files.portrait_path is not None:
+                patch["portrait_path"] = relative_to_root(files.portrait_path, library_root)
+            if files.openpose_json_path is not None:
+                patch["openpose_json_path"] = relative_to_root(files.openpose_json_path, library_root)
+            if files.openpose_png_path is not None:
+                patch["openpose_png_path"] = relative_to_root(files.openpose_png_path, library_root)
+            if files.generated_image_path is not None:
+                patch["generated_image_path"] = relative_to_root(files.generated_image_path, library_root)
+            if patch:
+                entry = update_entry(conn, entry.id, operator_slug=op, **patch)
+
+            # Operator + smart tags.
+            if operator_tags:
+                add_tags(conn, entry.id, operator_tags)
+            smart = extract_smart_tags(metadata, workflow)
+            if smart:
+                add_tags(conn, entry.id, smart, is_auto=True)
+
+            # Optional sub-records.
+            if prompts_payload:
+                if isinstance(prompts_payload, dict):
+                    add_prompt(
+                        conn,
+                        entry.id,
+                        positive=prompts_payload.get("positive", "") or "",
+                        negative=prompts_payload.get("negative", "") or "",
+                        created_by=op,
+                    )
+            if story_beats_payload:
+                items = (
+                    story_beats_payload
+                    if isinstance(story_beats_payload, list)
+                    else [story_beats_payload]
+                )
+                for body in items:
+                    if isinstance(body, str) and body.strip():
+                        add_text_record(
+                            conn, "story_beats", entry.id, body=body, created_by=op
+                        )
+            if notes_payload:
+                items = (
+                    notes_payload
+                    if isinstance(notes_payload, list)
+                    else [notes_payload]
+                )
+                for body in items:
+                    if isinstance(body, str) and body.strip():
+                        add_text_record(
+                            conn, "notes", entry.id, body=body, created_by=op
+                        )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+    d.state.mark_library_register()
+    d.state.write()
+    d.log.ok(
+        "library.register",
+        entry_id=str(entry.id),
+        avatar=avatar_slug,
+        smart_tag_count=len(smart),
+    )
+    return {
+        "entry_id": str(entry.id),
+        "created_at": entry.created_at.isoformat() if entry.created_at else None,
+        "smart_tags": smart,
+    }
+
+
+def _h_update_library_entry(
+    d: "CommandDispatcher", cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Patch a library entry. Lock contention surfaces as a structured
+    error including `retry_after` so the LLM agent can back off."""
+    pool = _ensure_pool(d)
+    entry_id = cmd.get("entry_id")
+    if not isinstance(entry_id, str) or not entry_id:
+        raise OpenReposeCommandError("update_library_entry requires 'entry_id'")
+    patch_keys = {
+        "avatar_slug",
+        "title",
+        "yaw_bin",
+        "portrait_path",
+        "openpose_json_path",
+        "openpose_png_path",
+        "generated_image_path",
+        "comfyui_workflow",
+        "metadata",
+        "completeness",
+    }
+    patch = {k: v for k, v in cmd.items() if k in patch_keys}
+    if not patch:
+        raise OpenReposeCommandError(
+            "update_library_entry needs at least one editable field"
+        )
+    op = _operator_slug(d)
+    try:
+        with pool.connection() as conn:
+            try:
+                entry = update_entry(conn, entry_id, operator_slug=op, **patch)
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+    except LibraryEntryLockedError as e:
+        d.state.add_library_lock(entry_id, e.locked_by)
+        d.state.write()
+        # Re-raise a richer error for the dispatcher envelope.
+        raise OpenReposeLibraryError(
+            f"library entry {entry_id} locked by {e.locked_by or 'another operator'}; "
+            f"retry_after=5"
+        ) from e
+    d.log.ok("library.update", entry_id=entry_id, fields=",".join(sorted(patch)))
+    return entry.to_dict()
+
+
+def _h_delete_library_entry(
+    d: "CommandDispatcher", cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Delete an entry + its `outputs/library/<entry-uuid>/` folder.
+    Cascades to entry_tags / prompts / story_beats / notes via FKs."""
+    pool = _ensure_pool(d)
+    entry_id = cmd.get("entry_id")
+    if not isinstance(entry_id, str) or not entry_id:
+        raise OpenReposeCommandError("delete_library_entry requires 'entry_id'")
+    library_root = _library_root(d)
+    try:
+        with pool.connection() as conn:
+            try:
+                deleted = delete_entry(conn, entry_id)
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+    except LibraryEntryLockedError as e:
+        d.state.add_library_lock(entry_id, e.locked_by)
+        d.state.write()
+        raise OpenReposeLibraryError(
+            f"library entry {entry_id} locked by {e.locked_by or 'another operator'}; "
+            f"retry_after=5"
+        ) from e
+    if deleted:
+        # Remove the on-disk folder. Best-effort: missing is fine.
+        entry_dir = Path(library_root) / entry_id
+        if entry_dir.exists():
+            shutil.rmtree(entry_dir, ignore_errors=True)
+    d.log.ok("library.delete", entry_id=entry_id, deleted=str(deleted).lower())
+    return {"entry_id": entry_id, "deleted": bool(deleted)}
+
+
+def _h_library_search(
+    d: "CommandDispatcher", cmd: dict[str, Any]
+) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    query = cmd.get("query")
+    if not isinstance(query, str) or not query.strip():
+        raise OpenReposeCommandError("library_search requires non-empty 'query'")
+    raw_limit = cmd.get("limit", 50)
+    try:
+        limit = int(raw_limit)
+    except (TypeError, ValueError) as e:
+        raise OpenReposeCommandError(f"limit must be int; got {raw_limit!r}") from e
+    with pool.connection() as conn:
+        results = library_search_fn(conn, query, limit=limit)
+    payload = {
+        "query": query,
+        "count": len(results),
+        "results": [r.to_dict() for r in results],
+    }
+    d.state.mark_library_search(query=query, count=len(results))
+    d.state.write()
+    d.log.ok("library.search", query=query, count=len(results))
+    return payload
+
+
+def _h_get_library_entry(
+    d: "CommandDispatcher", cmd: dict[str, Any]
+) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    entry_id = cmd.get("entry_id")
+    if not isinstance(entry_id, str) or not entry_id:
+        raise OpenReposeCommandError("get_library_entry requires 'entry_id'")
+    include = set(cmd.get("include") or ["prompts", "story_beats", "notes", "tags"])
+    with pool.connection() as conn:
+        entry = get_entry(conn, entry_id)
+        if entry is None:
+            raise OpenReposeLibraryError(f"library entry {entry_id} not found")
+        payload = entry.to_dict()
+        if "tags" in include:
+            payload["tags"] = list_entry_tags(conn, entry_id)
+        if "prompts" in include:
+            payload["prompts"] = [p.to_dict() for p in list_prompts(conn, entry_id)]
+        if "story_beats" in include:
+            payload["story_beats"] = [
+                r.to_dict() for r in list_text_records(conn, "story_beats", entry_id)
+            ]
+        if "notes" in include:
+            payload["notes"] = [
+                r.to_dict() for r in list_text_records(conn, "notes", entry_id)
+            ]
+        if "workflow" not in include:
+            payload.pop("comfyui_workflow", None)
+        if "metadata" not in include:
+            payload.pop("metadata", None)
+    d.log.ok("library.get", entry_id=entry_id)
+    return payload
+
+
+def _h_set_library_tags(
+    d: "CommandDispatcher", cmd: dict[str, Any]
+) -> dict[str, Any]:
+    pool = _ensure_pool(d)
+    entry_id = cmd.get("entry_id")
+    if not isinstance(entry_id, str) or not entry_id:
+        raise OpenReposeCommandError("set_library_tags requires 'entry_id'")
+    tags = cmd.get("tags")
+    if not isinstance(tags, list):
+        raise OpenReposeCommandError("set_library_tags 'tags' must be a list")
+    replace = bool(cmd.get("replace", False))
+    with pool.connection() as conn:
+        try:
+            attached = set_entry_tags(conn, entry_id, tags, replace=replace)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    d.log.ok(
+        "library.set_tags",
+        entry_id=entry_id,
+        replace=str(replace).lower(),
+        count=len(attached),
+    )
+    return {"entry_id": entry_id, "tags": attached}
+
+
+def _h_dump_library_schema(
+    d: "CommandDispatcher", cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Return current schema_version + an inventory hash an operator /
+    LLM agent can compare against the migration files in source control
+    to confirm no drift."""
+    pool = _ensure_pool(d)
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT COALESCE(MAX(version), 0) FROM schema_version"
+            )
+            row = cur.fetchone()
+            version = int(row[0]) if row else 0
+            cur.execute(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'public' "
+                "ORDER BY table_name"
+            )
+            tables = [r[0] for r in cur.fetchall()]
+            cur.execute(
+                "SELECT routine_name FROM information_schema.routines "
+                "WHERE routine_schema = 'public' AND routine_type = 'FUNCTION' "
+                "ORDER BY routine_name"
+            )
+            functions = [r[0] for r in cur.fetchall()]
+    digest_input = json.dumps(
+        {"version": version, "tables": tables, "functions": functions},
+        sort_keys=True,
+    )
+    ddl_hash = hashlib.sha256(digest_input.encode("utf-8")).hexdigest()[:16]
+    return {
+        "schema_version": version,
+        "tables": tables,
+        "functions": functions,
+        "ddl_hash": ddl_hash,
+    }
+
+
 _HANDLERS = {
     "import_portrait": _h_import_portrait,
     "set_yaw": _h_set_yaw,
@@ -1255,4 +1698,12 @@ _HANDLERS = {
     "reset_frame": _h_reset_frame,
     "get_frame": _h_get_frame,
     "dump_settings": _h_dump_settings,
+    # Library commands (WP-I2-004).
+    "register_library_entry": _h_register_library_entry,
+    "update_library_entry": _h_update_library_entry,
+    "delete_library_entry": _h_delete_library_entry,
+    "library_search": _h_library_search,
+    "get_library_entry": _h_get_library_entry,
+    "set_library_tags": _h_set_library_tags,
+    "dump_library_schema": _h_dump_library_schema,
 }

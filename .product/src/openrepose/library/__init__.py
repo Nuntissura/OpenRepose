@@ -19,8 +19,10 @@ from .entries import (
     list_entries,
     update_entry,
 )
+from .prompts import PromptRevision, add_prompt, latest_prompt, list_prompts
+from .search import SearchResult, search
 from .smart_tags import AUTO_TAG_PREFIX, extract_smart_tags
-from .storage import EntryFiles, ensure_entry_dir, write_entry_files
+from .storage import EntryFiles, ensure_entry_dir, relative_to_root, write_entry_files
 from .tags import (
     LibraryTagError,
     add_tags,
@@ -28,6 +30,7 @@ from .tags import (
     remove_tags,
     set_entry_tags,
 )
+from .text_records import TextRecord, add_text_record, list_text_records
 
 __all__ = [
     "AUTO_TAG_PREFIX",
@@ -36,15 +39,25 @@ __all__ = [
     "LibraryEntryError",
     "LibraryEntryLockedError",
     "LibraryTagError",
+    "PromptRevision",
+    "SearchResult",
+    "TextRecord",
+    "add_prompt",
     "add_tags",
+    "add_text_record",
     "create_entry",
     "delete_entry",
     "ensure_entry_dir",
     "extract_smart_tags",
     "get_entry",
+    "latest_prompt",
     "list_entries",
     "list_entry_tags",
+    "list_prompts",
+    "list_text_records",
+    "relative_to_root",
     "remove_tags",
+    "search",
     "set_entry_tags",
     "update_entry",
     "write_entry_files",
