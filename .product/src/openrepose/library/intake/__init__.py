@@ -10,6 +10,7 @@ controls transaction boundaries.
 """
 
 from .auto_route import AutoRouteResult, run_auto_route
+from .runs import LibraryRun, LibraryRunError, begin_run, resolve_card_by_slug
 from .outputs import (
     IntakeOutput,
     IntakeOutputError,
@@ -43,7 +44,10 @@ __all__ = [
     "IntakeOutput",
     "IntakeOutputError",
     "LibraryProject",
+    "LibraryRun",
+    "LibraryRunError",
     "LibraryTask",
+    "begin_run",
     "bulk_promote_task",
     "create_project",
     "create_task",
@@ -57,6 +61,7 @@ __all__ = [
     "list_tasks",
     "register_output",
     "reject_output",
+    "resolve_card_by_slug",
     "reroute_output",
     "run_auto_route",
     "soft_accept_output",

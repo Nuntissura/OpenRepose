@@ -605,6 +605,66 @@ def test_register_output_updates_state_intake_block(app):
     assert intake_state["active_task_id"] == ids["task_id"]
 
 
+def test_intake_begin_run_creates_run_row(app):
+    """WP-I3-005: intake_begin_run inserts one library_runs row and
+    returns its id."""
+    ids = _seed_project_task_run(app)
+    payload = _ok(app.handle_command({
+        "command": "intake_begin_run",
+        "task_id": ids["task_id"],
+        "card_id": ids["card_id"],
+        "sampler": "dpmpp_2m",
+        "cfg": 6.5,
+        "steps": 28,
+        "seed": 42,
+    }))
+    run = payload["run"]
+    assert run["id"]
+    assert run["task_id"] == ids["task_id"]
+    assert run["card_id"] == ids["card_id"]
+    assert run["sampler"] == "dpmpp_2m"
+    assert run["cfg"] == 6.5
+    assert run["steps"] == 28
+    assert run["seed"] == 42
+
+
+def test_intake_register_output_with_image_b64(app):
+    """WP-I3-005: dispatcher accepts image bytes inline (b64 + filename)
+    and writes the file into the task's intake/raw/ directory."""
+    ids = _seed_project_task_run(app)
+    begin = _ok(app.handle_command({
+        "command": "intake_begin_run",
+        "task_id": ids["task_id"],
+        "card_id": ids["card_id"],
+    }))
+    run_id = begin["run"]["id"]
+
+    image_bytes = b"\x89PNG\r\n\x1a\n" + b"hello-bridge"
+    payload = _ok(app.handle_command({
+        "command": "intake_register_output",
+        "task_id": ids["task_id"],
+        "run_id": run_id,
+        "filename": "from-bridge.png",
+        "image_b64": __import__("base64").b64encode(image_bytes).decode("ascii"),
+        "width": 1080,
+        "height": 1440,
+        # content_hash omitted -> dispatcher computes
+    }))
+    output = payload["output"]
+    assert output["status"] == "pending"
+    assert output["file_path"].endswith("/from-bridge.png")
+    assert len(output["content_hash"]) == 64
+
+    with app.library_pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT intake_dir FROM library_tasks WHERE id = %s", (ids["task_id"],)
+        )
+        intake_dir = cur.fetchone()[0]
+    written = Path(app.outputs_root) / "intake" / intake_dir.rstrip("/") / "raw" / "from-bridge.png"
+    assert written.exists()
+    assert written.read_bytes() == image_bytes
+
+
 def test_guidance_block_caps_active_rules(app):
     """active_rules should cap at 20 entries even if commands try to
     push more (defense against bloat per spec)."""

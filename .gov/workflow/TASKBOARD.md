@@ -1,13 +1,13 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (WP-I3-005 PROMOTED to READY — default-staging ComfyUI bridge; WP-I3-004 REVIEW; WP-I3-011 revised to two-track OpenRepose AMood GPT + Claude skill wrappers; WP-I3-003 REVIEW; WP-I3-001 DONE; I2 + WP-I3-002 + WP-I1-034/035 + WP-I3-003 + WP-I3-004 at REVIEW)
+Last Updated: 2026-05-03 (WP-I3-005 REVIEW — default-staging ComfyUI bridge 544/544 + audit clean; WP-I3-004 REVIEW; WP-I3-011 revised to two-track OpenRepose AMood GPT + Claude skill wrappers; WP-I3-003 REVIEW; WP-I3-001 DONE; I2 + WP-I3-002 + WP-I1-034/035 + WP-I3-003 + WP-I3-004 + WP-I3-005 at REVIEW)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 1 (WP-I3-005 READY — default-staging ComfyUI bridge)
-- WPs pending review (REVIEW): 13 (WP-I1-034, WP-I1-035, I2 sequence WP-I2-001..008, WP-I3-002 stance primitives, WP-I3-003 PG schema migrations, WP-I3-004 intake/project/task command surface)
+- WPs in flight (READY + IN-PROGRESS): 0
+- WPs pending review (REVIEW): 14 (WP-I1-034, WP-I1-035, I2 sequence WP-I2-001..008, WP-I3-002 stance primitives, WP-I3-003 PG schema migrations, WP-I3-004 intake/project/task command surface, WP-I3-005 default-staging ComfyUI bridge)
 - WPs done (I3): 1 (WP-I3-001) — I3 spec lock signed off 2026-05-03; implementation iteration unblocked
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 19 (18 I1 backlog + WP-I3-011 future OpenRepose AMood GPT + Claude wrappers)
@@ -23,7 +23,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I3-005 | Default-staging ComfyUI bridge (env-var-driven intake routing + INTAKE-002 refusal + intake_begin_run command + legacy fallback flag) | assistant | READY | IMPLEMENTATION | M | 2026-05-03 |
+_(none)_
 
 ## Pending Review
 
@@ -44,6 +44,7 @@ Implementation claims to be done; awaiting operator verification.
 | WP-I3-002 | LLM stance acknowledgement primitives | assistant | IMPLEMENTATION | 2026-05-03 | `adult_production_boundary` in state.json, dump_state, command envelopes, HTTP responses, and inbox processed results; 24 focused tests |
 | WP-I3-003 | I3 PostgreSQL schema migrations | assistant | INFRASTRUCTURE | 2026-05-03 | 3 migrations (002 intake + 003 amood card schema + 004 requirements/targets); 12 new tables + 18 cols on library_entries + view + dedupe SQL function + rule-cited CHECKs; 21 new tests + 4 schema_version assertion bumps; 528/528 + audit clean |
 | WP-I3-004 | Intake + project + task command surface | assistant | IMPLEMENTATION | 2026-05-03 | 15 dispatcher commands (project/task/intake_*) + library/intake subpackage + library/citations.py registry + state.library.intake/guidance + auto-route scaffolding + INTAKE-001 operator-token gate; 20 new tests (530/530 full suite); manual extended (intake-and-triage.md) |
+| WP-I3-005 | Default-staging ComfyUI bridge | assistant | IMPLEMENTATION | 2026-05-03 | env-var-driven branching (intake / legacy / legacy_fallback FALLBACK / refused-with-INTAKE-002); intake_begin_run dispatcher command + library/intake/runs.py; intake_register_output extended for inline b64 bytes; bridge ships images via b64 (cross-process safe); 14 new tests (544/544 full suite); manual + bridge README extended |
 
 ## Blocked
 

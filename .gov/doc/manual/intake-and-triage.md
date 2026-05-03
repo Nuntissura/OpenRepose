@@ -79,9 +79,51 @@ The operator-only commands (`intake_finalize`, `promote_to_library`, `task_rejec
 
 ## Default intake target {#default-intake}
 
-The ComfyUI bridge writes to `outputs/intake/<task_id>/raw/` by default. Direct library writes require an operator-issued session token. Without a task_id and without a token, the bridge refuses with `INTAKE-002`.
+The ComfyUI bridge writes to `outputs/intake/<task_dir>/raw/` by default. Direct library writes require an operator-issued token. Without a task_id and without a token, the bridge refuses with `INTAKE-002` and skips the POST entirely (the image still saves to ComfyUI's normal output directory).
 
-Operators set `OPENREPOSE_TASK_ID` in the environment when launching ComfyUI for a specific batch run. The bridge embeds it on every POST.
+### Operator setup (Windows)
+
+Before launching ComfyUI for a batch run, set the env vars in the same shell:
+
+```powershell
+# Required for the intake (default) path:
+$env:OPENREPOSE_TASK_ID = "<task-uuid-from-task_create>"
+
+# One of these binds the run to a card:
+$env:OPENREPOSE_CARD_ID = "<card-uuid>"
+# or:
+$env:OPENREPOSE_CARD_SLUG = "SF-15"
+
+# Optional, for ad-hoc non-batch work (legacy direct-library path):
+# $env:OPENREPOSE_OPERATOR_TOKEN = "<token-from-gui-session>"
+
+# FALLBACK v0.1, transitional only — forces legacy path even without a token:
+# $env:OPENREPOSE_LEGACY_DIRECT_WRITE = "1"
+
+python main.py  # or however you launch ComfyUI
+```
+
+POSIX equivalents (`export OPENREPOSE_TASK_ID=...`, etc.) work the same way.
+
+### Branch table
+
+| `OPENREPOSE_TASK_ID` | `OPENREPOSE_OPERATOR_TOKEN` | `OPENREPOSE_LEGACY_DIRECT_WRITE` | Branch | What happens |
+|----------------------|-----------------------------|----------------------------------|--------|--------------|
+| set                  | (any)                       | (any)                            | **intake** | bridge POSTs `intake_begin_run` once + `intake_register_output` per image; rows land at `status='pending'` |
+| (unset)              | set                         | (any)                            | **legacy** | bridge POSTs `register_library_entry` with `operator_token` field |
+| (unset)              | (unset)                     | `=1`                             | **legacy_fallback** | FALLBACK v0.1: legacy path even without a token; transitional |
+| (unset)              | (unset)                     | (unset)                          | **refused** | bridge logs INTAKE-002 to stderr; no POST; image still saved to ComfyUI's output dir |
+
+The bridge emits a one-line summary on stderr at every save (`openrepose-bridge: path=intake images=4 url=...`) so operators can confirm the active branch from the ComfyUI console.
+
+### Card binding
+
+The intake path needs a card to attach the run to. Two ways to bind:
+
+1. `OPENREPOSE_CARD_ID` (preferred): exact UUID, no ambiguity.
+2. `OPENREPOSE_CARD_SLUG`: dispatcher resolves the slug under the active task's batch via `library_entries.title`. If multiple cards share the slug under the same task, the dispatcher logs a WARN and takes the first match by `created_at`.
+
+Without either, the intake path skips the POST and logs a hint to add one — the image still saves to disk.
 
 ## Three layers of triage
 
@@ -190,7 +232,8 @@ Implemented in WP-I3-004; reachable through the existing HTTP localhost endpoint
 | `task_list` | LLM or operator | optional `project_id`/`status` | `tasks[]`, `count` |
 | `task_summary` | LLM or operator | `task_id` | per-status counters + warnings |
 | `task_inspect` | LLM or operator | `task_id` | task row + batches + run_count |
-| `intake_register_output` | bridge / LLM | `run_id`, `task_id`, `file_path`, `content_hash`, `width`, `height` | `output` row + `auto_route` decision |
+| `intake_begin_run` | bridge / LLM | `task_id`, `card_id` or `card_slug`, optional `sampler`/`cfg`/`steps`/`seed`/`pose_guide_id`/`workflow_json` | `run` row |
+| `intake_register_output` | bridge / LLM | `run_id`, `task_id`, `width`, `height`, AND either (a) `file_path` + `content_hash` OR (b) `image_b64` + `filename` (dispatcher writes bytes + computes hash) | `output` row + `auto_route` decision |
 | `intake_list` | LLM or operator | optional `task_id`/`status`/`limit`/`offset` | `outputs[]`, `count` |
 | `intake_inspect` | LLM or operator | `output_id` | output row + pose_guide + diagnostics |
 | `intake_soft_accept` | **LLM-issuable** | `output_id`, optional `notes` | output row at `soft_accepted` |

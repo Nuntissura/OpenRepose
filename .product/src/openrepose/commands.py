@@ -50,6 +50,8 @@ from .library import (
 )
 from .library.intake import (
     IntakeOutputError,
+    LibraryRunError,
+    begin_run,
     bulk_promote_task,
     create_project,
     create_task,
@@ -63,6 +65,7 @@ from .library.intake import (
     register_output,
     reject_output,
     reroute_output,
+    resolve_card_by_slug,
     soft_accept_output,
     task_summary,
     verify_operator_token,
@@ -197,6 +200,7 @@ class CommandDispatcher:
             LibraryEntryLockedError,
             LibraryTagError,
             IntakeOutputError,
+            LibraryRunError,
             FileNotFoundError,
             NotImplementedError,
         ) as e:
@@ -1903,6 +1907,18 @@ def _h_task_inspect(d: "CommandDispatcher", cmd: dict[str, Any]) -> dict[str, An
 def _h_intake_register_output(
     d: "CommandDispatcher", cmd: dict[str, Any]
 ) -> dict[str, Any]:
+    """Register one library_outputs row.
+
+    Two payload modes:
+      (a) file already on disk: caller supplies `file_path` (relative
+          under outputs_root) + `content_hash`.
+      (b) inline image bytes: caller supplies `image_b64` + `filename`;
+          the dispatcher writes the bytes into
+          `outputs/intake/<task_intake_dir>/raw/<filename>`, computes
+          sha256, and proceeds. Content-Hash from the caller is honored
+          if supplied; otherwise computed from the bytes. This is the
+          path the WP-I3-005 default-staging bridge uses.
+    """
     pool = _ensure_pool(d)
     run_id = cmd.get("run_id")
     task_id = cmd.get("task_id")
@@ -1910,16 +1926,16 @@ def _h_intake_register_output(
     content_hash = cmd.get("content_hash")
     width = cmd.get("width")
     height = cmd.get("height")
+    image_b64 = cmd.get("image_b64")
+    filename = cmd.get("filename")
+
     if not isinstance(run_id, str) or not run_id:
         raise OpenReposeCommandError("intake_register_output requires 'run_id'")
     if not isinstance(task_id, str) or not task_id:
         raise OpenReposeCommandError("intake_register_output requires 'task_id'")
-    if not isinstance(file_path, str) or not file_path:
-        raise OpenReposeCommandError("intake_register_output requires 'file_path'")
-    if not isinstance(content_hash, str) or not content_hash:
-        raise OpenReposeCommandError("intake_register_output requires 'content_hash'")
     if not isinstance(width, int) or not isinstance(height, int):
         raise OpenReposeCommandError("width and height must be integers")
+
     with pool.connection() as conn:
         task = get_task(conn, task_id=task_id)
         if task is None:
@@ -1927,6 +1943,40 @@ def _h_intake_register_output(
         if task.status in ("rejected_wholesale", "aborted"):
             raise OpenReposeCommandError(
                 f"task {task_id} is terminal (status={task.status}); cannot register"
+            )
+
+        # Path (b): bridge ships bytes; we write to disk first.
+        if image_b64 and not file_path:
+            if not isinstance(filename, str) or not filename:
+                raise OpenReposeCommandError(
+                    "intake_register_output with 'image_b64' also requires 'filename'"
+                )
+            try:
+                image_bytes = base64.b64decode(image_b64)
+            except (ValueError, TypeError) as e:
+                raise OpenReposeCommandError(
+                    f"invalid base64 in 'image_b64': {e}"
+                ) from e
+            intake_root = Path(_intake_outputs_root(d)) / "intake" / task.intake_dir
+            raw_dir = intake_root / "raw"
+            raw_dir.mkdir(parents=True, exist_ok=True)
+            # Sanitize filename: drop any path separators.
+            safe_name = Path(filename).name
+            target = raw_dir / safe_name
+            target.write_bytes(image_bytes)
+            file_path = str(
+                Path("intake") / task.intake_dir.rstrip("/") / "raw" / safe_name
+            ).replace("\\", "/")
+            if not content_hash:
+                content_hash = hashlib.sha256(image_bytes).hexdigest()
+
+        if not isinstance(file_path, str) or not file_path:
+            raise OpenReposeCommandError(
+                "intake_register_output requires 'file_path' or 'image_b64'+'filename'"
+            )
+        if not isinstance(content_hash, str) or not content_hash:
+            raise OpenReposeCommandError(
+                "intake_register_output requires 'content_hash' (or 'image_b64' to compute it)"
             )
         output, auto = register_output(
             conn,
@@ -2096,6 +2146,60 @@ def _h_promote_to_library(
     return {"promoted_ids": promoted_ids, "count": len(promoted_ids)}
 
 
+def _h_intake_begin_run(
+    d: "CommandDispatcher", cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Create one library_runs row and return its run_id. The bridge calls
+    this once per ComfyUI save before per-image intake_register_output
+    calls (WP-I3-005)."""
+    pool = _ensure_pool(d)
+    task_id = cmd.get("task_id")
+    card_id = cmd.get("card_id")
+    card_slug = cmd.get("card_slug")
+    if not isinstance(task_id, str) or not task_id:
+        raise OpenReposeCommandError("intake_begin_run requires 'task_id'")
+    if not card_id and not card_slug:
+        raise OpenReposeCommandError(
+            "intake_begin_run requires 'card_id' or 'card_slug'"
+        )
+    pose_guide_id = cmd.get("pose_guide_id")
+    sampler = cmd.get("sampler")
+    cfg = cmd.get("cfg")
+    steps = cmd.get("steps")
+    seed = cmd.get("seed")
+    workflow_json = cmd.get("workflow_json")
+    with pool.connection() as conn:
+        if not card_id:
+            resolved, match_count = resolve_card_by_slug(
+                conn, task_id=task_id, card_slug=str(card_slug)
+            )
+            if resolved is None:
+                raise OpenReposeCommandError(
+                    f"intake_begin_run: card_slug {card_slug!r} did not "
+                    f"resolve under task {task_id}"
+                )
+            if match_count > 1:
+                d.log.warn(
+                    "intake_begin_run.card_slug_ambiguous",
+                    task_id=task_id,
+                    card_slug=card_slug,
+                    match_count=match_count,
+                )
+            card_id = str(resolved)
+        run = begin_run(
+            conn,
+            card_id=card_id,
+            task_id=task_id,
+            pose_guide_id=pose_guide_id,
+            sampler=sampler,
+            cfg=cfg,
+            steps=steps,
+            seed=seed,
+            workflow_json=workflow_json,
+        )
+    return {"run": run.to_dict()}
+
+
 def _h_task_reject_wholesale(
     d: "CommandDispatcher", cmd: dict[str, Any]
 ) -> dict[str, Any]:
@@ -2172,4 +2276,5 @@ _HANDLERS = {
     "intake_reroute": _h_intake_reroute,
     "promote_to_library": _h_promote_to_library,
     "task_reject_wholesale": _h_task_reject_wholesale,
+    "intake_begin_run": _h_intake_begin_run,
 }

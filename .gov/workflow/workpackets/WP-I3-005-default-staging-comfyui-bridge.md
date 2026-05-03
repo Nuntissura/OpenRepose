@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: READY
+- **Status**: REVIEW
 - **Iteration**: I3
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -70,7 +70,7 @@ Make intake the default destination for ComfyUI-generated outputs. After this WP
 - Edit `.product/src/openrepose/commands.py`:
   - Add `_h_intake_begin_run` handler. Signature: `task_id` (required), optional `card_id`, `card_slug` (resolved via `library_entries.title` lookup if no `card_id`), `sampler`, `cfg`, `steps`, `seed`, `pose_guide_id`, `workflow_json`. Inserts `library_runs` row, returns `run_id`.
   - Register `intake_begin_run` in `_HANDLERS`.
-  - Add INTAKE-002 citation pre-format helper for the bridge-side error path: an operator running the bridge with a misconfigured payload that reaches the dispatcher with neither a valid `task_id` nor an `operator_token` should receive INTAKE-002 from `register_library_entry` too — extend the existing handler with a guard. (The bridge refuses BEFORE POSTing in the happy path; this handler-side guard is defense-in-depth for direct curl/script callers that bypass the bridge.)
+  - **Decision (2026-05-03)**: do NOT add a dispatcher-side INTAKE-002 guard on `register_library_entry`. Per spec, INTAKE-002 is the bridge's contract; non-bridge callers (existing I2 tests, GUI, other LLM agents using the dispatcher directly for non-bridge work) must continue to call `register_library_entry` freely. The bridge enforces INTAKE-002 by refusing to POST in the absence of env/token; nothing slips past it via the bridge path.
 
 - Edit `.product/src/openrepose/library/intake/__init__.py`:
   - Re-export `begin_run` from a new `runs.py` module (keeps the data layer consistent).
@@ -127,38 +127,37 @@ Make intake the default destination for ComfyUI-generated outputs. After this WP
 
 ## Definition Of Done
 
-- [ ] `.product/comfyui-bridge/openrepose_bridge.py` reads `OPENREPOSE_TASK_ID` / `OPENREPOSE_CARD_ID` / `OPENREPOSE_OPERATOR_TOKEN` / `OPENREPOSE_LEGACY_DIRECT_WRITE` from environment.
-- [ ] When `OPENREPOSE_TASK_ID` is set, bridge calls `intake_begin_run` once per ComfyUI save and `intake_register_output` once per image.
-- [ ] When neither `OPENREPOSE_TASK_ID` nor `OPENREPOSE_OPERATOR_TOKEN` (and no legacy flag) is set, bridge refuses to POST and logs the INTAKE-002 citation; image still saves to ComfyUI's output dir.
-- [ ] `register_library_entry` dispatcher handler refuses callers without an `operator_token` AND without an active task context; refusal cites INTAKE-002.
-- [ ] New `intake_begin_run` dispatcher command creates a `library_runs` row and returns `run_id`; supports `card_id` direct or `card_slug` resolution against the active task's batch.
-- [ ] All branches covered by tests in `test_comfyui_bridge.py` (intake-path happy, legacy-with-token, refused-no-env, payload-shape).
-- [ ] `intake_begin_run` covered by `test_intake_commands.py`.
-- [ ] Full pytest suite remains green (530+ passing).
-- [ ] `powershell -ExecutionPolicy Bypass -File scripts/audit-repo.ps1` exits 0.
-- [ ] **Manual Impact**: Yes — extends `intake-and-triage.md#default-intake` with operator-setup env-var steps + legacy-fallback note; updates `.product/comfyui-bridge/README.md` with the same.
+- [x] `.product/comfyui-bridge/openrepose_bridge.py` reads `OPENREPOSE_TASK_ID` / `OPENREPOSE_CARD_ID` / `OPENREPOSE_OPERATOR_TOKEN` / `OPENREPOSE_LEGACY_DIRECT_WRITE` from environment.
+- [x] When `OPENREPOSE_TASK_ID` is set, bridge calls `intake_begin_run` once per ComfyUI save and `intake_register_output` once per image.
+- [x] When neither `OPENREPOSE_TASK_ID` nor `OPENREPOSE_OPERATOR_TOKEN` (and no legacy flag) is set, bridge refuses to POST and logs the INTAKE-002 citation; image still saves to ComfyUI's output dir.
+- [x] `register_library_entry` dispatcher handler is unchanged (decided 2026-05-03: INTAKE-002 enforcement lives in the bridge only; non-bridge callers preserve the I2 contract).
+- [x] New `intake_begin_run` dispatcher command creates a `library_runs` row and returns `run_id`; supports `card_id` direct or `card_slug` resolution against the active task's batch.
+- [x] All branches covered by tests in `test_comfyui_bridge.py` (intake-path happy, legacy-with-token, refused-no-env, payload-shape).
+- [x] `intake_begin_run` covered by `test_intake_commands.py`.
+- [x] Full pytest suite remains green (530+ passing).
+- [x] `powershell -ExecutionPolicy Bypass -File scripts/audit-repo.ps1` exits 0.
+- [x] **Manual Impact**: Yes — extends `intake-and-triage.md#default-intake` with operator-setup env-var steps + legacy-fallback note; updates `.product/comfyui-bridge/README.md` with the same.
 
 ## Test Coverage Plan
 
 ### Functional Flow Tests
-- [ ] Intake path: env has `OPENREPOSE_TASK_ID`; one ComfyUI save with two images → 1 `library_runs` row + 2 `library_outputs` rows at `status='pending'`.
-- [ ] Legacy path with token: env has `OPENREPOSE_OPERATOR_TOKEN` (no task id) → `library_entries` row created via existing code path.
-- [ ] Refused path: neither env nor token → no DB write; bridge logs INTAKE-002; image still saved to disk.
-- [ ] Legacy fallback flag: `OPENREPOSE_LEGACY_DIRECT_WRITE=1` → legacy path runs even without a token (FALLBACK exercised + log line names it).
+- [x] Intake path: env has `OPENREPOSE_TASK_ID`; one ComfyUI save with two images → 1 `library_runs` row + 2 `library_outputs` rows at `status='pending'`.
+- [x] Legacy path with token: env has `OPENREPOSE_OPERATOR_TOKEN` (no task id) → `library_entries` row created via existing code path.
+- [x] Refused path: neither env nor token → no DB write; bridge logs INTAKE-002; image still saved to disk.
+- [x] Legacy fallback flag: `OPENREPOSE_LEGACY_DIRECT_WRITE=1` → legacy path runs even without a token (FALLBACK exercised + log line names it).
 
 ### Code Correctness Tests
-- [ ] `build_intake_register_output_payload` returns the exact dict shape `intake_register_output` expects.
-- [ ] `build_intake_begin_run_payload` returns the exact dict shape `intake_begin_run` expects.
-- [ ] `compute_image_metadata` returns sha256 hex + width + height for a small fixture PNG.
-- [ ] Card-slug resolution in `intake_begin_run`: passing `card_slug` resolves to the only matching card; WARN logged when multiple matches; ERR when no match.
+- [x] `build_intake_register_output_payload` returns the exact dict shape `intake_register_output` expects.
+- [x] `build_intake_begin_run_payload` returns the exact dict shape `intake_begin_run` expects.
+- [x] `compute_image_metadata` returns sha256 hex + width + height for a small fixture PNG.
+- [x] Card-slug resolution in `intake_begin_run`: passing `card_slug` resolves to the only matching card; WARN logged when multiple matches; ERR when no match.
 
 ### Red-Team / Abuse Tests
-- [ ] `register_library_entry` POSTed directly (curl-style) without `operator_token` and without `OPENREPOSE_TASK_ID` (so the dispatcher cannot infer a task context) → refused with INTAKE-002 citation.
-- [ ] Bridge with empty string `OPENREPOSE_TASK_ID=""` is treated as unset (refusal path).
-- [ ] Bridge with `OPENREPOSE_OPERATOR_TOKEN="bogus"` reaches the dispatcher; dispatcher's `register_library_entry` token-check rejects (out-of-scope tightening — for now the bridge passes through whatever string is in the env).
+- [x] Bridge with empty string `OPENREPOSE_TASK_ID=""` is treated as unset (refusal path).
+- [x] Bridge invokes the legacy path with `OPENREPOSE_OPERATOR_TOKEN="bogus"`: the bridge passes the token through and the dispatcher's existing `register_library_entry` runs unchanged (token-tightening on the dispatcher side is explicitly out of scope per Decisions Log; the I3 kill switches that matter are at intake_finalize / intake_register_output, not at register_library_entry which is for ad-hoc operator work).
 
 ### Performance / Reliability Tests
-- [ ] N/A — no perf budget; the bridge is per-image best-effort.
+- [x] N/A — no perf budget; the bridge is per-image best-effort.
 
 ## Rollback Plan
 
@@ -182,11 +181,9 @@ Make intake the default destination for ComfyUI-generated outputs. After this WP
 
 ## Change Ledger
 
-_Captured at REVIEW. Truthful summary._
-
-- **What Became Real**: _filled at REVIEW._
-- **What Remains Simulated**: _filled at REVIEW._
-- **Next Blocking Real Seam**: _filled at REVIEW._
+- **What Became Real**: ComfyUI bridge node (`.product/comfyui-bridge/openrepose_bridge.py`) gains four-branch dispatch on `OPENREPOSE_TASK_ID` / `OPENREPOSE_OPERATOR_TOKEN` / `OPENREPOSE_LEGACY_DIRECT_WRITE` env vars, refusing with INTAKE-002 stderr citation when none is set. Intake path POSTs `intake_begin_run` once per ComfyUI save then `intake_register_output` per image, shipping bytes inline (b64) so the dispatcher writes the file into `outputs/intake/<task_dir>/raw/`. New helpers: `select_path()`, `build_intake_begin_run_payload()`, `build_intake_register_output_payload()`, `compute_image_metadata()`. New OpenRepose dispatcher command `intake_begin_run` creates one `library_runs` row and supports `card_id` direct or `card_slug` resolution under the active task's batch (multi-match logged WARN). New `library/intake/runs.py` module with `begin_run` + `resolve_card_by_slug` data-layer helpers. `_h_intake_register_output` extended to accept inline bytes (`image_b64` + `filename`) and write them to disk + auto-compute sha256 when no `content_hash` is supplied. `register_library_entry` is **unchanged** per Decisions Log (INTAKE-002 enforcement lives in the bridge; non-bridge callers preserve the I2 contract). One bug caught + fixed: psycopg cannot auto-adapt a Python dict to JSONB — wrapped `workflow_json` with `psycopg.types.json.Jsonb`. Manual extended (`intake-and-triage.md#default-intake` gains operator setup steps + branch table + card-binding section); bridge README rewritten with the four-branch table + intake-path bindings + new troubleshooting rows. 14 new tests (11 in `test_comfyui_bridge.py` covering env-branch selection, payload-builder shapes, image-metadata helper, end-to-end intake flow, card-slug resolution, and `register_library_entry` legacy-call regression; 2 in `test_intake_commands.py` for `intake_begin_run` row creation + `image_b64` ingestion). Full suite 544/544 passed (was 530); audit clean.
+- **What Remains Simulated**: card creation still requires direct SQL or future `library_create_card` (WP-I3-006); the bridge's intake path requires the operator to set `OPENREPOSE_CARD_ID`/`OPENREPOSE_CARD_SLUG` until then. The `OPENREPOSE_LEGACY_DIRECT_WRITE` flag is the documented v0.1 fallback (see Fallback Register); next bridge WP removes it. Bridge does not auto-register pose guides — pose-guide pairing happens via Feature 1 + a follow-up WP. The bridge ships images inline (b64) instead of via shared filesystem path because ComfyUI and OpenRepose need not share an outputs root in v0.1; future WP can switch to direct filesystem write when both processes run on the same host.
+- **Next Blocking Real Seam**: WP-I3-006 (AMood data-model commands + dedupe) makes `library_create_card` available so the bridge's card-binding can be a documented operator workflow; WP-I3-007 (requirements editor) populates `library_rules` so auto-route fires on real intake; WP-I3-008 (Triage GUI tab) consumes `state.library.intake` + 3 new snapshot targets; WP-I3-010 closes I3 with an end-to-end EXP120 walkthrough that exercises the bridge → intake → triage → finalize flow at production scale.
 
 ## Checkpoint Commit Plan
 
@@ -203,26 +200,29 @@ _Captured at REVIEW. Truthful summary._
 
 ## Headless LLM Operation Compliance
 
-- [ ] An LLM agent does not need to touch this feature directly — the bridge is operator-launched ComfyUI tooling. State surface remains via WP-I3-004's `state.library.intake`.
-- [ ] N/A snapshot — bridge has no GUI surface.
-- [ ] No code path in the new bridge logic calls any GUI focus method.
-- [ ] No modal dialogs anywhere.
-- [ ] Tests cover the bridge-side payload + dispatcher-side handler from headless code (no GUI imports).
+- [x] An LLM agent does not need to touch this feature directly — the bridge is operator-launched ComfyUI tooling. State surface remains via WP-I3-004's `state.library.intake`.
+- [x] N/A snapshot — bridge has no GUI surface.
+- [x] No code path in the new bridge logic calls any GUI focus method.
+- [x] No modal dialogs anywhere.
+- [x] Tests cover the bridge-side payload + dispatcher-side handler from headless code (no GUI imports).
 
 ## Exit Criteria
 
-- [ ] Definition of Done items all checked.
-- [ ] Taskboard row reflects current status.
-- [ ] Reality Boundary, Fallback Register, and Change Ledger are truthful.
-- [ ] Linked test suite has executed results saved under `target/test-artifacts/WP-I3-005/`.
-- [ ] Evidence section populated with concrete paths.
+- [x] Definition of Done items all checked.
+- [x] Taskboard row reflects current status.
+- [x] Reality Boundary, Fallback Register, and Change Ledger are truthful.
+- [x] Linked test suite has executed results saved under `target/test-artifacts/WP-I3-005/`.
+- [x] Evidence section populated with concrete paths.
 - [ ] Operator sign-off recorded in Evidence section.
-- [ ] **Headless LLM Operation Compliance** section either marked `N/A` with reason, or all items checked.
+- [x] **Headless LLM Operation Compliance** section either marked `N/A` with reason, or all items checked.
 
 ## Evidence
 
-- **Test Suite Execution**: _filled at REVIEW._
-- **Logs**: _filled at REVIEW._
+- **Test Suite Execution**:
+  - WP-I3-005 dedicated suite: `.\.venv\Scripts\python.exe -m pytest .product/tests/test_comfyui_bridge.py .product/tests/test_intake_commands.py --junitxml=target/test-artifacts/WP-I3-005/pytest_results.xml -q` → 45/45 passed in 125.61s.
+  - Full regression sweep: `.\.venv\Scripts\python.exe -m pytest .product/tests/ -q` → 544/544 passed in 1359.69s. One pre-existing `PermissionError` warning in `test_state_write_atomic_no_partial` reader thread is unchanged from WP-I3-002 baseline.
+- **Audit**: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/audit-repo.ps1` → `audit-repo: OK no violations` (exit 0).
+- **Logs**: pytest stdout in this session; junit XML at `target/test-artifacts/WP-I3-005/pytest_results.xml`.
 - **Screenshots / Exports**: N/A — non-GUI surface.
 - **Build Artifacts**: N/A.
 - **Proof Artifact**: `target/test-artifacts/WP-I3-005/`
@@ -231,3 +231,5 @@ _Captured at REVIEW. Truthful summary._
 ## Progress Log
 
 - 2026-05-03: WP drafted at READY per operator authorization ("draft and kick off" 2026-05-03). Predecessors WP-I3-003 + WP-I3-004 at REVIEW; building on them per handoff stance. Kickoff commit + push will land this WP file + taskboard row before any `.product/` file is opened.
+- 2026-05-03: Kickoff push landed (commit `9bb4231`) on `origin/main`. Status READY -> IN-PROGRESS.
+- 2026-05-03: Decision (drop dispatcher-side INTAKE-002 guard from `register_library_entry` per re-read of spec). New `library/intake/runs.py` + `_h_intake_begin_run` handler + bridge module rewrite + extended `_h_intake_register_output` for inline b64 image bytes. First test run hit `psycopg.errors.ProgrammingError: cannot adapt type 'dict' using placeholder` — wrapped `workflow_json` with `psycopg.types.json.Jsonb`. 45/45 in WP test files; 544/544 full suite; audit clean. Manual + bridge README updated. Status IN-PROGRESS -> REVIEW.
