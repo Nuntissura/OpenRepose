@@ -22,7 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I1-035 | In-app manual + manual-impact governance rule | assistant | IN-PROGRESS | IMPLEMENTATION | M | 2026-05-03 |
+_(none — fast-track batch complete; WP-I1-034/035 fixes shipped to REVIEW; WP-I1-036 multi-file workspace spec drafted)_
 
 ## Pending Review
 
@@ -78,6 +78,7 @@ I0 closed 2026-05-02. The I0-blocking constraint on every I1 WP below is satisfi
 | WP-I1-031 | Tools tab reorganization (Tools tab w/ Calibration / Markers / Reframer sub-tabs) | IMPLEMENTATION | S | Mid (UI grouping per operator request); also folds in operator's frame-offsets-as-sliders + per-section reset request | n/a (pure GUI reshuffle) | WP-I1-027/029/023 (DONE) |
 | WP-I1-034 | Calibration overview mode + drag/delete + add-marker workflow + mesh inspector | IMPLEMENTATION | L | High (operator follow-up — overview drag-and-drop is the natural editing model; folds in WP-I1-001 + WP-I1-028 deferred items) | yes (new delete_markers command) | WP-I1-028 (DONE), WP-I1-029 (DONE) |
 | WP-I1-035 | In-app manual + manual-impact governance rule | IMPLEMENTATION | M | High (operator wants new models/humans to onboard via built-in manual; rule + audit enforce keeping manual current) | n/a (Help tab manual browser is operator-facing only) | WP-I1-025 (audit), WP-I0-004 (GUI) — both DONE |
+| WP-I1-036 | Multi-file workspace spec (DOCUMENTATION) | DOCUMENTATION | M | High (operator's stated need: tabs + per-file state + drag-drop import; large architectural change needs spec lock first) | n/a (spec only) | none |
 | WP-I2-001 | PostgreSQL setup + migration runner | INFRASTRUCTURE | M | High (foundation for all I2 WPs) | n/a | WP-I1-033 (DONE) |
 | WP-I2-002 | Settings extension: library config (schema_version 1 → 2) | INFRASTRUCTURE | S | High | n/a | WP-I1-027 (DONE), WP-I1-033 (DONE) |
 | WP-I2-003 | Library entries CRUD + tags | IMPLEMENTATION | M | High | n/a (data layer) | WP-I2-001, WP-I2-002 |
