@@ -4,7 +4,7 @@
 
 - **Owner**: TBD (operator)
 - **Date Opened**: 2026-05-02
-- **Status**: IN-PROGRESS
+- **Status**: REVIEW
 - **Iteration**: I1
 - **Workflow Version**: 1.0
 - **Packet Class**: IMPLEMENTATION
@@ -182,3 +182,4 @@ Operator-controlled visibility toggles for body part groups. Lets the operator s
 - 2026-05-02: Enhanced with full template sections (Files Touched, Test Plan, Risks, Rollback, Exit Criteria, etc.) for session-survivability.
 - 2026-05-03: Operator approved fast-track batch (slot 2). Status DRAFT -> IN-PROGRESS. Implementation complete: schema helper + serializer + renderer + state + 2 commands + Options checkboxes + 18 tests. 225/225 passing. Audit clean. Status -> REVIEW.
 - 2026-05-03: Operator GUI inspection surfaced regression — live OpenPose viewport (`gui/viewport_openpose.py:update_rig`) does NOT pass `body_part_visibility` to `render_openpose`, so toggling a checkbox in Options updates state + JSON exports + snapshot but NOT the live preview. Reality Boundary "OpenPose preview omits suppressed groups" not satisfied. Status REVIEW -> IN-PROGRESS for in-place fix; bundled with WP-I1-029 + WP-I1-023 (same root cause).
+- 2026-05-03: Regression fix landed. `viewport_openpose.update_rig()` now accepts `body_part_visibility` / `marker_visibility` / `frame` kwargs; `main_window._on_state_poll` pulls them from `app.state` and passes through. New `test_viewport_openpose_live_state.py` (4 tests) is a permanent guard against this regression. Full suite 281/281. Status IN-PROGRESS -> REVIEW.

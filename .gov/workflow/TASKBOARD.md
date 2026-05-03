@@ -22,11 +22,8 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I1-017 | Per-Body-Part Visibility Toggles | assistant | IN-PROGRESS | IMPLEMENTATION | S | 2026-05-03 |
-| WP-I1-029 | Per-Marker Visibility Toggles | assistant | IN-PROGRESS | IMPLEMENTATION | M | 2026-05-03 |
-| WP-I1-023 | Frame Reframing (Robust Rerender) | assistant | IN-PROGRESS | IMPLEMENTATION | M | 2026-05-03 |
 
-_(rejected REVIEW -> IN-PROGRESS: live OpenPose viewport regression — operator GUI inspection found the toggles + frame slider only affect JSON export + snapshot, not the live preview; same root cause across all three.)_
+_(none — fast-track batch back in REVIEW after viewport regression fix)_
 
 ## Pending Review
 
@@ -35,7 +32,9 @@ Implementation claims to be done; awaiting operator verification.
 | WP-ID | Title | Owner | Class | Updated | Verify |
 |-------|-------|-------|-------|---------|--------|
 | WP-I1-027 | Export Folder Picker And Persistence | assistant | IMPLEMENTATION | 2026-05-03 | launch the GUI, open Options, click Browse..., pick a folder, export (single + batch), restart, confirm exports land in the same folder. Sign-off bundled with the rest of the fast-track batch. |
-_(WP-I1-017 + WP-I1-029 + WP-I1-023 temporarily rejected back to IN-PROGRESS for the live-viewport regression fix; will return to REVIEW once the viewport_openpose patch lands.)_
+| WP-I1-017 | Per-Body-Part Visibility Toggles | assistant | IMPLEMENTATION | 2026-05-03 | toggle a body-part checkbox in Options (e.g. legs) and watch the live OpenPose viewport — the suppressed group should disappear immediately (not just on next export). Then export and inspect JSON. Sign-off bundled. |
+| WP-I1-029 | Per-Marker Visibility Toggles | assistant | IMPLEMENTATION | 2026-05-03 | open the Markers tab; uncheck a single noisy keypoint; live preview should drop that keypoint immediately. Then export and inspect JSON. Sign-off bundled. |
+| WP-I1-023 | Frame Reframing (Robust Rerender) | assistant | IMPLEMENTATION | 2026-05-03 | drag the Frame scale slider in Options; live preview should resize the figure immediately while line widths stay constant. Then export and confirm downstream. Sign-off bundled. |
 
 ## Blocked
 

@@ -315,5 +315,13 @@ class MainWindow(QMainWindow):
                 bin_obj = signed_deg_to_bin(s["yaw"]["current_value_deg"])
             rotated = rotate_yaw(rig, bin_obj)
             self._viewport_3d.update_rig(rotated)
-            self._viewport_openpose.update_rig(rotated)
+            self._viewport_openpose.update_rig(
+                rotated,
+                body_part_visibility=dict(self._app.state.body_part_visibility),
+                marker_visibility={
+                    k: dict(v)
+                    for k, v in self._app.state.marker_visibility.items()
+                },
+                frame=dict(self._app.state.frame),
+            )
             self._inspector.set_canvas(rig.portrait_size[0], rig.portrait_size[1])

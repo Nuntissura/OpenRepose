@@ -21,8 +21,28 @@ class ViewportOpenPose(QLabel):
         self.setStyleSheet("background-color: #000;")
         self._placeholder("no rig loaded")
 
-    def update_rig(self, rotated: RotatedRig) -> None:
-        bgr = render_openpose(rotated)
+    def update_rig(
+        self,
+        rotated: RotatedRig,
+        *,
+        body_part_visibility: dict[str, bool] | None = None,
+        marker_visibility: dict | None = None,
+        frame: dict | None = None,
+    ) -> None:
+        """Render the rotated rig at the live state.
+
+        WP-I1-017/029/023 fix: previously this dropped body_part_visibility,
+        marker_visibility, and frame, so toggles + frame slider only affected
+        export/snapshot but not the live preview. Now the polling loop in
+        MainWindow passes them through and the viewport reflects state in
+        real time.
+        """
+        bgr = render_openpose(
+            rotated,
+            body_part_visibility=body_part_visibility,
+            marker_visibility=marker_visibility,
+            frame=frame,
+        )
         self._show_bgr(bgr)
 
     def _show_bgr(self, bgr) -> None:
