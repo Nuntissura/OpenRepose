@@ -2,10 +2,10 @@
 
 ## Header
 
-- **Owner**: TBD
+- **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: DRAFT
+- **Status**: IN-PROGRESS
 - **Iteration**: I2
 - **Workflow Version**: 1.1
 - **Packet Class**: INFRASTRUCTURE
@@ -57,10 +57,11 @@ Bump `Settings` schema_version 1 → 2 to add `library_db_url`, `library_root` (
 - [ ] v1 settings.json loads cleanly + migrates to v2.
 - [ ] Options pane has Library section.
 - [ ] pytest zero failures; audit clean.
+- [ ] **Manual Impact**: No — operator-facing surface change is a small Library section in Options that mirrors three new persisted fields. The DB connection / library workflow itself is documented in WP-I2-001 + WP-I2-008. No new manual topic file required for this WP alone.
 
 ## Headless LLM Operation Compliance
 
-- [x] N/A — INFRASTRUCTURE.
+- [x] N/A — INFRASTRUCTURE. Operator-facing GUI changes are a passive form (DB URL + library root + operator slug fields) that the operator fills in once; LLM agents read the resolved values out of `state.json` after WP-I2-001 wires the `library` block.
 
 ## Change Ledger
 
@@ -73,3 +74,4 @@ Bump `Settings` schema_version 1 → 2 to add `library_db_url`, `library_root` (
 ## Progress Log
 
 - 2026-05-03: WP drafted at DRAFT.
+- 2026-05-03: Promoted DRAFT → READY → IN-PROGRESS (kickoff commit). Owner: assistant. Operator overnight autonomous I2 sequence.

@@ -1,12 +1,12 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (fast-track batch complete: 4 more WPs DONE; WP-I1-034 + WP-I1-035 drafted)
+Last Updated: 2026-05-03 (I2 sequence kickoff: WP-I2-002 promoted DRAFT → IN-PROGRESS for autonomous overnight implementation)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 1 (WP-I1-029 rejected for follow-up bug fix)
+- WPs in flight (READY + IN-PROGRESS): 1 (WP-I2-002 IN-PROGRESS — assistant overnight)
 - WPs pending review (REVIEW): 0
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 21 + 8 new I2 WPs (drafting in this session)
@@ -22,7 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-_(none — fast-track batch complete; WP-I1-034/035 fixes shipped to REVIEW; WP-I1-036 multi-file workspace spec drafted)_
+| WP-I2-002 | Settings extension: library config (schema 1→2) | assistant | IN-PROGRESS | INFRASTRUCTURE | S | 2026-05-03 |
 
 ## Pending Review
 
@@ -142,6 +142,7 @@ _(none)_
 - 2026-05-03 fast-track Phase B+C: shipped **WP-I1-032 GUI polish bundle** (calibration sizing + last-portrait-folder + canvas border + colored marker rows; 295/295 passing) + **WP-I1-033 Feature 3 spec** (PostgreSQL day one, psycopg 3, hybrid trigram+tsvector search, 7 LLM commands, ComfyUI bridge). Operator signed off WP-I1-027 + WP-I1-017 + WP-I1-023 + WP-I1-032 + WP-I1-033 on 2026-05-03. WP-I1-029 rejected REVIEW → IN-PROGRESS for follow-up bug: undetected MediaPipe markers should auto-uncheck on import; defensive render to avoid stray-dot-at-origin "haywire".
 - 2026-05-03 fast-track 2: shipped **WP-I1-029 fix** (auto-uncheck undetected + defensive render + Markers tab "— no detection" annotations) + **WP-I1-030 export polish** (PNG alongside JSON + pretty-printed JSON + slug sanitization) + **WP-I1-031 Tools tab reorganization** (Inspector / Tools (Calibration|Markers|Reframer) / Options / Log / Help; ReframerPane with slider+spinbox+per-section resets) + **WP-I1-028 calibration UX core** (zoom + pan + always-on MediaPipe overlay + spacebar+left-click pan per Photoshop convention). Operator signed off all 4 on 2026-05-03 (329/329 tests passing).
 - 2026-05-03: drafted **WP-I1-034** (calibration overview mode + drag-to-move + right-click-delete + delete_markers command + add+place workflow when no detection + frontal mesh inspector — folds in everything deferred from WP-I1-001 + WP-I1-028) and **WP-I1-035** (in-app manual under .gov/doc/manual/ + Help tab manual browser + new Manual Impact governance rule + audit script extension). Both at DRAFT awaiting promotion. Operator-noted future scope: body calibration (currently face-only) — needs spec extension first.
+- 2026-05-03 overnight: operator handed off the I2 sequence to the assistant for autonomous overnight execution (operator-defined order: WP-I2-002 → WP-I2-001 → WP-I2-003 → WP-I2-004 → WP-I2-005+006 parallel → WP-I2-007 → WP-I2-008). All shipped WPs land at REVIEW pending operator sign-off. **WP-I2-002** promoted DRAFT → READY → IN-PROGRESS as kickoff.
 
 ### I2 — Feature 3: OpenPose Library + ComfyUI Coupling (drafted 2026-05-03)
 
