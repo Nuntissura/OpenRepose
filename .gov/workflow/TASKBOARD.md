@@ -1,13 +1,13 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-04 (I3 closing kickoff: WP-I3-010 end-to-end EXP120 verification IN-PROGRESS. WP-I3-007/008/009 still in REVIEW. After WP-I3-010 ships, I3 v0.1 closes pending operator sign-off.)
+Last Updated: 2026-05-04 (I3 implementation complete: WP-I3-007/008/009/010 all shipped to REVIEW. WP-I3-010 e2e verification (3/3 in 2:47) caught and fixed two real bugs: library_create_card now populates library_target_cards.card_id; wholesale-reject test rewritten against documented soft-delete contract. I3 v0.1 closes pending operator sign-off across the four REVIEW WPs.)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 1 (WP-I3-010 e2e EXP120 verification)
-- WPs pending review (REVIEW): 3 (WP-I3-009 audit-script extension; WP-I3-007 requirements editor + target tree; WP-I3-008 triage GUI tab + snapshot targets)
+- WPs in flight (READY + IN-PROGRESS): 0
+- WPs pending review (REVIEW): 4 (WP-I3-009 audit-script extension; WP-I3-007 requirements editor + target tree; WP-I3-008 triage GUI tab + snapshot targets; WP-I3-010 e2e EXP120 verification)
 - WPs done (I3): 5 (WP-I3-001 spec lock; WP-I3-002 stance primitives; WP-I3-003 PG schema migrations; WP-I3-004 intake/project/task command surface; WP-I3-005 default-staging ComfyUI bridge; WP-I3-006 AMood data-model commands)
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 19 (18 I1 backlog + WP-I3-011 future OpenRepose AMood GPT + Claude wrappers)
@@ -24,7 +24,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I3-010 | End-to-end EXP120 verification | assistant | IN-PROGRESS | VERIFICATION | M | 2026-05-04 |
+_(none)_
 
 ## Pending Review
 
@@ -35,6 +35,7 @@ Implementation claims to be done; awaiting operator verification.
 | WP-I3-009 | Audit script extension (rule registry coverage) | assistant | INFRASTRUCTURE | 2026-05-03 | `pwsh scripts/audit-repo.ps1` clean (8 OK, 1 SKIP) on HEAD; negative test in `target/test-artifacts/WP-I3-009/`. |
 | WP-I3-007 | Requirements editor + target tree commands | assistant | IMPLEMENTATION | 2026-05-03 | 29/29 pytest passing in 5:13 (incl. EXP120 byte-stable round-trip + counter rollup + inheritance); audit clean. Evidence in `target/test-artifacts/WP-I3-007/`. |
 | WP-I3-008 | Triage GUI tab + 3 snapshot targets | assistant | IMPLEMENTATION | 2026-05-04 | 35/35 pytest passing in 23.61s (triage pane + 14 snapshot targets parametrized + GUI no-focus-steal + headless render); audit clean. Evidence in `target/test-artifacts/WP-I3-008/`. |
+| WP-I3-010 | End-to-end EXP120 verification | assistant | VERIFICATION | 2026-05-04 | 3/3 e2e tests passing in 2:47; 29/29 -006/-007 regression after the cards.py wiring fix; audit clean. Evidence in `target/test-artifacts/WP-I3-010/`. **Closes I3 v0.1 on operator sign-off.** |
 
 ## Blocked
 

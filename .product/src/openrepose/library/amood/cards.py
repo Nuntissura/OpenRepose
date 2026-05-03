@@ -304,6 +304,22 @@ def create_card(
             ),
         )
         card_id: UUID = cur.fetchone()[0]
+        # Wire up library_target_cards.card_id when a target row with the
+        # matching slug exists in the project (spec contract: target rows
+        # are seeded by project_set_target_tree before library_create_card
+        # runs; create_card populates the link). Caught by WP-I3-010 e2e
+        # verification — without this, counters cannot roll up because the
+        # library_target_card_counts view joins on tc.card_id = r.card_id.
+        cur.execute(
+            "UPDATE library_target_cards "
+            "SET card_id = %s "
+            "WHERE card_slug = %s "
+            "  AND card_id IS NULL "
+            "  AND group_id IN ("
+            "      SELECT id FROM library_target_groups WHERE project_id = %s"
+            "  )",
+            (str(card_id), slug, str(project_id)),
+        )
         # Mirror tag-axis values to tags + entry_tags so accepted_set_audit
         # can query coverage at the tag layer.
         for key in _TAG_AXIS_KEYS:
