@@ -1,0 +1,43 @@
+# OpenRepose Library backend (WP-I2-001).
+#
+# One-command local Postgres for the Library subsystem (Feature 3).
+# Operators that already run Postgres natively can skip this file.
+#
+#   docker compose up -d postgres   # start
+#   docker compose down              # stop, keep volume
+#   docker compose down -v           # stop and wipe data
+#
+# Default DSN matches the example baked into .gov/spec/openrepose_library_v0_1.md
+# Storage Layout:
+#
+#   library_db_url = postgresql://openrepose:openrepose@localhost:5432/openrepose
+#
+# Override credentials via .env (POSTGRES_USER / POSTGRES_PASSWORD /
+# POSTGRES_DB / POSTGRES_PORT) when sharing the workstation with other
+# Postgres consumers.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: openrepose-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-openrepose}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-openrepose}
+      POSTGRES_DB: ${POSTGRES_DB:-openrepose}
+      # Make trigram + uuid + unaccent extensions discoverable; the
+      # OpenRepose migrator runs CREATE EXTENSION IF NOT EXISTS at boot.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - openrepose_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-openrepose} -d ${POSTGRES_DB:-openrepose}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  openrepose_pgdata:
+    name: openrepose_pgdata

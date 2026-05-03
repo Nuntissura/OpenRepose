@@ -112,6 +112,23 @@ class AppState:
             "anchor_point": None,
         }
     )
+    library: dict[str, Any] = field(
+        default_factory=lambda: {
+            "connected": False,
+            "configured": False,
+            "db_url_redacted": "",
+            "schema_version": 0,
+            "operator_slug": "",
+            "library_root": "",
+            "last_error": None,
+            "last_search_query": None,
+            "last_search_count": 0,
+            "last_search_at": None,
+            "last_register_at": None,
+            "pending_writes": 0,
+            "locked_entries": [],
+        }
+    )
 
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
@@ -139,6 +156,7 @@ class AppState:
                 k: dict(v) for k, v in self.detected_markers.items()
             },
             "frame": dict(self.frame),
+            "library": dict(self.library),
         }
 
     def write(self) -> None:
@@ -274,6 +292,33 @@ class AppState:
                 "export_folder": export_folder,
                 "default_used": bool(default_used),
                 "settings_path": settings_path,
+            }
+
+    def set_library_status(
+        self,
+        *,
+        configured: bool,
+        connected: bool,
+        db_url_redacted: str,
+        schema_version: int,
+        operator_slug: str,
+        library_root: str,
+        last_error: str | None = None,
+    ) -> None:
+        """Update the `library` block's connection status (WP-I2-001).
+
+        Other library fields (last_search_*, pending_writes, locked_entries)
+        are mutated by the library command handlers landed in WP-I2-004."""
+        with self._lock:
+            self.library = {
+                **self.library,
+                "configured": bool(configured),
+                "connected": bool(connected),
+                "db_url_redacted": str(db_url_redacted),
+                "schema_version": int(schema_version),
+                "operator_slug": str(operator_slug),
+                "library_root": str(library_root),
+                "last_error": last_error,
             }
 
     def begin_command(self, command: str) -> None:

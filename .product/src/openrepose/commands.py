@@ -92,6 +92,10 @@ class CommandDispatcher:
         self._lock = threading.Lock()
         self._rig: Rig | None = None
         self._snapshot_handler = snapshot_handler  # set by WP-I0-003 wiring
+        # Library subsystem pool. Wired by `App.__init__` after construction
+        # (WP-I2-001). Library command handlers (added in WP-I2-004) read
+        # `self.library_pool` to issue queries; until then it is None.
+        self.library_pool: object | None = None
 
     # --- public ----------------------------------------------------------
 
