@@ -24,6 +24,7 @@ from ..rotation import rotate_yaw
 from ..yaw_bin import parse_bin, signed_deg_to_bin, standard_13_angle_bins
 from .help_pane import HelpPane
 from .inspector import InspectorPane
+from .library import LibraryPane
 from .log_pane import LogPane
 from .options import OptionsPane
 from .status_bar import StatusBar
@@ -127,8 +128,10 @@ class MainWindow(QMainWindow):
         self._calibration = self._tools.calibration
         self._markers = self._tools.markers
         self._reframer = self._tools.reframer
+        self._library = LibraryPane(self._app)
         self._tabs.addTab(self._inspector, "Inspector")
         self._tabs.addTab(self._tools, "Tools")
+        self._tabs.addTab(self._library, "Library")
         self._tabs.addTab(self._options, "Options")
         self._tabs.addTab(self._log_pane, "Log")
         self._tabs.addTab(self._help_pane, "Help")

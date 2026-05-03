@@ -1,12 +1,12 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (overnight I2 sequence: WP-I2-001/002/003/004 → REVIEW; WP-I2-005+006 next in parallel)
+Last Updated: 2026-05-03 (overnight I2 sequence: WP-I2-001..006 → REVIEW; WP-I2-007 next — snapshot targets)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 2 (WP-I2-005 + WP-I2-006 IN-PROGRESS in parallel)
+- WPs in flight (READY + IN-PROGRESS): 0 (WP-I2-005 + WP-I2-006 → REVIEW)
 - WPs pending review (REVIEW): 0
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 21 + 8 new I2 WPs (drafting in this session)
@@ -22,8 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I2-005 | ComfyUI bridge custom node | assistant | IN-PROGRESS | IMPLEMENTATION | M | 2026-05-03 |
-| WP-I2-006 | Library tab GUI | assistant | IN-PROGRESS | IMPLEMENTATION | L | 2026-05-03 |
+_(none — WP-I2-005 + WP-I2-006 → REVIEW)_
 
 ## Pending Review
 
@@ -35,6 +34,8 @@ Implementation claims to be done; awaiting operator verification.
 | WP-I2-001 | PostgreSQL setup + migration runner | assistant | INFRASTRUCTURE | 2026-05-03 | docker-compose + 001_library_initial.sql + LibraryPool/Migrator + state.library + integration tests via ephemeral PG |
 | WP-I2-003 | Library entries CRUD + tags + smart-tag extractor | assistant | IMPLEMENTATION | 2026-05-03 | openrepose.library package (entries/tags/smart_tags/storage); 31 new tests; manual extended |
 | WP-I2-004 | Library LLM commands + library_search | assistant | IMPLEMENTATION | 2026-05-03 | 7 dispatcher commands + prompts/story_beats/notes/search modules + state.library activity tracking; 16 end-to-end tests; manual LLM-commands table |
+| WP-I2-005 | ComfyUI bridge custom node | assistant | IMPLEMENTATION | 2026-05-03 | .product/comfyui-bridge/ self-contained custom node (stdlib-only on ComfyUI side); POST payload + metadata extraction tested + end-to-end ephemeral-PG round-trip |
+| WP-I2-006 | Library tab GUI | assistant | IMPLEMENTATION | 2026-05-03 | gui/library/ pane (toolbar + list + side-by-side detail + 6 sub-tabs); MainWindow registration; lock indicator; 8 pytest-qt smoke tests |
 
 ## Blocked
 

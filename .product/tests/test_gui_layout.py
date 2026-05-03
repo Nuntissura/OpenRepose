@@ -54,11 +54,19 @@ def test_two_viewports_exist(app_and_window) -> None:
     assert window._viewport_openpose is not None
 
 
-def test_five_dock_tabs_present(app_and_window) -> None:
-    """WP-I1-031: Calibration + Markers + Reframer collapse under Tools."""
+def test_dock_tabs_present(app_and_window) -> None:
+    """WP-I1-031 collapsed Calibration + Markers + Reframer under Tools.
+    WP-I2-006 added Library between Tools and Options."""
     _app, window = app_and_window
     tab_titles = [window._tabs.tabText(i) for i in range(window._tabs.count())]
-    assert tab_titles == ["Inspector", "Tools", "Options", "Log", "Help"]
+    assert tab_titles == [
+        "Inspector",
+        "Tools",
+        "Library",
+        "Options",
+        "Log",
+        "Help",
+    ]
 
 
 def test_tools_tab_has_three_sub_tabs(app_and_window) -> None:
