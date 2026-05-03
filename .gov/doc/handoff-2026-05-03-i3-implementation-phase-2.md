@@ -1,5 +1,44 @@
 # Handoff Note — 2026-05-03 — I3 Implementation Phase 2 (Sweep B)
 
+> ## STATUS UPDATE — 2026-05-04 — Sweep B complete; I3 v0.1 implementation done
+>
+> The Sweep B briefing below is preserved as historical context. If you arrived after 2026-05-04, **the work it describes already shipped**. Read `.\orstart` for the current state; this status block tells you what changed since the original briefing was written.
+>
+> **What shipped in the 2026-05-04 session:**
+>
+> ```text
+> WP-I3-009   audit script extended 4 → 8 checks (rule-registry coverage)        REVIEW
+> WP-I3-007   requirements editor + target tree (8 dispatcher commands)          REVIEW
+> WP-I3-008   Triage GUI tab + 3 snapshot targets                                REVIEW
+> WP-I3-010   end-to-end EXP120 verification + 1 wiring fix                      REVIEW
+> ```
+>
+> All four are at REVIEW awaiting operator sign-off. After sign-off, **I3 v0.1 closes** — every WP planned for the iteration is shipped (WP-I3-001..010) plus WP-I3-011 (OpenRepose AMood GPT + Claude Skill wrappers) which remains at DRAFT for future session.
+>
+> **Order shipped, with notable highlights:**
+>
+> 1. **WP-I3-009** (commit `84cc532`). 8 checks total; new rule-id-resolves-manual + citations-cite-real-rule-ids + dispatcher-commands-have-help + project-rules-fresh (SKIP-by-default unless `LIBRARY_DB_URL` set). Audit-found governance gap fixed in same WP: `intake_begin_run` was missing from `topology.yaml i3_command_surface`. Negative test demonstrates check #6 fires (synthetic bogus citation reverted via `/safe-delete`).
+> 2. **WP-I3-007** (commit `231d50c`). 29/29 pytest passing in 5:13. EXP120 markdown byte-stable round-trip is the acceptance gate; got it green on first cut. Hand-rolled markdown-native canonical form (no PyYAML dep added). Manual extended with v0.1 canonical-form subsection.
+> 3. **WP-I3-008** (commit `0f8eaf9`). Triage tab between Library and Options; reads `state.library.{intake,targets,amood}` on the existing 250 ms `_poll_timer`. 3 snapshot targets with widget-grab-first / headless-fallback dispatch via new `try_grab_widget(target)` helper in `widget_grab.py`. New `render/draw_triage.py` for the headless path. 35/35 tests including string-grep guards on `gui/triage/pane.py` (no `raise_(`/`activateWindow(`/`showNormal(`/`setForegroundWindow(`/`QMessageBox` import).
+> 4. **WP-I3-010** (commit `1737f20`). Single integration test orchestrating 12+ dispatcher commands against ephemeral PostgreSQL: project_create → project_import_markdown(EXP120) → task_create → init_batch_package → library_create_card×4 → intake_begin_run → 50 intake_register_output (mixed sizes) → assert auto-route routes 20 to diagnostic → soft_accept×4 → finalize×4 → target_summary at every scope → accepted_set_audit shape → wholesale-reject isolation. 3/3 in 2:47.
+>
+> **Real bug caught and fixed by WP-I3-010 in scope:**
+>
+> `library/amood/cards.py create_card` was not populating `library_target_cards.card_id` after inserting the new `library_entries` row. The spec contract said it should ("populated by library_create_card"), but the WP-I3-006 implementation didn't include the wire-up — leaving the `library_target_card_counts` view's joins blind to the cards. `target_summary.promoted` returned 0 instead of N after finalize. Fix: one UPDATE inside the existing transaction. **29/29 WP-I3-006 / WP-I3-007 regression tests still pass after fix** (`target/test-artifacts/WP-I3-010/regression.txt`). Without WP-I3-010 this gap would have shipped to I4. Reality Boundary on the WP file truthfully reflects the in-scope wiring fix; Change Ledger documents both the bug and the contract-vs-test resolution for `task_reject_wholesale` (documented soft-delete, not row delete).
+>
+> **What's in DRAFT for the next session (post-I3-sign-off):**
+>
+> - **WP-I3-011** OpenRepose AMood GPT + Claude Skill wrappers (DRAFT; future integration; predecessor list now fully satisfied once -007/-010 sign off).
+> - Operator-side triage actions in the GUI (click-to-soft_accept / reject / promote). Deferred from WP-I3-008 per spec ("LLM remains the primary triage driver in v0.1"); a future WP picks this up after WP-I3-010 verifies the LLM-driven path.
+> - Numerical-coverage assertions on `accepted_set_audit` once the AMood blueprint locks scoring rubrics. WP-I3-010 only asserts the response shape.
+> - Materialized counter views if the live `library_target_card_counts` rollup becomes a perf concern (spec-listed v0.2 deferral).
+>
+> **What's in the I1 backlog (18 WPs, separate from I3):** unchanged from the original briefing; promote individually as priorities dictate.
+>
+> The historical Sweep B briefing follows. Use the section pointers + the "things that will trip you up" list — most still apply, even though the named WPs have all shipped.
+
+---
+
 Hello. You are the next assistant on OpenRepose. The operator is starting your session to execute **Sweep B**: WP-I3-007 (requirements editor + target tree) and WP-I3-009 (audit script extension). Both predecessors are DONE; both can be drafted to READY → IN-PROGRESS without waiting on anything else.
 
 This note tells you the part `.\orstart` cannot. Read `orstart` output first, then come back here.
