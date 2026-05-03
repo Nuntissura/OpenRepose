@@ -367,6 +367,7 @@ i3_command_surface:
     - intake_reroute
     - promote_to_library          # OPERATOR-ONLY
     - task_reject_wholesale       # OPERATOR-ONLY
+    - intake_begin_run            # ComfyUI bridge prelude (WP-I3-005)
   amood:
     - init_batch_package
     - library_create_card
