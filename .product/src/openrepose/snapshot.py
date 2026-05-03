@@ -24,6 +24,7 @@ import cv2
 from .render.compose import compose_full_window
 from .render.draw_3d import render_3d_viewport
 from .render.draw_calibration import render_calibration_overlay
+from .render.draw_library import render_library_entry, render_library_search_results
 from .render.draw_openpose import render_openpose
 from .render.widget_grab import render_widget_or_placeholder
 
@@ -44,6 +45,8 @@ VALID_TARGETS = (
     "toolbar",
     "full_window",
     "calibration_overlay",
+    "library_entry",
+    "library_search_results",
 )
 
 
@@ -65,6 +68,9 @@ def snapshot(
     marker_visibility: dict | None = None,
     frame: dict | None = None,
     canvas_border_color: str | None = None,
+    library_entry: dict | None = None,
+    library_search_results: list | None = None,
+    library_root: Path | str | None = None,
 ) -> Path:
     """Render `target` to a PNG. Returns the absolute output path.
 
@@ -88,6 +94,9 @@ def snapshot(
         target, rotated, portrait_path, calibration,
         body_part_visibility, marker_visibility, frame,
         canvas_border_color,
+        library_entry=library_entry,
+        library_search_results=library_search_results,
+        library_root=library_root,
     )
     out.parent.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(out), image)
@@ -115,6 +124,10 @@ def _render(
     marker_visibility: dict | None,
     frame: dict | None,
     canvas_border_color: str | None,
+    *,
+    library_entry: dict | None = None,
+    library_search_results: list | None = None,
+    library_root: Path | str | None = None,
 ) -> "np.ndarray":
     if target == "3d_viewport":
         if rotated is None:
@@ -132,6 +145,12 @@ def _render(
         )
     if target == "calibration_overlay":
         return render_calibration_overlay(portrait_path, calibration)
+    if target == "library_entry":
+        return render_library_entry(library_entry, library_root or Path("outputs/library"))
+    if target == "library_search_results":
+        return render_library_search_results(
+            library_search_results or [], library_root or Path("outputs/library")
+        )
     if target == "full_window":
         panes: dict[str, "np.ndarray"] = {}
         if rotated is not None:

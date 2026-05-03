@@ -10,7 +10,8 @@ Status (2026-05-03):
 - **WP-I2-004 (REVIEW)**: 7 LLM commands wired into the dispatcher (`register_library_entry`, `update_library_entry`, `delete_library_entry`, `library_search`, `get_library_entry`, `set_library_tags`, `dump_library_schema`); prompts / story_beats / notes helpers; `library_search()` Python wrapper; state.library activity tracking.
 - **WP-I2-005 (REVIEW)**: ComfyUI bridge custom node under `.product/comfyui-bridge/` — POSTs `register_library_entry` after each image save; stdlib-only on ComfyUI side; non-blocking on POST failure.
 - **WP-I2-006 (REVIEW)**: Library tab GUI in OpenRepose — search bar, entry list, side-by-side detail, six sub-tabs (Tags / Prompts / Story / Notes / Workflow / Metadata).
-- WP-I2-007..008 still drafted; snapshots and verification land next.
+- **WP-I2-007 (REVIEW)**: Two new snapshot targets — `library_entry` (side-by-side openpose + reference for the most recently fetched entry) and `library_search_results` (4×6 thumbnail grid of the most recent search).
+- WP-I2-008 still drafted; verification + setup doc land next.
 
 ## What it will do
 
@@ -77,6 +78,17 @@ State reflection (`outputs/.runtime/state.json` → `library`):
 
 - `last_register_at`, `last_search_query`, `last_search_count`, `last_search_at` — filled by the corresponding command handlers.
 - `locked_entries` — momentary list of entries that another operator's transaction is holding; consumed by the GUI lock indicator.
+
+## Snapshots (WP-I2-007)
+
+The snapshot subsystem gains two new targets so an LLM agent can pull a visual artifact of the Library tab state without touching operator focus.
+
+| Target | Source | Notes |
+|--------|--------|-------|
+| `library_entry` | `state.library.last_entry` (set by `get_library_entry`) | Side-by-side openpose.png + generated.png / portrait.png + a header strip with title / avatar / yaw_bin and the lock indicator. |
+| `library_search_results` | `state.library.last_search_results` (set by `library_search`, top 24) | 4×6 thumbnail grid; each cell shows the entry's openpose.png (preferred) or generated.png with the title underneath. |
+
+Both targets honor the existing snapshot rules: no `raise_/activateWindow/showNormal`; atomic write to `outputs/.runtime/snapshots/`; manifest line appended to `outputs/.runtime/snapshots.jsonl`.
 
 ## ComfyUI bridge (WP-I2-005)
 

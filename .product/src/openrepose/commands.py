@@ -494,6 +494,21 @@ def _h_snapshot(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     border_color = (
         d.settings.canvas_border_color if d.settings is not None else None
     )
+    # Library snapshot targets pull from state.library populated by the
+    # most recent get/search commands. Library root resolves from settings
+    # when available, else falls back to <outputs_root>/library/.
+    library_entry = d.state.library.get("last_entry") if target == "library_entry" else None
+    library_search_results = (
+        d.state.library.get("last_search_results")
+        if target == "library_search_results"
+        else None
+    )
+    library_root = (
+        Path(d.settings.resolved_library_root())
+        if d.settings is not None
+        else d.outputs_root / "library"
+    )
+
     out = do_snapshot(
         target,
         rotated=rotated,
@@ -507,6 +522,9 @@ def _h_snapshot(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
         marker_visibility=_copy_marker_visibility(d.state.marker_visibility),
         frame=dict(d.state.frame),
         canvas_border_color=border_color,
+        library_entry=library_entry,
+        library_search_results=library_search_results,
+        library_root=library_root,
     )
     d.log.ok("viewport.snapshot", target=target, out=str(out))
     return {"target": target, "out_path": str(out)}
@@ -1562,12 +1580,17 @@ def _h_library_search(
         raise OpenReposeCommandError(f"limit must be int; got {raw_limit!r}") from e
     with pool.connection() as conn:
         results = library_search_fn(conn, query, limit=limit)
+    result_dicts = [r.to_dict() for r in results]
     payload = {
         "query": query,
         "count": len(results),
-        "results": [r.to_dict() for r in results],
+        "results": result_dicts,
     }
-    d.state.mark_library_search(query=query, count=len(results))
+    d.state.mark_library_search(
+        query=query,
+        count=len(results),
+        results=result_dicts[:24],  # only keep what the snapshot grid shows
+    )
     d.state.write()
     d.log.ok("library.search", query=query, count=len(results))
     return payload
@@ -1602,6 +1625,9 @@ def _h_get_library_entry(
             payload.pop("comfyui_workflow", None)
         if "metadata" not in include:
             payload.pop("metadata", None)
+    # Record so the `library_entry` snapshot target has an entry to render.
+    d.state.mark_library_entry_view(payload)
+    d.state.write()
     d.log.ok("library.get", entry_id=entry_id)
     return payload
 

@@ -124,6 +124,8 @@ class AppState:
             "last_search_query": None,
             "last_search_count": 0,
             "last_search_at": None,
+            "last_search_results": [],
+            "last_entry": None,
             "last_register_at": None,
             "pending_writes": 0,
             "locked_entries": [],
@@ -326,14 +328,24 @@ class AppState:
         with self._lock:
             self.library = {**self.library, "last_register_at": _now()}
 
-    def mark_library_search(self, *, query: str, count: int) -> None:
+    def mark_library_search(
+        self, *, query: str, count: int, results: list | None = None
+    ) -> None:
         with self._lock:
-            self.library = {
-                **self.library,
+            patch = {
                 "last_search_query": query,
                 "last_search_count": int(count),
                 "last_search_at": _now(),
             }
+            if results is not None:
+                patch["last_search_results"] = list(results)
+            self.library = {**self.library, **patch}
+
+    def mark_library_entry_view(self, entry: dict | None) -> None:
+        """Record the most recently fetched entry; consumed by the
+        `library_entry` snapshot target."""
+        with self._lock:
+            self.library = {**self.library, "last_entry": entry}
 
     def add_library_lock(self, entry_id: str, locked_by: str | None) -> None:
         """Append an entry id to `locked_entries` (deduped). The dispatcher
