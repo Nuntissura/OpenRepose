@@ -1,12 +1,12 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (Sweep A sign-off: 12 WPs DONE in one operator-granted batch — WP-I1-034/035, full I2 sequence WP-I2-001..008, WP-I3-002 stance primitives, WP-I3-006 AMood data-model commands. I2 iteration CLOSED. Sweep B handoff doc at `.gov/doc/handoff-2026-05-03-i3-implementation-phase-2.md`.)
+Last Updated: 2026-05-03 (Sweep B kickoff: WP-I3-009 audit-script extension opened IN-PROGRESS. WP-I3-007 requirements editor + target tree to follow back-to-back. Sweep B handoff doc at `.gov/doc/handoff-2026-05-03-i3-implementation-phase-2.md`.)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 0
+- WPs in flight (READY + IN-PROGRESS): 1 (WP-I3-009 audit-script extension)
 - WPs pending review (REVIEW): 0
 - WPs done (I3): 5 (WP-I3-001 spec lock; WP-I3-002 stance primitives; WP-I3-003 PG schema migrations; WP-I3-004 intake/project/task command surface; WP-I3-005 default-staging ComfyUI bridge; WP-I3-006 AMood data-model commands)
 - WPs blocked (BLOCKED): 0
@@ -16,7 +16,7 @@ Live status of all OpenRepose workpackets. Update in the same session as any wor
 - WPs done (I1): 14 (12 prior + WP-I1-034/035 signed off 2026-05-03 Sweep A)
 - WPs done (I2): 8 (WP-I2-001..008 — Feature 3 OpenPose Library + ComfyUI bridge + PostgreSQL — I2 CLOSED 2026-05-03 Sweep A)
 - WPs reserved-not-drafted: 3 (WP-I1-019/020/021 joint-manipulation chain — operator deferred to later)
-- Iterations open: I1 (winding down — small fixes), I3 (Sweep A closed schema + dispatcher + AMood; Sweep B = WP-I3-007 + WP-I3-009; WP-I3-008 + WP-I3-010 close I3)
+- Iterations open: I1 (winding down — small fixes), I3 (Sweep A closed schema + dispatcher + AMood; Sweep B in flight: WP-I3-009 IN-PROGRESS, WP-I3-007 next; WP-I3-008 + WP-I3-010 close I3)
 
 ## Active
 
@@ -24,7 +24,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-_(none)_
+| WP-I3-009 | Audit script extension (rule registry coverage) | assistant | IN-PROGRESS | INFRASTRUCTURE | M | 2026-05-03 |
 
 ## Pending Review
 
