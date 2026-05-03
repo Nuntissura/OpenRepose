@@ -66,6 +66,53 @@ def test_help_pane_loads_index_by_default(app_and_window) -> None:
     assert "OpenRepose Manual" in text
 
 
+def test_help_pane_anchor_click_navigates_to_linked_topic(
+    app_and_window,
+) -> None:
+    """WP-I1-035 fix: clicking a `[topic](getting-started.md)` link inside
+    the rendered Markdown loads that topic into the viewer."""
+    from PySide6.QtCore import QUrl
+
+    _app, window = app_and_window
+    help_pane = window._help_pane
+    # Default = index.md loaded.
+    initial = help_pane._viewer.toPlainText()
+    assert "OpenRepose Manual" in initial
+    # Simulate clicking the [Getting started](getting-started.md) link.
+    help_pane._on_anchor_clicked(QUrl("getting-started.md"))
+    after = help_pane._viewer.toPlainText()
+    assert "Getting started" in after
+    assert "First launch" in after  # content from getting-started.md
+
+
+def test_help_pane_anchor_click_external_link_ignored(
+    app_and_window,
+) -> None:
+    """External URLs are NOT followed (no shell-out)."""
+    from PySide6.QtCore import QUrl
+
+    _app, window = app_and_window
+    help_pane = window._help_pane
+    before = help_pane._viewer.toPlainText()
+    help_pane._on_anchor_clicked(QUrl("https://example.com"))
+    after = help_pane._viewer.toPlainText()
+    assert before == after  # no change
+
+
+def test_help_pane_anchor_click_path_traversal_refused(
+    app_and_window,
+) -> None:
+    """Relative `../../something.md` outside the manual root is refused."""
+    from PySide6.QtCore import QUrl
+
+    _app, window = app_and_window
+    help_pane = window._help_pane
+    before = help_pane._viewer.toPlainText()
+    help_pane._on_anchor_clicked(QUrl("../../etc/passwd.md"))
+    after = help_pane._viewer.toPlainText()
+    assert before == after
+
+
 def test_help_pane_no_focus_steal_apis() -> None:
     """help_pane.py source must not call focus-stealing APIs."""
     src_path = (

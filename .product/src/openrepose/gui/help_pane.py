@@ -60,6 +60,11 @@ class HelpPane(QWidget):
 
         self._viewer = QTextBrowser()
         self._viewer.setOpenExternalLinks(False)
+        # WP-I1-035 fix: handle internal Markdown links ourselves so clicking
+        # `[Getting started](getting-started.md)` inside index.md actually
+        # switches to that topic instead of doing nothing.
+        self._viewer.setOpenLinks(False)
+        self._viewer.anchorClicked.connect(self._on_anchor_clicked)
         self._viewer.setStyleSheet(
             "QTextBrowser { padding: 12px; font-family: Segoe UI, sans-serif; }"
         )
@@ -113,3 +118,38 @@ class HelpPane(QWidget):
             self._viewer.setMarkdown(f"# Cannot load topic\n\n`{path}`: {e}")
             return
         self._viewer.setMarkdown(text)
+        # Sync the topic-list selection with the loaded topic so the left
+        # column highlights what's on the right.
+        for i in range(self._topic_list.count()):
+            item = self._topic_list.item(i)
+            if item.data(Qt.ItemDataRole.UserRole) == str(path):
+                self._topic_list.blockSignals(True)
+                self._topic_list.setCurrentRow(i)
+                self._topic_list.blockSignals(False)
+                break
+
+    def _on_anchor_clicked(self, url) -> None:  # noqa: ANN001
+        """WP-I1-035 fix: a click on a Markdown link inside the rendered
+        topic loads the linked file when it's a relative .md path under
+        the manual root. External / non-md links are ignored (no shell
+        out — the manual is intentionally a closed reference)."""
+        if self._manual_root is None:
+            return
+        href = url.toString()
+        if not href or "://" in href:
+            # External link; ignore (no operator-confusing shell-out).
+            return
+        # Strip any leading "./" and treat as relative to the manual root.
+        if href.startswith("./"):
+            href = href[2:]
+        if not href.endswith(".md"):
+            return
+        target = (self._manual_root / href).resolve()
+        try:
+            target.relative_to(self._manual_root.resolve())
+        except ValueError:
+            # Path traversal attempt (`../../etc/passwd.md`); refuse.
+            return
+        if not target.exists():
+            return
+        self._load_topic(target)

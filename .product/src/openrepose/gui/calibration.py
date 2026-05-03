@@ -377,27 +377,47 @@ class CalibrationPane(QWidget):
         ZoomableImageView so it can hit-test for drag + right-click;
         draggable subset depends on the dropdown selection (Overview = all,
         single marker name = just that one, placeholder = none).
+        WP-I1-034 fix: in Overview mode, auto-detected dim dots are ALSO
+        draggable. Dragging an auto-detected dot for a marker that has no
+        operator entry yet creates a new operator marker on release.
         """
         cal = self._load_active_calibration()
         portrait_path = self._app.state.portrait
         detected = self._compute_detected_positions()
+        # Cache for _on_marker_dragged so it can derive mediapipe_xy when
+        # the operator drags an auto-detected position for the first time.
+        self._last_detected_positions = detected or {}
         bgr = render_calibration_overlay(
             portrait_path, cal, detected_positions=detected
         )
         h, w = bgr.shape[:2]
         self._portrait.set_overlay(bgr, image_size=(w, h))
 
-        # WP-I1-034: feed marker positions + draggable filter.
-        marker_positions: list[tuple[str, float, float]] = []
+        # WP-I1-034: feed marker positions + draggable filter. Build a
+        # name→position dict starting from auto-detected (so undragged
+        # detected dots are still hit-testable in Overview), then overlay
+        # operator markers (which take precedence — operator_xy is the
+        # source of truth for placed markers).
+        positions_by_name: dict[str, tuple[float, float]] = {}
+        if detected:
+            positions_by_name.update(detected)
         if cal is not None:
             for m in cal.markers:
-                marker_positions.append(
-                    (m.name, float(m.operator_xy[0]), float(m.operator_xy[1]))
+                positions_by_name[m.name] = (
+                    float(m.operator_xy[0]),
+                    float(m.operator_xy[1]),
                 )
+        marker_positions = [
+            (name, x, y) for name, (x, y) in positions_by_name.items()
+        ]
+
         active = self._marker_combo.currentText()
         if active == DROPDOWN_OVERVIEW:
             draggable = {n for n, _, _ in marker_positions}
         elif active in ALL_MARKER_NAMES_ORDERED:
+            # Single-marker mode: that marker is draggable whether or not
+            # it's been placed yet (so the operator can drag the auto-
+            # detected dot to refine it).
             draggable = {active}
         else:
             draggable = set()
@@ -495,14 +515,34 @@ class CalibrationPane(QWidget):
 
     def _on_marker_dragged(self, name: str, x: int, y: int) -> None:
         """WP-I1-034: drag end → set_calibration_points (merge=true) for
-        that marker at the new position."""
+        that marker at the new position.
+
+        WP-I1-034 fix: when the dragged marker has NO existing operator
+        entry yet (operator just dragged the auto-detected dot in Overview
+        mode), supply mediapipe_xy explicitly — the original auto-detected
+        position cached at the last refresh — so the deformation field has
+        a real source point. Without this, the dispatcher would re-derive
+        mediapipe_xy from rig.face_mesh AT THE NEW POSITION (because the
+        rig has been calibrated already), producing identity-warp.
+        """
         avatar = self._app.state.avatar_slug
         if not avatar or name not in ALL_MARKER_NAMES_ORDERED:
             return
+        marker_payload: dict = {"name": name, "operator_xy": [x, y]}
+        # Check if this marker already has an operator entry.
+        cal = self._load_active_calibration()
+        existing_names = (
+            {m.name for m in cal.markers} if cal is not None else set()
+        )
+        if name not in existing_names:
+            detected = getattr(self, "_last_detected_positions", {}) or {}
+            if name in detected:
+                mp_x, mp_y = detected[name]
+                marker_payload["mediapipe_xy"] = [int(mp_x), int(mp_y)]
         self._app.handle_command(
             {
                 "command": "set_calibration_points",
-                "markers": [{"name": name, "operator_xy": [x, y]}],
+                "markers": [marker_payload],
                 "merge": True,
             }
         )

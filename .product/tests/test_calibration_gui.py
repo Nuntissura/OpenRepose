@@ -327,6 +327,50 @@ def test_calibration_pane_click_with_placeholder_selected_is_noop(
     assert app.state.calibration["marker_count"] == 0
 
 
+def test_calibration_overview_drag_of_detected_dot_creates_operator_marker(
+    app_and_window, aeri_master: Path, qtbot
+) -> None:
+    """WP-I1-034 follow-up fix: in Overview mode, dragging an auto-detected
+    dim dot for a marker that has no operator entry yet must CREATE an
+    operator marker on release (with mediapipe_xy = original detected
+    position, operator_xy = drop position)."""
+    from openrepose.gui.calibration import DROPDOWN_OVERVIEW
+
+    app, window = app_and_window
+    app.handle_command(
+        {
+            "command": "import_portrait",
+            "path": str(aeri_master),
+            "avatar_slug": "aeri",
+        }
+    )
+    pane = window._calibration
+    pane._marker_combo.setCurrentText(DROPDOWN_OVERVIEW)
+    qtbot.wait(20)
+    # Confirm the auto-detected positions are in the draggable set.
+    detected = pane._compute_detected_positions()
+    assert detected is not None and "eye_outer_left" in detected
+    assert "eye_outer_left" in pane._portrait._draggable_names
+    # No operator markers yet.
+    assert app.state.calibration["marker_count"] == 0
+    # Simulate a drag end on eye_outer_left.
+    pane._on_marker_dragged("eye_outer_left", 555, 666)
+    qtbot.wait(20)
+    # An operator marker now exists.
+    assert app.state.calibration["marker_count"] == 1
+    d = app.handle_command({"command": "dump_calibration"})
+    el = next(
+        m
+        for m in d.payload["calibration"]["markers"]
+        if m["name"] == "eye_outer_left"
+    )
+    assert el["operator_xy"] == [555.0, 666.0]
+    # mediapipe_xy is the ORIGINAL auto-detected position, NOT the drop.
+    mp_x, mp_y = detected["eye_outer_left"]
+    assert abs(el["mediapipe_xy"][0] - mp_x) < 1.5
+    assert abs(el["mediapipe_xy"][1] - mp_y) < 1.5
+
+
 def test_calibration_pane_drag_dispatches_set_calibration_points(
     app_and_window, aeri_master: Path, qtbot
 ) -> None:
