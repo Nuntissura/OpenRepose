@@ -1,12 +1,12 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-04 (Sweep B finale shipped: WP-I3-008 Triage GUI tab + 3 snapshot targets at REVIEW. All three Sweep B WPs (-007/-008/-009) now pending operator sign-off. Only WP-I3-010 end-to-end EXP120 verification remains to close I3 v0.1.)
+Last Updated: 2026-05-04 (I3 closing kickoff: WP-I3-010 end-to-end EXP120 verification IN-PROGRESS. WP-I3-007/008/009 still in REVIEW. After WP-I3-010 ships, I3 v0.1 closes pending operator sign-off.)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 0
+- WPs in flight (READY + IN-PROGRESS): 1 (WP-I3-010 e2e EXP120 verification)
 - WPs pending review (REVIEW): 3 (WP-I3-009 audit-script extension; WP-I3-007 requirements editor + target tree; WP-I3-008 triage GUI tab + snapshot targets)
 - WPs done (I3): 5 (WP-I3-001 spec lock; WP-I3-002 stance primitives; WP-I3-003 PG schema migrations; WP-I3-004 intake/project/task command surface; WP-I3-005 default-staging ComfyUI bridge; WP-I3-006 AMood data-model commands)
 - WPs blocked (BLOCKED): 0
@@ -24,7 +24,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-_(none)_
+| WP-I3-010 | End-to-end EXP120 verification | assistant | IN-PROGRESS | VERIFICATION | M | 2026-05-04 |
 
 ## Pending Review
 
