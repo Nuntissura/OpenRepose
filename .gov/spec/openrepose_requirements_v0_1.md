@@ -1,6 +1,6 @@
 # OpenRepose Requirements & Targets Spec — v0.1
 
-Version: v0.1 (DRAFT)
+Version: v0.1 (LOCKED)
 Authored by: WP-I3-001 (DOCUMENTATION)
 Spec scope: typed scoped requirements registry, target tree (sets → cards → per-card targets), counters, satisfaction semantics, EXP120 worked example.
 

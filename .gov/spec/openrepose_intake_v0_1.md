@@ -1,6 +1,6 @@
 # OpenRepose Intake & Triage Spec — v0.1
 
-Version: v0.1 (DRAFT)
+Version: v0.1 (LOCKED)
 Authored by: WP-I3-001 (DOCUMENTATION)
 Spec scope: project/task/batch hierarchy, intake staging, triage workflow, two-stage acceptance, default-staging ComfyUI bridge behavior.
 

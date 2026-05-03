@@ -1,6 +1,6 @@
 # OpenRepose AMood Integration Spec — v0.1
 
-Version: v0.1 (DRAFT)
+Version: v0.1 (LOCKED)
 Authored by: WP-I3-001 (DOCUMENTATION)
 Spec scope: how OpenRepose operationalizes the AMood adult-moodboard blueprint. The blueprint stays canonical for *structure*; this spec covers *operation*.
 

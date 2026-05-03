@@ -1,6 +1,6 @@
 # OpenRepose Rule Registry Spec — v0.1
 
-Version: v0.1 (DRAFT)
+Version: v0.1 (LOCKED)
 Authored by: WP-I3-001 (DOCUMENTATION)
 Spec scope: stable rule_ids, severity tiers, error-citation contract, global-vs-project-scoped registry split, audit coverage, initial registry seeded with the 6 existing repo rules + AMood + intake + targets families.
 

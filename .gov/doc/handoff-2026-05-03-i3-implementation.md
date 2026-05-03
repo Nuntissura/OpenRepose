@@ -92,16 +92,16 @@ The design conversation that produced WP-I3-001 was extensive. These decisions a
 
 ```text
 branch: main
-HEAD: dd35036 + close-out commit (this handoff + WP-I3-001 archive move)
+HEAD at handoff close-out: 5297b04 (WP-I3-001 DONE + I3 implementation handoff)
 
-I3 specs DONE: WP-I3-001 (DOCUMENTATION) + WP-I3-002 (IMPLEMENTATION).
+I3 spec lock DONE: WP-I3-001 (DOCUMENTATION). WP-I3-002 is IMPLEMENTATION at REVIEW.
 
 I2 still at REVIEW: WP-I2-001..008. Operator has not yet signed off.
 You can implement I3 against the I2 codebase as it stands at REVIEW —
 the I2 sequence is functionally complete; sign-off is pending operator
 verification, not technical issues.
 
-I1 backlog: 21 drafted WPs, 1 deferred (WP-I1-012), 3 reserved-not-drafted
+I1 backlog: 18 drafted WPs, 1 deferred (WP-I1-012), 2 pending review (WP-I1-034/WP-I1-035), 3 reserved-not-drafted
 (WP-I1-019/020/021). Do not pull from these unless the operator explicitly
 authorizes; I3 is the operator's stated focus.
 

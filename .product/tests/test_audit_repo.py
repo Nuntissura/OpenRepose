@@ -38,7 +38,7 @@ def _run_audit(repo: Path) -> subprocess.CompletedProcess[str]:
     assert pwsh is not None
     script = repo / "scripts" / "audit-repo.ps1"
     return subprocess.run(
-        [pwsh, "-NoProfile", "-File", str(script)],
+        [pwsh, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script)],
         cwd=str(repo),
         capture_output=True,
         text=True,
