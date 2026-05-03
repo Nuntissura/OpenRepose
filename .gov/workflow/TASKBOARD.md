@@ -1,12 +1,12 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (overnight I2 sequence: WP-I2-002 → REVIEW; WP-I2-001 IN-PROGRESS next)
+Last Updated: 2026-05-03 (overnight I2 sequence: WP-I2-002 → REVIEW; WP-I2-001 IN-PROGRESS — Postgres pool + migrator)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 0 (WP-I2-002 → REVIEW; WP-I2-001 promotion next)
+- WPs in flight (READY + IN-PROGRESS): 1 (WP-I2-001 IN-PROGRESS — Postgres pool + migrator)
 - WPs pending review (REVIEW): 0
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 21 + 8 new I2 WPs (drafting in this session)
@@ -22,7 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-_(none — WP-I2-002 → REVIEW)_
+| WP-I2-001 | PostgreSQL setup + migration runner | assistant | IN-PROGRESS | INFRASTRUCTURE | M | 2026-05-03 |
 
 ## Pending Review
 

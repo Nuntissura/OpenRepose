@@ -2,10 +2,10 @@
 
 ## Header
 
-- **Owner**: TBD
+- **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: DRAFT
+- **Status**: IN-PROGRESS
 - **Iteration**: I2
 - **Workflow Version**: 1.1
 - **Packet Class**: INFRASTRUCTURE
@@ -166,3 +166,4 @@ Stand up the PostgreSQL backend the Feature 3 spec locks. Ship: a `docker-compos
 ## Progress Log
 
 - 2026-05-03: WP drafted at status DRAFT. First WP of the I2 implementation iteration. Predecessor WP-I1-033 spec DONE.
+- 2026-05-03: Promoted DRAFT → READY → IN-PROGRESS (kickoff commit). Owner: assistant. Operator overnight autonomous I2 sequence. WP-I2-002 (Settings v2) landed first as predecessor, despite the original ordering noted in the WP-I2-002 draft.
