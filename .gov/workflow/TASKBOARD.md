@@ -22,7 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I1-029 | Per-Marker Visibility Toggles | assistant | IN-PROGRESS | IMPLEMENTATION | M | 2026-05-03 (rejected from REVIEW for follow-up bug fix) |
+| WP-I1-030 | Export Polish (PNG + pretty JSON + slug sanitization) | assistant | IN-PROGRESS | IMPLEMENTATION | S | 2026-05-03 |
 
 ## Pending Review
 
