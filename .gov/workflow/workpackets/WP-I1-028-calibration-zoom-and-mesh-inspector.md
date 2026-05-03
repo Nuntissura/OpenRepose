@@ -1,26 +1,32 @@
-# WP-I1-028 - Calibration Zoom And Frontal Mesh Inspector
+# WP-I1-028 - Calibration Tab UX (Zoom + Mesh Inspector + Always-On Markers + Drag/Delete)
 
 ## Header
 
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
-- **Last Updated**: 2026-05-03
+- **Last Updated**: 2026-05-03 (scope expanded after operator GUI inspection)
 - **Status**: DRAFT
 - **Iteration**: I1
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
-- **Effort Estimate**: M
-- **Linked Spec**: `.gov/spec/openrepose_v0_1.md` Feature 2 / GUI Requirements (Calibration tab — extend with zoom + mesh inspector).
+- **Effort Estimate**: L (expanded from M; original scope was zoom + inspector; expanded to also fold in drag-to-move + right-click-delete from WP-I1-001's Fallback Register, plus always-on MediaPipe-detected overlay surfaced during operator inspection 2026-05-03)
+- **Linked Spec**: `.gov/spec/openrepose_v0_1.md` Feature 2 / GUI Requirements (Calibration tab — extend with zoom + mesh inspector + always-on detected overlay + drag/delete).
 - **Linked Test Suite**: `.product/tests/test_calibration_gui.py` (extend) and `.product/tests/test_calibration_zoom.py` (NEW for the zoom-centric mapping math).
 - **Linked Check Script**: N/A.
 
 ## Intent
 
-Make the Calibration tab actually usable for marking small features on a stylized portrait. Two surfaces:
+Make the Calibration tab actually usable for marking small features on a stylized portrait. Four surfaces:
+
 (a) **Mouse-wheel zoom + click-drag pan** on the master portrait — current full-fit display makes it hard to land a marker on a 5px feature like the outer eye corner.
+
 (b) **Frontal mesh inspector** — a small collapsible widget showing the 3D rig's face mesh from the front (or any chosen angle). Has its own angle slider that rotates this preview only; does NOT mutate `state.yaw`, the active rig, or the OpenPose preview / export. Operator can sanity-check which detected landmark corresponds to which anatomical feature without losing their place on the active yaw.
 
-Surfaced during WP-I1-001 GUI verification: operator confused jaw-corner markers without an independent mesh reference.
+(c) **Always-on MediaPipe-detected overlay** — show the auto-detected positions for all 10 calibration features (`eye_outer_left`, `mouth_corner_right`, etc.) as dim dots over the portrait the moment a portrait is loaded, before any operator marker is placed. Today the overlay only renders markers the operator has explicitly placed; the operator expected to see MediaPipe's detected positions immediately so they know where the auto-fit thinks each feature is and can decide whether to override. Scope added 2026-05-03 after operator GUI inspection.
+
+(d) **Drag-to-move + right-click-delete on operator markers** — currently click-only-place. WP-I1-001 deferred drag/delete to a polish WP; this is that WP. With markers always visible (per c) drag-and-drop becomes the natural editing model.
+
+Surfaced during WP-I1-001 GUI verification: operator confused jaw-corner markers without an independent mesh reference, and could not see the auto-detected positions to compare against.
 
 ## Linked Workpackets
 
@@ -56,20 +62,23 @@ Decision: replace `_ClickablePortrait(QLabel)` in `gui/calibration.py` with a `_
 
 ## In Scope
 
-- Replace `_ClickablePortrait` in `gui/calibration.py` with `_ZoomableImageView(QGraphicsView)`. Mouse-wheel zoom anchored under cursor; click (no drag) emits image-space (x, y); left-click + drag pans. Reset-to-fit button next to the zoom area.
+- Replace `_ClickablePortrait` in `gui/calibration.py` with `_ZoomableImageView(QGraphicsView)`. Mouse-wheel zoom anchored under cursor; click (no drag) emits image-space (x, y); left-click + drag pans (Qt's ScrollHandDrag mode). Reset-to-fit button next to the zoom area.
 - Add a "Mesh inspector" collapsible widget below the portrait viewer in `gui/calibration.py`. Contents: small wireframe rendering of the rig face mesh + body skeleton; angle slider `[-90, +90]` (matches the toolbar slider's range); current angle readout.
 - The inspector renders via the existing `render/draw_3d.py` `render_3d_viewport(rotated)` against a synthesized `RotatedRig` at the inspection-only angle. No state mutation: `state.yaw`, `dispatcher._rig`, OpenPose preview, and export output are untouched by inspector slider movement.
 - Collapse / expand toggle (QToolButton arrow). Default expanded.
-- Tests: extend `test_calibration_gui.py` with zoom + inspector cases; new `test_calibration_zoom.py` for the click-to-image-space mapping under various zoom + pan states.
+- **Always-on MediaPipe-detected overlay**: extend `render/draw_calibration.py` to ALSO draw the auto-detected MediaPipe positions for all 10 calibration features (`eye_outer_left` ... `chin_bottom` from the existing `MEDIAPIPE_FACEMESH_INDEX_BY_MARKER` map) as dim dots even when no calibration JSON exists. Render path needs the active rig's `raw_face_mesh` (so even after calibration is applied, the dim dots show the original detected positions, not the corrected ones). Operator markers continue to render as bright rings on top.
+- **Drag-to-move on operator markers**: when the cursor is within `OPERATOR_RING_RADIUS` pixels of an existing operator marker on press, switch the QGraphicsView from pan mode to drag-marker mode for that gesture. On release, fire `set_calibration_points` with the marker's new position (merge=True).
+- **Right-click delete on operator markers**: when the right-click hit-tests against an existing operator marker, fire a delete-marker dispatch. Since `set_calibration_points` doesn't have an explicit "remove one marker" form yet, add a `delete_markers` LLM command (payload `{"names": ["eye_outer_left", ...]}`) plus a GUI right-click handler that calls it.
+- Tests: extend `test_calibration_gui.py` with zoom + inspector + always-on-detected-overlay + drag-to-move + right-click-delete cases; new `test_calibration_zoom.py` for the click-to-image-space mapping under various zoom + pan states; new `test_delete_markers_command.py` for the dispatcher.
 
 ## Out Of Scope
 
-- Drag-to-move existing operator markers (defer to a separate polish WP).
-- Right-click delete operator markers (defer).
 - Mesh inspector with full pitch/roll (yaw only, mirroring v0.1 spec scope).
 - Full rotation animation in the inspector (slider scrubs; no auto-play).
 - A separate snapshot target for the inspector view (operator can grab the whole calibration_pane via `inspector_pane`-style widget grab if the WP-I0-003 widget provider is extended; not in scope here).
 - Programmatic LLM control of zoom or inspector angle (operator-facing only; LLM uses commands).
+- Auto-detection of stylized features (the MediaPipe positions are what they are; the operator drags them to the right place. Auto-detect for stylized faces is a future RESEARCH WP).
+- Multi-marker drag-select / box-drag (single-marker drag only in this WP).
 
 ## Expected Files Touched
 
@@ -100,11 +109,15 @@ Decision: replace `_ClickablePortrait(QLabel)` in `gui/calibration.py` with a `_
 - [ ] `_ZoomableImageView(QGraphicsView)` replaces `_ClickablePortrait`; mouse-wheel zoom anchored under cursor; click-drag pans; single click emits image-space coords accurately.
 - [ ] `_MeshInspector` widget renders the rig at an independent yaw; slider scrubs `[-90, +90]`; collapse toggle works; `state.yaw` and active rig untouched by slider movement.
 - [ ] Reset-zoom-to-fit button works.
-- [ ] All existing calibration GUI tests pass; new tests added for zoom mapping + inspector independence + collapse toggle.
-- [ ] No `raise_/activateWindow/showNormal/showMaximized` from any path; runtime test asserts this across 10 zoom + slider events.
+- [ ] Always-on MediaPipe-detected dots: when a portrait is loaded but no calibration markers exist, the overlay shows 10 dim anatomical-feature dots over the portrait. Persist when calibration markers are added (operator markers render bright on top; detected dots stay dim underneath).
+- [ ] Drag-to-move: pressing on an existing operator marker enters drag mode; on release the marker's new position dispatches `set_calibration_points {merge: true}`.
+- [ ] Right-click on an operator marker dispatches the new `delete_markers` command, removing that marker from the calibration JSON; the bright ring disappears on the next refresh.
+- [ ] New `delete_markers` LLM command (payload `{"names": [...]}`) registered + tested headlessly.
+- [ ] All existing calibration GUI tests pass; new tests added for zoom mapping + inspector independence + collapse toggle + always-on detected overlay + drag + right-click-delete.
+- [ ] No `raise_/activateWindow/showNormal/showMaximized` from any path; runtime test asserts this across 10 zoom + slider + drag events.
 - [ ] `pytest` zero failures; full project suite still green; junit XML at `target/test-artifacts/WP-I1-028/pytest_results.xml`.
 - [ ] `pwsh scripts/audit-repo.ps1` exits 0.
-- [ ] Operator confirms manual calibration cycle with zoom + inspector on the Aeri master.
+- [ ] Operator confirms manual calibration cycle with zoom + inspector + drag + delete on the Aeri master.
 
 ## Test Coverage Plan
 
@@ -184,3 +197,4 @@ Decision: replace `_ClickablePortrait(QLabel)` in `gui/calibration.py` with a `_
 ## Progress Log
 
 - 2026-05-03: WP drafted at status DRAFT. Predecessor (WP-I1-001) DONE. Awaits operator promotion to READY.
+- 2026-05-03: Scope expanded after operator GUI inspection. Original M-effort scope (zoom + mesh inspector) extended to L-effort to include: always-on MediaPipe-detected overlay (operator expected dim dots showing MediaPipe positions immediately on portrait load), drag-to-move operator markers, right-click-delete operator markers, and a new headless `delete_markers` command. Drag-and-delete were originally deferred from WP-I1-001 to a polish WP; this is now that polish WP. Effort bumped DRAFT-stage from M to L; revisit at promotion.

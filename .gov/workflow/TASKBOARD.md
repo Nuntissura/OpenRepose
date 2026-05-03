@@ -9,7 +9,7 @@ Live status of all OpenRepose workpackets. Update in the same session as any wor
 - WPs in flight (READY + IN-PROGRESS): 0
 - WPs pending review (REVIEW): 0
 - WPs blocked (BLOCKED): 0
-- WPs draft (DRAFT, eligible to promote): 22 (19 original + WP-I1-027/028/029 follow-ups drafted 2026-05-03)
+- WPs draft (DRAFT, eligible to promote): 21 (19 original + WP-I1-028 + WP-I1-030 + WP-I1-031; WP-I1-027 + WP-I1-029 + WP-I1-023 in REVIEW)
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
 - WPs done (I0): 4 (WP-I0-001/002/003/004) — I0 CLOSED 2026-05-02
 - WPs done (I1): 3 (WP-I1-025, WP-I1-026, WP-I1-001)
@@ -75,8 +75,10 @@ I0 closed 2026-05-02. The I0-blocking constraint on every I1 WP below is satisfi
 | WP-I1-023 | Frame reframing (robust rerender) | IMPLEMENTATION | M | High (fixes portrait-bias / cropped-feet) | yes | I0; composes with WP-I1-022 |
 | WP-I1-024 | Synchronized viewport zoom | IMPLEMENTATION | S | Polish | n/a (GUI sync only; headless covered by WP-I1-023) | WP-I0-004; WP-I1-015; WP-I1-023 |
 | WP-I1-027 | Export folder picker + persistence | IMPLEMENTATION | M | High (current bug: pasted paths silently ignored) | yes (dump_settings) | I0 (DONE) |
-| WP-I1-028 | Calibration zoom + frontal mesh inspector | IMPLEMENTATION | M | High (WP-I1-001 UX polish — operator confused jaw markers without it) | n/a (operator-side polish) | WP-I1-001 (DONE) |
+| WP-I1-028 | Calibration tab UX (zoom + mesh inspector + always-on markers + drag/delete) | IMPLEMENTATION | L | High (WP-I1-001 UX polish; scope expanded 2026-05-03 to fold drag/delete + always-on detected overlay surfaced during operator inspection) | n/a (operator-side polish; new delete_markers command is headless) | WP-I1-001 (DONE) |
 | WP-I1-029 | Per-marker visibility toggles | IMPLEMENTATION | M | Mid (companion to WP-I1-017 group-level toggles; per-marker overrides) | yes | I0 (DONE); composes with WP-I1-017 |
+| WP-I1-030 | Export polish (PNG + pretty JSON + slug sanitization) | IMPLEMENTATION | S | High (operator surfaced 3 issues during GUI inspection) | n/a (export side; LLM gets PNG path in payload) | WP-I1-027 (REVIEW) |
+| WP-I1-031 | Tools tab reorganization (Tools tab w/ Calibration / Markers / Reframer sub-tabs) | IMPLEMENTATION | S | Mid (UI grouping per operator request) | n/a (pure GUI reshuffle) | WP-I1-027/029/023 (REVIEW) |
 
 ## Recently Done
 
@@ -117,8 +119,10 @@ _(none)_
 - Workflow Version bumped to 1.1: new IMPLEMENTATION/RESEARCH WPs created from the template must carry a `## Research Notes` section. Existing 1.0 WPs grandfathered.
 - WP-I1-026 (Feature 2 Calibration Overlay Spec, DOCUMENTATION) shipped DONE 2026-05-02 — locks the deformation algorithm (TPS via scipy), marker schema, calibration JSON schema, command surface, state-file shape, and snapshot target for WP-I1-001 to implement against.
 - WP-I1-001 (Per-Avatar Calibration Overlay, IMPLEMENTATION, L) shipped DONE 2026-05-03. 178/178 tests passing; junit XML at `target/test-artifacts/WP-I1-001/`. GUI verification surfaced two Calibration-tab usability gaps (no zoom; no frontal mesh sanity preview) — operator approved sign-off on the basis that the spec contract + headless surface + tests are met; deferred items recorded in WP-I1-001 Fallback Register and queued as WP-I1-028.
-- 2026-05-03: three follow-up WPs drafted at status DRAFT: **WP-I1-027 Export folder picker + persistence** (highest priority — fixes the bug where the OptionsPane `settings_changed` signal is unwired so pasted paths silently ignored); **WP-I1-028 Calibration zoom + frontal mesh inspector** (UX polish for WP-I1-001 — surfaced during sign-off when operator confused jaw markers without an independent mesh reference); **WP-I1-029 Per-marker visibility toggles** (sibling of WP-I1-017's per-body-part — per-marker overrides, both layers compose with documented precedence).
-- 22 I1 WPs at DRAFT awaiting promotion.
+- 2026-05-03: three follow-up WPs drafted at status DRAFT: **WP-I1-027 Export folder picker + persistence** (highest priority — fixes the bug where the OptionsPane `settings_changed` signal is unwired so pasted paths silently ignored); **WP-I1-028 Calibration zoom + frontal mesh inspector** (UX polish for WP-I1-001); **WP-I1-029 Per-marker visibility toggles** (sibling of WP-I1-017's per-body-part).
+- 2026-05-03 fast-track: WP-I1-027 + WP-I1-017 + WP-I1-029 + WP-I1-023 shipped to REVIEW; viewport regression caught by operator GUI inspection and fixed in-place; suite 281/281 + 4 regression-guard tests on the polling path. Pytest now runs offscreen so windows don't flash on the operator's desktop.
+- 2026-05-03 Phase 2: drafted **WP-I1-030 Export polish** (PNG output + pretty-printed JSON + avatar slug sanitization); drafted **WP-I1-031 Tools tab reorganization** (Tools top-level with Calibration / Markers / Reframer sub-tabs); expanded **WP-I1-028** scope from M → L to fold in always-on MediaPipe-detected overlay + drag-to-move + right-click-delete + new `delete_markers` headless command.
+- 21 I1 WPs at DRAFT (19 original + WP-I1-028/030/031 follow-ups). 4 in REVIEW awaiting operator sign-off (WP-I1-027/017/029/023).
 
 ## Iteration Pipeline
 
