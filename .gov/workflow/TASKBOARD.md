@@ -22,7 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I1-034 | Calibration overview mode + drag/delete + add-marker + mesh inspector | assistant | IN-PROGRESS | IMPLEMENTATION | L | 2026-05-03 |
+| WP-I1-035 | In-app manual + manual-impact governance rule | assistant | IN-PROGRESS | IMPLEMENTATION | M | 2026-05-03 |
 
 ## Pending Review
 
