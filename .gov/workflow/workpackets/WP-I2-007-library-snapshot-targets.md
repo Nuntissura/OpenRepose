@@ -2,10 +2,10 @@
 
 ## Header
 
-- **Owner**: TBD
+- **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: DRAFT
+- **Status**: IN-PROGRESS
 - **Iteration**: I2
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -72,3 +72,4 @@ Add the two new snapshot targets per spec: `library_entry` (selected entry's sid
 ## Progress Log
 
 - 2026-05-03: WP drafted at DRAFT.
+- 2026-05-03: Promoted DRAFT → READY → IN-PROGRESS (kickoff commit). Owner: assistant. Operator overnight autonomous I2 sequence.

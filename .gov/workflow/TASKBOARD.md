@@ -1,12 +1,12 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (overnight I2 sequence: WP-I2-001..006 → REVIEW; WP-I2-007 next — snapshot targets)
+Last Updated: 2026-05-03 (overnight I2 sequence: WP-I2-001..006 → REVIEW; WP-I2-007 IN-PROGRESS — snapshot targets)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 0 (WP-I2-005 + WP-I2-006 → REVIEW)
+- WPs in flight (READY + IN-PROGRESS): 1 (WP-I2-007 IN-PROGRESS — snapshots)
 - WPs pending review (REVIEW): 0
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 21 + 8 new I2 WPs (drafting in this session)
@@ -22,7 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-_(none — WP-I2-005 + WP-I2-006 → REVIEW)_
+| WP-I2-007 | Library snapshot targets | assistant | IN-PROGRESS | IMPLEMENTATION | S | 2026-05-03 |
 
 ## Pending Review
 
