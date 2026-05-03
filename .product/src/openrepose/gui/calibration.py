@@ -22,10 +22,13 @@ from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QImage, QMouseEvent, QPixmap
+from PySide6.QtCore import QPoint, Qt, Signal
+from PySide6.QtGui import QImage, QMouseEvent, QPixmap, QWheelEvent
 from PySide6.QtWidgets import (
     QComboBox,
+    QGraphicsPixmapItem,
+    QGraphicsScene,
+    QGraphicsView,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -35,6 +38,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..calibration import (
+    MEDIAPIPE_FACEMESH_INDEX_BY_MARKER,
     OPTIONAL_MARKERS,
     REQUIRED_MARKERS,
     Calibration,
@@ -49,30 +53,45 @@ if TYPE_CHECKING:
 ALL_MARKER_NAMES_ORDERED: tuple[str, ...] = REQUIRED_MARKERS + OPTIONAL_MARKERS
 
 
-class _ClickablePortrait(QLabel):
-    """QLabel that emits image-space (x, y) on left-click.
+class _ZoomableImageView(QGraphicsView):
+    """QGraphicsView with mouse-wheel zoom + click-drag pan + click-to-place.
 
-    WP-I1-032 fix: previous version inherited QLabel's pixmap-driven sizeHint,
-    which made the dock width follow the master portrait's natural pixel
-    width when the Calibration tab activated. We now report a small constant
-    sizeHint so the dock width is governed by the rest of the layout, not
-    the portrait pixmap.
+    WP-I1-028 (replaces WP-I1-001's `_ClickablePortrait`):
+    - Mouse wheel zooms anchored under the cursor.
+    - Middle-mouse drag pans (Qt's ScrollHandDrag).
+    - Single left-click (no movement past `CLICK_THRESHOLD_PX`) emits the
+      click in image-space coordinates so the operator can place markers
+      precisely under arbitrary zoom + pan.
+
+    WP-I1-032 sizing constraint preserved: sizeHint is bounded so the
+    Calibration tab does not grow the dock width.
     """
 
     clicked = Signal(int, int)
 
-    DOCK_WIDTH_CAP = 320  # GUI dock width policy; pixmap is scaled to fit.
+    DOCK_WIDTH_CAP = 320
+    MIN_ZOOM = 0.1
+    MAX_ZOOM = 8.0
+    ZOOM_STEP = 1.15
+    CLICK_THRESHOLD_PX = 4
 
     def __init__(self) -> None:
         super().__init__()
+        self._scene = QGraphicsScene(self)
+        self.setScene(self._scene)
+        self._pixmap_item: QGraphicsPixmapItem | None = None
+        self._image_size: tuple[int, int] = (0, 0)
+        self._press_pos: QPoint | None = None
+        self.setRenderHint(self.renderHints())  # default
+        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.setDragMode(QGraphicsView.DragMode.NoDrag)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setMinimumHeight(360)
         self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
-        self.setMinimumWidth(120)
-        self.setMaximumWidth(16777215)
-        self._image_size: tuple[int, int] = (0, 0)
-        self._displayed_size: tuple[int, int] = (0, 0)
-        self._displayed_offset: tuple[int, int] = (0, 0)
+        self.setStyleSheet("background-color: #111;")
 
     def sizeHint(self):  # noqa: D401, ANN201
         from PySide6.QtCore import QSize
@@ -89,16 +108,12 @@ class _ClickablePortrait(QLabel):
         bgr: np.ndarray,
         image_size: tuple[int, int],
     ) -> None:
-        """Show the rendered overlay scaled to fit the label.
-
-        Tracks the displayed size + offset so click coords can be back-projected
-        to original image space.
-        """
+        """Replace the rendered overlay. Preserves the operator's current
+        zoom + pan when the image_size matches (so toggling markers on a
+        loaded portrait does not reset zoom)."""
         self._image_size = image_size
         h, w = bgr.shape[:2]
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-        # ascontiguousarray makes the QImage stable; without it, slicing can
-        # produce non-contiguous memory and Qt sees stride mismatches.
         rgb = np.ascontiguousarray(rgb)
         qimg = QImage(
             rgb.data,
@@ -108,36 +123,72 @@ class _ClickablePortrait(QLabel):
             QImage.Format.Format_RGB888,
         ).copy()
         pix = QPixmap.fromImage(qimg)
-        scaled = pix.scaled(
-            self.size(),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        self.setPixmap(scaled)
-        self._displayed_size = (scaled.width(), scaled.height())
-        # Center inside the label widget.
-        ox = max(0, (self.width() - scaled.width()) // 2)
-        oy = max(0, (self.height() - scaled.height()) // 2)
-        self._displayed_offset = (ox, oy)
+        if self._pixmap_item is None:
+            self._pixmap_item = self._scene.addPixmap(pix)
+            self._scene.setSceneRect(0, 0, w, h)
+            # Initial fit-to-view.
+            self.fitInView(
+                self._pixmap_item, Qt.AspectRatioMode.KeepAspectRatio
+            )
+        else:
+            self._pixmap_item.setPixmap(pix)
+
+    def reset_zoom(self) -> None:
+        """Fit pixmap to view (used by an external Reset button)."""
+        if self._pixmap_item is not None:
+            self.fitInView(
+                self._pixmap_item, Qt.AspectRatioMode.KeepAspectRatio
+            )
+
+    def wheelEvent(self, event: QWheelEvent) -> None:  # noqa: D401
+        if self._pixmap_item is None:
+            return
+        delta = event.angleDelta().y()
+        if delta == 0:
+            return
+        factor = self.ZOOM_STEP if delta > 0 else 1 / self.ZOOM_STEP
+        # Clamp cumulative zoom to [MIN_ZOOM, MAX_ZOOM].
+        current = self.transform().m11()
+        new_scale = current * factor
+        if new_scale < self.MIN_ZOOM or new_scale > self.MAX_ZOOM:
+            return
+        self.scale(factor, factor)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        if event.button() != Qt.MouseButton.LeftButton:
-            return
-        if self._image_size == (0, 0) or self._displayed_size == (0, 0):
-            return
-        click = event.position()
-        ox, oy = self._displayed_offset
-        dx = click.x() - ox
-        dy = click.y() - oy
-        dw, dh = self._displayed_size
-        if dx < 0 or dy < 0 or dx >= dw or dy >= dh:
-            return
-        iw, ih = self._image_size
-        ix = int(round(dx * iw / dw))
-        iy = int(round(dy * ih / dh))
-        ix = max(0, min(iw - 1, ix))
-        iy = max(0, min(ih - 1, iy))
-        self.clicked.emit(ix, iy)
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._press_pos = event.pos()
+        elif event.button() == Qt.MouseButton.MiddleButton:
+            # Switch to ScrollHandDrag for the duration of this gesture.
+            self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.MiddleButton:
+            self.setDragMode(QGraphicsView.DragMode.NoDrag)
+        elif (
+            event.button() == Qt.MouseButton.LeftButton
+            and self._press_pos is not None
+        ):
+            release_pos = event.pos()
+            dx = release_pos.x() - self._press_pos.x()
+            dy = release_pos.y() - self._press_pos.y()
+            self._press_pos = None
+            # Treat as click only when cursor barely moved (otherwise it
+            # was a pan / drag-zoom gesture we should not interpret as
+            # marker placement).
+            if abs(dx) > self.CLICK_THRESHOLD_PX or abs(dy) > self.CLICK_THRESHOLD_PX:
+                super().mouseReleaseEvent(event)
+                return
+            if self._image_size == (0, 0) or self._pixmap_item is None:
+                super().mouseReleaseEvent(event)
+                return
+            scene_pt = self.mapToScene(release_pos)
+            iw, ih = self._image_size
+            ix = int(round(scene_pt.x()))
+            iy = int(round(scene_pt.y()))
+            if 0 <= ix < iw and 0 <= iy < ih:
+                self.clicked.emit(ix, iy)
+        super().mouseReleaseEvent(event)
 
 
 class CalibrationPane(QWidget):
@@ -170,8 +221,8 @@ class CalibrationPane(QWidget):
         top.addWidget(self._completeness)
         layout.addLayout(top)
 
-        # Portrait display with overlay.
-        self._portrait = _ClickablePortrait()
+        # Portrait display with zoom + pan (WP-I1-028).
+        self._portrait = _ZoomableImageView()
         self._portrait.clicked.connect(self._on_portrait_clicked)
         layout.addWidget(self._portrait, 1)
 
@@ -180,11 +231,14 @@ class CalibrationPane(QWidget):
         self.btn_save = QPushButton("Save")
         self.btn_clear = QPushButton("Clear")
         self.btn_redetect = QPushButton("Re-detect")
+        self.btn_reset_zoom = QPushButton("Reset zoom")
         btn_row.addWidget(self.btn_save)
         btn_row.addWidget(self.btn_clear)
         btn_row.addWidget(self.btn_redetect)
+        btn_row.addWidget(self.btn_reset_zoom)
         btn_row.addStretch(1)
         layout.addLayout(btn_row)
+        self.btn_reset_zoom.clicked.connect(self._portrait.reset_zoom)
 
         # Status / hint label.
         self._hint = QLabel(
@@ -204,10 +258,19 @@ class CalibrationPane(QWidget):
     # --- public update path (called by MainWindow polling) ---------------
 
     def refresh(self) -> None:
-        """Render the portrait + current calibration overlay."""
+        """Render the portrait + current calibration overlay.
+
+        WP-I1-028: also passes detected_positions so the always-on dim
+        MediaPipe dots render even before the operator places any
+        operator marker. Detected positions come from the active rig's
+        raw_face_mesh at the canonical FaceMesh indices for each marker.
+        """
         cal = self._load_active_calibration()
         portrait_path = self._app.state.portrait
-        bgr = render_calibration_overlay(portrait_path, cal)
+        detected = self._compute_detected_positions()
+        bgr = render_calibration_overlay(
+            portrait_path, cal, detected_positions=detected
+        )
         h, w = bgr.shape[:2]
         self._portrait.set_overlay(bgr, image_size=(w, h))
 
@@ -219,6 +282,25 @@ class CalibrationPane(QWidget):
         self._completeness.setText(
             f"calibration: {completeness} ({marker_count} markers)"
         )
+
+    def _compute_detected_positions(self) -> dict[str, tuple[float, float]] | None:
+        """Build {marker_name: (x, y)} from the active rig's raw_face_mesh
+        + canonical FaceMesh indices. Returns None when no rig loaded."""
+        rig = self._app.dispatcher.rig
+        if rig is None:
+            return None
+        src = (
+            rig.raw_face_mesh
+            if rig.raw_face_mesh is not None
+            else rig.face_mesh
+        )
+        if src is None or src.shape[0] == 0:
+            return None
+        out: dict[str, tuple[float, float]] = {}
+        for name, idx in MEDIAPIPE_FACEMESH_INDEX_BY_MARKER.items():
+            if 0 <= idx < src.shape[0]:
+                out[name] = (float(src[idx, 0]), float(src[idx, 1]))
+        return out
 
     # --- operator action handlers ----------------------------------------
 

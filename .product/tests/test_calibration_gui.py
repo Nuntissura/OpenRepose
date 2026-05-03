@@ -215,9 +215,10 @@ def test_calibration_pane_clicks_do_not_call_focus_apis(
 
 def test_calibration_portrait_sizehint_constrained(app_and_window) -> None:
     """WP-I1-032 regression: switching to Calibration must NOT make the
-    portrait QLabel report a sizeHint wider than the dock cap, otherwise
+    portrait widget report a sizeHint wider than the dock cap, otherwise
     activating the tab would grow the dock width to the master portrait's
-    natural pixel width."""
+    natural pixel width. WP-I1-028 keeps the same constraint after
+    swapping the QLabel for QGraphicsView."""
     _app, window = app_and_window
     portrait = window._calibration._portrait
     hint = portrait.sizeHint()
@@ -225,6 +226,51 @@ def test_calibration_portrait_sizehint_constrained(app_and_window) -> None:
         f"portrait sizeHint width {hint.width()} exceeds dock cap "
         f"{portrait.DOCK_WIDTH_CAP}"
     )
+
+
+def test_calibration_portrait_is_zoomable_graphics_view(app_and_window) -> None:
+    """WP-I1-028: the portrait widget is now a QGraphicsView with zoom
+    bounds set."""
+    from openrepose.gui.calibration import _ZoomableImageView
+
+    _app, window = app_and_window
+    portrait = window._calibration._portrait
+    assert isinstance(portrait, _ZoomableImageView)
+    assert portrait.MIN_ZOOM > 0
+    assert portrait.MAX_ZOOM > portrait.MIN_ZOOM
+
+
+def test_calibration_pane_has_reset_zoom_button(app_and_window) -> None:
+    """WP-I1-028: Reset zoom button next to Save / Clear / Re-detect."""
+    _app, window = app_and_window
+    assert window._calibration.btn_reset_zoom is not None
+
+
+def test_calibration_pane_compute_detected_positions_uses_rig(
+    app_and_window, aeri_master: Path, qtbot
+) -> None:
+    """WP-I1-028: _compute_detected_positions returns a dict keyed by
+    marker name, with image-space positions from the rig's raw face mesh.
+    Empty when no rig is loaded."""
+    app, window = app_and_window
+    pane = window._calibration
+    # No rig → None.
+    assert pane._compute_detected_positions() is None
+    # Load rig.
+    app.handle_command(
+        {
+            "command": "import_portrait",
+            "path": str(aeri_master),
+            "avatar_slug": "aeri",
+        }
+    )
+    qtbot.wait(20)
+    detected = pane._compute_detected_positions()
+    assert detected is not None
+    assert len(detected) >= 6  # at least the 6 required markers
+    for name, (x, y) in detected.items():
+        assert isinstance(name, str)
+        assert x >= 0 and y >= 0
 
 
 def test_calibration_pane_no_modal_dialog_apis_in_source() -> None:

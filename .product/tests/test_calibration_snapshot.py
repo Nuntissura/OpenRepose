@@ -170,6 +170,34 @@ def test_snapshot_calibration_overlay_without_calibration(
 # --- no focus theft ---------------------------------------------------------
 
 
+def test_render_with_detected_positions_draws_dim_dots():
+    """WP-I1-028: render_calibration_overlay paints `detected_positions` as
+    dim dots even when no operator markers exist."""
+    detected = {
+        "eye_outer_left": (412.0, 487.0),
+        "mouth_corner_right": (310.0, 600.0),
+    }
+    img = render_calibration_overlay(
+        None, None, fallback_size=(1024, 1024), detected_positions=detected
+    )
+    # Some non-background pixels exist where dots were drawn.
+    bg_mask = np.all(img == [32, 32, 32], axis=-1)
+    assert (~bg_mask).any(), "expected detected-position dots to be drawn"
+
+
+def test_render_with_detected_positions_no_operator_markers_shows_hint():
+    """When detected positions exist but no operator marker, the overlay
+    shows the auto-detected hint text instead of the 'no calibration markers'
+    placeholder."""
+    detected = {"eye_outer_left": (200.0, 300.0)}
+    img = render_calibration_overlay(
+        None, None, fallback_size=(800, 600), detected_positions=detected
+    )
+    # Cannot easily OCR; assert the canvas was modified (label rendered).
+    bg_mask = np.all(img == [32, 32, 32], axis=-1)
+    assert (~bg_mask).any()
+
+
 def test_render_does_not_call_focus_apis():
     """Source check: draw_calibration must not import or call focus-stealing
     APIs (raise_, activateWindow, showNormal, setForegroundWindow)."""

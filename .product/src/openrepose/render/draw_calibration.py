@@ -31,28 +31,65 @@ def render_calibration_overlay(
     calibration: Calibration | None,
     *,
     fallback_size: tuple[int, int] = (1024, 1024),
+    detected_positions: dict[str, tuple[float, float]] | None = None,
 ) -> np.ndarray:
     """Render the overlay as a BGR image.
 
     `portrait_path` is the master; if missing or unreadable, render on a
     dark canvas of `fallback_size` so the snapshot still produces a
-    non-empty image. `calibration` is the active record; if None or empty,
-    the portrait is rendered with a "no calibration markers" label so the
-    operator can see the baseline.
+    non-empty image. `calibration` is the active record; operator markers
+    render as bright rings on top of MediaPipe positions.
+
+    WP-I1-028: `detected_positions` (anatomical name → MediaPipe-detected
+    pixel coord) is rendered as dim dots ALWAYS, even before any operator
+    marker is placed. Operator can see where MediaPipe thinks each feature
+    is and decide whether to override.
     """
     canvas = _load_portrait_or_canvas(portrait_path, fallback_size)
 
+    # WP-I1-028: always-on detected dots. Drawn first so operator markers
+    # render on top.
+    if detected_positions:
+        for name, (mx, my) in detected_positions.items():
+            mp = (int(round(mx)), int(round(my)))
+            cv2.circle(
+                canvas, mp, MEDIAPIPE_DOT_RADIUS, MEDIAPIPE_DOT_BGR, -1, cv2.LINE_AA
+            )
+            label_pos = (mp[0] + 8, mp[1] - 8)
+            cv2.putText(
+                canvas,
+                name,
+                label_pos,
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.35,
+                MEDIAPIPE_DOT_BGR,
+                1,
+                cv2.LINE_AA,
+            )
+
     if calibration is None or not calibration.markers:
-        cv2.putText(
-            canvas,
-            "no calibration markers",
-            (16, 32),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.65,
-            LABEL_BGR,
-            1,
-            cv2.LINE_AA,
-        )
+        if not detected_positions:
+            cv2.putText(
+                canvas,
+                "no calibration markers + no rig loaded",
+                (16, 32),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.55,
+                LABEL_BGR,
+                1,
+                cv2.LINE_AA,
+            )
+        else:
+            cv2.putText(
+                canvas,
+                "auto-detected positions shown — click to place operator marker",
+                (16, 28),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                LABEL_BGR,
+                1,
+                cv2.LINE_AA,
+            )
         return canvas
 
     for m in calibration.markers:
