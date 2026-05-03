@@ -22,7 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I1-031 | Tools Tab Reorganization (incl. frame-offset sliders) | assistant | IN-PROGRESS | IMPLEMENTATION | S | 2026-05-03 |
+| WP-I1-028 | Calibration Tab UX (zoom + always-on overlay; mesh inspector + drag/delete deferred to follow-up) | assistant | IN-PROGRESS | IMPLEMENTATION | M (reduced from L; split mesh inspector + drag/delete to follow-up) | 2026-05-03 |
 
 ## Pending Review
 
