@@ -22,7 +22,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I1-030 | Export Polish (PNG + pretty JSON + slug sanitization) | assistant | IN-PROGRESS | IMPLEMENTATION | S | 2026-05-03 |
+| WP-I1-031 | Tools Tab Reorganization (incl. frame-offset sliders) | assistant | IN-PROGRESS | IMPLEMENTATION | S | 2026-05-03 |
 
 ## Pending Review
 
