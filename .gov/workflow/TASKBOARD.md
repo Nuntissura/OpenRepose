@@ -1,13 +1,14 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-03 (WP-I3-001 REVIEW: spec lock complete — 4 specs + 3 manual topics + topology extension; WP-I3-002 also at REVIEW; I2 sequence still at REVIEW)
+Last Updated: 2026-05-03 (WP-I3-001 DONE; handoff for I3 implementation authored at .gov/doc/handoff-2026-05-03-i3-implementation.md; I2 + WP-I3-002 still at REVIEW)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
 - WPs in flight (READY + IN-PROGRESS): 0
-- WPs pending review (REVIEW): 10 (I2 sequence WP-I2-001..008 + WP-I3-001 spec lock + WP-I3-002 stance primitives)
+- WPs pending review (REVIEW): 9 (I2 sequence WP-I2-001..008 + WP-I3-002 stance primitives)
+- WPs done (I3): 1 (WP-I3-001) — I3 spec lock signed off 2026-05-03; implementation iteration unblocked
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 21 (I1 backlog)
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
@@ -39,7 +40,6 @@ Implementation claims to be done; awaiting operator verification.
 | WP-I2-007 | Library snapshot targets | assistant | IMPLEMENTATION | 2026-05-03 | render/draw_library + snapshot.py wiring + state.library.last_entry/last_search_results; 9 tests (7 unit + 2 dispatcher round-trip) |
 | WP-I2-008 | Library multi-operator tests + setup doc | assistant | VERIFICATION | 2026-05-03 | 6 tests (multi-pool + lock collision + advisory lock race + interleaved writes + 100-entry soak + pg_dump round-trip); operator setup doc at .gov/doc/i2-library-setup.md; closes I2 |
 | WP-I3-002 | LLM stance acknowledgement primitives | assistant | IMPLEMENTATION | 2026-05-03 | `adult_production_boundary` in state.json, dump_state, command envelopes, HTTP responses, and inbox processed results; 24 focused tests |
-| WP-I3-001 | AMood + Intake + Requirements Spec Lock | assistant | DOCUMENTATION | 2026-05-03 | 4 spec sections (`openrepose_amood/intake/rules/requirements_v0_1.md`) + 3 new manual topics + spec README + manual index + topology extension (rule_registry / requirements_kinds / intake_layout / state_file_schema / i3_command_surface / i3_snapshot_targets); 25 rule_ids in initial registry; EXP120 worked example |
 
 ## Blocked
 
@@ -102,6 +102,7 @@ Last 10 workpackets to reach DONE. Files moved from `workpackets/` to `archive/`
 
 | WP-ID | Title | Owner | Class | Closed |
 |-------|-------|-------|-------|--------|
+| WP-I3-001 | AMood + Intake + Requirements Spec Lock | assistant | DOCUMENTATION | 2026-05-03 |
 | WP-I1-028 | Calibration Tab UX (zoom + always-on overlay + spacebar pan) | assistant | IMPLEMENTATION | 2026-05-03 |
 | WP-I1-031 | Tools Tab Reorganization (incl. frame slider/spinbox) | assistant | IMPLEMENTATION | 2026-05-03 |
 | WP-I1-030 | Export Polish (PNG + pretty JSON + slug sanitization) | assistant | IMPLEMENTATION | 2026-05-03 |
