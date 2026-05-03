@@ -2,10 +2,10 @@
 
 ## Header
 
-- **Owner**: TBD
+- **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-03
-- **Status**: DRAFT
+- **Status**: IN-PROGRESS
 - **Iteration**: I2
 - **Workflow Version**: 1.1
 - **Packet Class**: VERIFICATION
@@ -80,3 +80,4 @@ Closes the I2 iteration's Promotion Guard from the Feature 3 spec.
 ## Progress Log
 
 - 2026-05-03: WP drafted at DRAFT. Closes the I2 iteration when DONE.
+- 2026-05-03: Promoted DRAFT → READY → IN-PROGRESS (kickoff commit). Owner: assistant. Operator overnight autonomous I2 sequence — final WP of the iteration.
