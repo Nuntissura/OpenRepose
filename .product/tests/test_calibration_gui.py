@@ -246,6 +246,33 @@ def test_calibration_pane_has_reset_zoom_button(app_and_window) -> None:
     assert window._calibration.btn_reset_zoom is not None
 
 
+def test_calibration_view_pan_via_spacebar_left_click(
+    app_and_window,
+) -> None:
+    """WP-I1-028: Photoshop-convention pan = hold spacebar + left-click drag.
+    Middle-mouse pan removed (operator preference)."""
+    from PySide6.QtCore import QEvent, Qt
+    from PySide6.QtGui import QKeyEvent
+    from PySide6.QtWidgets import QGraphicsView
+
+    _app, window = app_and_window
+    view = window._calibration._portrait
+    # Default: NoDrag.
+    assert view.dragMode() == QGraphicsView.DragMode.NoDrag
+    # Press space -> ScrollHandDrag.
+    press = QKeyEvent(
+        QEvent.Type.KeyPress, Qt.Key.Key_Space, Qt.KeyboardModifier.NoModifier
+    )
+    view.keyPressEvent(press)
+    assert view.dragMode() == QGraphicsView.DragMode.ScrollHandDrag
+    # Release space -> NoDrag again.
+    release = QKeyEvent(
+        QEvent.Type.KeyRelease, Qt.Key.Key_Space, Qt.KeyboardModifier.NoModifier
+    )
+    view.keyReleaseEvent(release)
+    assert view.dragMode() == QGraphicsView.DragMode.NoDrag
+
+
 def test_calibration_pane_compute_detected_positions_uses_rig(
     app_and_window, aeri_master: Path, qtbot
 ) -> None:

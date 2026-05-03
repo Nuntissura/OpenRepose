@@ -82,6 +82,7 @@ class _ZoomableImageView(QGraphicsView):
         self._pixmap_item: QGraphicsPixmapItem | None = None
         self._image_size: tuple[int, int] = (0, 0)
         self._press_pos: QPoint | None = None
+        self._space_held = False
         self.setRenderHint(self.renderHints())  # default
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
@@ -92,6 +93,8 @@ class _ZoomableImageView(QGraphicsView):
         self.setMinimumHeight(360)
         self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
         self.setStyleSheet("background-color: #111;")
+        # Receive key events for the spacebar-pan gesture (WP-I1-028 fix).
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
     def sizeHint(self):  # noqa: D401, ANN201
         from PySide6.QtCore import QSize
@@ -154,28 +157,53 @@ class _ZoomableImageView(QGraphicsView):
             return
         self.scale(factor, factor)
 
-    def mousePressEvent(self, event: QMouseEvent) -> None:
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._press_pos = event.pos()
-        elif event.button() == Qt.MouseButton.MiddleButton:
-            # Switch to ScrollHandDrag for the duration of this gesture.
+    def keyPressEvent(self, event):  # noqa: ANN001
+        """Spacebar-pan gesture (Photoshop convention): hold space + left-click
+        + drag to pan. Spacebar alone shows the open-hand cursor as a hint."""
+        if (
+            event.key() == Qt.Key.Key_Space
+            and not event.isAutoRepeat()
+            and not self._space_held
+        ):
+            self._space_held = True
             self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+            self.viewport().setCursor(Qt.CursorShape.OpenHandCursor)
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def keyReleaseEvent(self, event):  # noqa: ANN001
+        if (
+            event.key() == Qt.Key.Key_Space
+            and not event.isAutoRepeat()
+            and self._space_held
+        ):
+            self._space_held = False
+            self.setDragMode(QGraphicsView.DragMode.NoDrag)
+            self.viewport().unsetCursor()
+            event.accept()
+            return
+        super().keyReleaseEvent(event)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton and not self._space_held:
+            # Track press for click-vs-drag detection. When space is held
+            # we let Qt's ScrollHandDrag handle the gesture and DO NOT
+            # interpret the release as a marker placement.
+            self._press_pos = event.pos()
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        if event.button() == Qt.MouseButton.MiddleButton:
-            self.setDragMode(QGraphicsView.DragMode.NoDrag)
-        elif (
+        if (
             event.button() == Qt.MouseButton.LeftButton
             and self._press_pos is not None
+            and not self._space_held
         ):
             release_pos = event.pos()
             dx = release_pos.x() - self._press_pos.x()
             dy = release_pos.y() - self._press_pos.y()
             self._press_pos = None
-            # Treat as click only when cursor barely moved (otherwise it
-            # was a pan / drag-zoom gesture we should not interpret as
-            # marker placement).
+            # Treat as click only when cursor barely moved.
             if abs(dx) > self.CLICK_THRESHOLD_PX or abs(dy) > self.CLICK_THRESHOLD_PX:
                 super().mouseReleaseEvent(event)
                 return
