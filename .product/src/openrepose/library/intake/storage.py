@@ -31,6 +31,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+from .outputs import IntakeOutputError as _IntakeOutputError
+
 if TYPE_CHECKING:
     import psycopg
 
@@ -82,8 +84,12 @@ VALID_FILE_OP_STATUSES: tuple[str, ...] = (
 )
 
 
-class StorageError(ValueError):
-    """Raised when a storage operation receives malformed input."""
+class StorageError(_IntakeOutputError):
+    """Raised when a storage operation receives malformed input.
+
+    Inherits from IntakeOutputError so the dispatcher's existing intake
+    error catch path captures storage failures uniformly.
+    """
 
 
 # ---------------------------------------------------------------------------

@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from .auto_route import run_auto_route
+from .outputs import IntakeOutputError
 from .storage import diagnostic_dst_path, enqueue_file_op, record_event
 
 if TYPE_CHECKING:
@@ -41,8 +42,12 @@ if TYPE_CHECKING:
 BULK_BATCH_MAX_DEFAULT: int = 200
 
 
-class BulkIntakeError(ValueError):
-    """Raised when the bulk request payload is malformed."""
+class BulkIntakeError(IntakeOutputError):
+    """Raised when the bulk request payload is malformed.
+
+    Inherits from IntakeOutputError so the dispatcher's existing intake
+    error catch path captures bulk failures uniformly.
+    """
 
 
 @dataclass

@@ -1,13 +1,13 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-04 (WP-I1-036 multi-file workspace spec shipped to REVIEW alongside the polish bundle (WP-I1-003 + 005 + 016). 8 WPs now pending operator sign-off across I1 + I3. WP-I4-001 intake scale + DB hardening still IN-PROGRESS.)
+Last Updated: 2026-05-04 (WP-I4-001 intake scale + DB hardening shipped to REVIEW. 9 WPs now pending operator sign-off across I1, I3, and I4.)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 1 (WP-I4-001 intake scale + DB hardening IN-PROGRESS)
-- WPs pending review (REVIEW): 8 (WP-I1-003 settings commands + WP-I1-005 drag-and-drop + WP-I1-016 clear workspace + WP-I1-036 multi-file workspace spec; WP-I3-009 audit-script extension; WP-I3-007 requirements editor + target tree; WP-I3-008 triage GUI tab + snapshot targets; WP-I3-010 e2e EXP120 verification)
+- WPs in flight (READY + IN-PROGRESS): 0
+- WPs pending review (REVIEW): 9 (WP-I1-003 settings commands + WP-I1-005 drag-and-drop + WP-I1-016 clear workspace + WP-I1-036 multi-file workspace spec; WP-I3-009 audit-script extension; WP-I3-007 requirements editor + target tree; WP-I3-008 triage GUI tab + snapshot targets; WP-I3-010 e2e EXP120 verification; WP-I4-001 intake scale + DB hardening)
 - WPs done (I3): 5 (WP-I3-001 spec lock; WP-I3-002 stance primitives; WP-I3-003 PG schema migrations; WP-I3-004 intake/project/task command surface; WP-I3-005 default-staging ComfyUI bridge; WP-I3-006 AMood data-model commands)
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 15 (14 I1 backlog + WP-I3-011 future OpenRepose AMood GPT + Claude wrappers)
@@ -16,7 +16,7 @@ Live status of all OpenRepose workpackets. Update in the same session as any wor
 - WPs done (I1): 14 (12 prior + WP-I1-034/035 signed off 2026-05-03 Sweep A)
 - WPs done (I2): 8 (WP-I2-001..008 — Feature 3 OpenPose Library + ComfyUI bridge + PostgreSQL — I2 CLOSED 2026-05-03 Sweep A)
 - WPs reserved-not-drafted: 3 (WP-I1-019/020/021 joint-manipulation chain — operator deferred to later)
-- Iterations open: I1 (polish bundle + multi-file spec in REVIEW: WP-I1-003 + 005 + 016 + 036), I3 (Sweep B in REVIEW awaiting operator sign-off across 4 WPs), I4 (WP-I4-001 IN-PROGRESS)
+- Iterations open: I1 (polish bundle + multi-file spec in REVIEW: WP-I1-003 + 005 + 016 + 036), I3 (Sweep B in REVIEW awaiting operator sign-off across 4 WPs), I4 (WP-I4-001 REVIEW awaiting operator sign-off)
 
 ## Active
 
@@ -24,7 +24,6 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I4-001 | Intake scale + DB hardening | assistant | IN-PROGRESS | IMPLEMENTATION | L | 2026-05-04 |
 
 ## Pending Review
 
@@ -40,6 +39,7 @@ Implementation claims to be done; awaiting operator verification.
 | WP-I3-007 | Requirements editor + target tree commands | assistant | IMPLEMENTATION | 2026-05-03 | 29/29 pytest passing in 5:13 (incl. EXP120 byte-stable round-trip + counter rollup + inheritance); audit clean. Evidence in `target/test-artifacts/WP-I3-007/`. |
 | WP-I3-008 | Triage GUI tab + 3 snapshot targets | assistant | IMPLEMENTATION | 2026-05-04 | 35/35 pytest passing in 23.61s (triage pane + 14 snapshot targets parametrized + GUI no-focus-steal + headless render); audit clean. Evidence in `target/test-artifacts/WP-I3-008/`. |
 | WP-I3-010 | End-to-end EXP120 verification | assistant | VERIFICATION | 2026-05-04 | 3/3 e2e tests passing in 2:47; 29/29 -006/-007 regression after the cards.py wiring fix; audit clean. Evidence in `target/test-artifacts/WP-I3-010/`. **Closes I3 v0.1 on operator sign-off.** |
+| WP-I4-001 | Intake scale + DB hardening | assistant | IMPLEMENTATION | 2026-05-04 | 17/17 scale + parallel e2e tests passing in 5:13 with JUnit at `target/test-artifacts/WP-I4-001/junit.xml`; 7/7 dispatcher tests passing in 3:15; audit clean. |
 
 ## Blocked
 
@@ -186,6 +186,7 @@ _(none)_
 ### I4 — Intake Scale + DB Hardening (OPEN 2026-05-04)
 
 - 2026-05-04: **WP-I4-001 Intake scale + DB hardening** opened at READY. Scope extends the existing I3 intake system rather than replacing it: bulk output registration, idempotent retries, output-level producer attribution (`source_model`, `agent_id`, `producer_run_id`, `idempotency_key`), durable file-state/file-op recovery (`storage_state` enum + outbox), transaction-boundary cleanup (data-layer helpers stop committing internally), search filtering (main `library_search` excludes pending/diagnostic/rejected/soft_accepted by default), and a 3-producer × ≥100 outputs each parallel e2e proof. Migration `006_i4_intake_scale_hardening.sql` will bump `schema_version 5 → 6`. No `.product/` implementation has started.
+- 2026-05-04: **WP-I4-001 advanced IN-PROGRESS → REVIEW**. Implementation landed migration 006, producer attribution, idempotent bulk registration, durable file-op/recovery tracking, search filtering, dispatcher commands (`intake_register_outputs_bulk`, `intake_recover_audit`, `intake_recover_retry`, `intake_process_file_ops`), and audit-script topology parsing for I4 command surfaces. Proof: 17/17 scale + parallel e2e tests passing with JUnit at `target/test-artifacts/WP-I4-001/junit.xml`; 7/7 dispatcher tests passing; audit clean. Awaiting operator sign-off.
 
 ## Iteration Pipeline
 

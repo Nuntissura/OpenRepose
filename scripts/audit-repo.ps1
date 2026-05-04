@@ -436,9 +436,9 @@ if ($pyFiles) {
 # ---------- Check 7: dispatcher commands have help (declared in topology) ----------
 #
 # Read commands.py _HANDLERS = { ... } block; each "<name>": _h_<name>.
-# Verify each <name> appears in topology.yaml `i3_command_surface` OR in the
-# pre-I3 allowlist below (Feature 1 + Feature 2 + Feature 3 library commands
-# documented in feature-*-*.md manual topics).
+# Verify each <name> appears in a topology.yaml `i<N>_command_surface`
+# block OR in the pre-I3 allowlist below (Feature 1 + Feature 2 + Feature 3
+# library commands documented in feature-*-*.md manual topics).
 
 $preI3Allowlist = @(
     # Feature 1 — yaw exporter (WP-I0-001..004, WP-I1-022/023/027/030)
@@ -459,8 +459,10 @@ $preI3Allowlist = @(
 
 $commandsPath = Join-Path $RepoRoot '.product/src/openrepose/commands.py'
 
-# Parse i3_command_surface from topology.yaml.
-function Get-I3CommandSurface {
+# Parse i3/i4/i5...-style command-surface blocks from topology.yaml.
+# Any top-level key matching `i<N>_command_surface:` contributes its
+# nested `- <command_name>` entries to the union allowlist.
+function Get-IterationCommandSurface {
     param([string]$TopologyPath)
 
     $cmds = New-Object System.Collections.Generic.HashSet[string]
@@ -468,7 +470,7 @@ function Get-I3CommandSurface {
 
     $inSurface = $false
     foreach ($line in (Get-Content -LiteralPath $TopologyPath -Encoding UTF8)) {
-        if ($line -match '^i3_command_surface:\s*$') {
+        if ($line -match '^i\d+_command_surface:\s*$') {
             $inSurface = $true
             continue
         }
@@ -486,7 +488,7 @@ function Get-I3CommandSurface {
     return $cmds
 }
 
-$i3Surface = Get-I3CommandSurface -TopologyPath $topologyPath
+$iterationSurface = Get-IterationCommandSurface -TopologyPath $topologyPath
 
 if (-not (Test-Path -LiteralPath $commandsPath)) {
     Add-Violation 'dispatcher-commands-have-help' "commands.py not found at $commandsPath"
@@ -508,8 +510,8 @@ if (-not (Test-Path -LiteralPath $commandsPath)) {
             foreach ($mm in $matches) {
                 $cmd = $mm.Groups[1].Value
                 if ($preI3Allowlist -contains $cmd) { continue }
-                if ($i3Surface.Contains($cmd)) { continue }
-                Add-Violation 'dispatcher-commands-have-help' "$cmd not in topology i3_command_surface and not in pre-I3 allowlist"
+                if ($iterationSurface.Contains($cmd)) { continue }
+                Add-Violation 'dispatcher-commands-have-help' "$cmd not in topology i<N>_command_surface and not in pre-I3 allowlist"
             }
         }
     }

@@ -5,13 +5,13 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-04
 - **Last Updated**: 2026-05-04
-- **Status**: IN-PROGRESS
+- **Status**: REVIEW
 - **Iteration**: I4
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
 - **Effort Estimate**: L
 - **Linked Spec**: `.gov/spec/openrepose_intake_v0_1.md`, `.gov/spec/openrepose_library_v0_1.md`, `.gov/spec/openrepose_requirements_v0_1.md`, `.gov/spec/openrepose_rules_v0_1.md`
-- **Linked Test Suite**: `.product/tests/test_intake_scale_db_hardening.py`, `.product/tests/test_e2e_parallel_intake.py`
+- **Linked Test Suite**: `.product/tests/test_intake_scale_db_hardening.py`, `.product/tests/test_e2e_parallel_intake.py`, `.product/tests/test_intake_dispatcher_i4.py`
 - **Linked Check Script**: `scripts/audit-repo.ps1`
 
 ## Intent
@@ -111,6 +111,7 @@ Sacred. Captured before work starts.
 - `.product/src/openrepose/library/intake/bulk.py` (new if needed)
 - `.product/tests/test_intake_scale_db_hardening.py`
 - `.product/tests/test_e2e_parallel_intake.py`
+- `.product/tests/test_intake_dispatcher_i4.py`
 
 ### Build / Output (gitignored)
 
@@ -129,19 +130,19 @@ Sacred. Captured before work starts.
 
 ## Definition Of Done
 
-- [ ] Spec updates describe I4 hardening as an extension of existing intake, not a replacement ingest system.
-- [ ] Migration `006_i4_intake_scale_hardening.sql` applies cleanly from a fresh database and from an I3-current database.
-- [ ] `library_outputs` records output-level producer attribution and idempotency data.
-- [ ] Bulk command `intake_register_outputs_bulk` registers at least 100 outputs in one logical request and returns per-file results.
-- [ ] Retrying an identical bulk payload creates zero duplicate output rows and returns duplicate/existing results.
-- [ ] Soft-accept, reject, auto-route diagnostic, finalize, and wholesale-reject update `file_path` and storage state consistently with file operations.
-- [ ] File-operation failure leaves a retryable DB state, not a silent stale path.
-- [ ] A recovery/audit command reports missing files, pending file operations, and failed file operations.
-- [ ] Main `library_search` excludes pending/diagnostic/rejected/soft_accepted intake rows by default, with an explicit include flag for staging rows.
-- [ ] Touched intake/library DB helpers no longer commit internally; command/service transaction boundaries are explicit and tested.
-- [ ] Parallel e2e test covers at least 3 producer identities submitting at least 100 outputs each to one task.
-- [ ] Audit script exits clean.
-- [ ] **Manual Impact**: Yes - update `intake-and-triage.md` with bulk registration, idempotency, producer attribution, storage-state recovery, and search filtering semantics.
+- [x] Spec updates describe I4 hardening as an extension of existing intake, not a replacement ingest system.
+- [x] Migration `006_i4_intake_scale_hardening.sql` applies cleanly from a fresh database and from an I3-current database.
+- [x] `library_outputs` records output-level producer attribution and idempotency data.
+- [x] Bulk command `intake_register_outputs_bulk` registers at least 100 outputs in one logical request and returns per-file results.
+- [x] Retrying an identical bulk payload creates zero duplicate output rows and returns duplicate/existing results.
+- [x] Soft-accept, reject, auto-route diagnostic, finalize, and wholesale-reject update `file_path` and storage state consistently with file operations.
+- [x] File-operation failure leaves a retryable DB state, not a silent stale path.
+- [x] A recovery/audit command reports missing files, pending file operations, and failed file operations.
+- [x] Main `library_search` excludes pending/diagnostic/rejected/soft_accepted intake rows by default, with an explicit include flag for staging rows.
+- [x] Touched intake/library DB helpers no longer commit internally; command/service transaction boundaries are explicit and tested.
+- [x] Parallel e2e test covers at least 3 producer identities submitting at least 100 outputs each to one task.
+- [x] Audit script exits clean.
+- [x] **Manual Impact**: Yes - update `intake-and-triage.md` with bulk registration, idempotency, producer attribution, storage-state recovery, and search filtering semantics.
 
 ## Test Coverage Plan
 
@@ -195,13 +196,13 @@ Sacred. Captured before work starts.
 
 ## Fallback Register
 
-_(none authorized at kickoff. Any temporary fallback introduced during implementation must be added here before REVIEW.)_
+No fallback used for REVIEW. Synthetic tiny PNG bytes remain within the Reality Boundary's allowed test-fixture fallback; no production-path behavior is simulated.
 
 ## Change Ledger
 
-- **What Became Real**: Not started.
-- **What Remains Simulated**: Not started.
-- **Next Blocking Real Seam**: Implementation kickoff must commit and push this WP + taskboard row before any `.product/` edit, per Work-Start Protocol.
+- **What Became Real**: Migration 006 adds producer attribution, idempotency, `storage_state`, lifecycle events, and file-op outbox tables. Bulk registration, duplicate retry handling, auto-route diagnostic outbox rows, file-op processing/recovery, search filtering, and dispatcher commands are implemented and tested.
+- **What Remains Simulated**: Test fixtures use synthetic tiny PNG bytes and synthetic producer/model ids as allowed by the Reality Boundary. No production image generation is part of this WP.
+- **Next Blocking Real Seam**: Operator REVIEW sign-off. Future bridge-hardening WP still owns removing `OPENREPOSE_LEGACY_DIRECT_WRITE`.
 
 ## Checkpoint Commit Plan
 
@@ -214,7 +215,7 @@ _(none authorized at kickoff. Any temporary fallback introduced during implement
 
 ## Proof Of Implementation
 
-- **Command Runs**: `pytest .product/tests/test_intake_scale_db_hardening.py .product/tests/test_e2e_parallel_intake.py --junitxml=target/test-artifacts/WP-I4-001/junit.xml`
+- **Command Runs**: `pytest .product/tests/test_intake_scale_db_hardening.py .product/tests/test_e2e_parallel_intake.py --junitxml=target/test-artifacts/WP-I4-001/junit.xml`; `pytest .product/tests/test_intake_dispatcher_i4.py -x --tb=short`
 - **Proof Artifact**: `target/test-artifacts/WP-I4-001/`
 - **Claim Standard**: never mark `DONE` without linked command evidence and artifact paths.
 
@@ -222,29 +223,31 @@ _(none authorized at kickoff. Any temporary fallback introduced during implement
 
 Required because this WP changes command surfaces used by LLM agents, but it adds no visual GUI surface.
 
-- [ ] An LLM agent can trigger bulk registration, recovery/audit, and any claim/lease command through HTTP or inbox without touching the GUI.
-- [ ] An LLM agent can read current intake/storage/producer state from `outputs/.runtime/state.json` or documented command responses.
-- [ ] N/A - no new visual artifact required; existing triage snapshot targets remain unchanged.
-- [ ] No code path in this feature calls `raise_()`, `activateWindow()`, `showNormal()`, `setForegroundWindow()`, or any equivalent.
-- [ ] The feature does not display modal dialogs in response to commands originating from the LLM control surface.
-- [ ] Tests cover the headless path through dispatcher commands and/or HTTP/inbox-compatible command payloads.
+- [x] An LLM agent can trigger bulk registration, recovery/audit, and any claim/lease command through HTTP or inbox without touching the GUI.
+- [x] An LLM agent can read current intake/storage/producer state from documented command responses.
+- [x] N/A - no new visual artifact required; existing triage snapshot targets remain unchanged.
+- [x] No code path in this feature calls `raise_()`, `activateWindow()`, `showNormal()`, `setForegroundWindow()`, or any equivalent.
+- [x] The feature does not display modal dialogs in response to commands originating from the LLM control surface.
+- [x] Tests cover the headless path through dispatcher commands and/or HTTP/inbox-compatible command payloads.
 
 ## Exit Criteria
 
-- [ ] Definition of Done items all checked.
-- [ ] Taskboard row reflects current status.
-- [ ] Reality Boundary, Fallback Register, and Change Ledger are truthful.
-- [ ] Linked test suite has executed results saved under `target/test-artifacts/WP-I4-001/`.
-- [ ] Evidence section populated with concrete paths.
+- [x] Definition of Done items all checked.
+- [x] Taskboard row reflects current status.
+- [x] Reality Boundary, Fallback Register, and Change Ledger are truthful.
+- [x] Linked test suite has executed results saved under `target/test-artifacts/WP-I4-001/`.
+- [x] Evidence section populated with concrete paths.
 - [ ] Operator sign-off recorded in Evidence section.
-- [ ] **Headless LLM Operation Compliance** section either marked `N/A` with reason, or all items checked.
+- [x] **Headless LLM Operation Compliance** section either marked `N/A` with reason, or all items checked.
 
 ## Evidence
 
-- **Test Suite Execution**: N/A - not implemented.
-- **Logs**: N/A - not implemented.
+- **Test Suite Execution**:
+  - `.\.venv\Scripts\python.exe -m pytest .product/tests/test_intake_scale_db_hardening.py .product/tests/test_e2e_parallel_intake.py --junitxml=target/test-artifacts/WP-I4-001/junit.xml -x --tb=short` - 17 passed in 313.77s.
+  - `.\.venv\Scripts\python.exe -m pytest .product/tests/test_intake_dispatcher_i4.py -x --tb=short -vv -s` - 7 passed in 195.07s.
+- **Logs**: `powershell -ExecutionPolicy Bypass -File scripts\audit-repo.ps1` - OK no violations; one expected SKIP because `LIBRARY_DB_URL` is unset.
 - **Screenshots / Exports**: N/A - non-visual hardening WP.
-- **Build Artifacts**: N/A - not implemented.
+- **Build Artifacts**: N/A - no distributable build in this WP.
 - **Proof Artifact**: `target/test-artifacts/WP-I4-001/`
 - **Operator Sign-off**: pending.
 
@@ -252,3 +255,5 @@ Required because this WP changes command surfaces used by LLM agents, but it add
 
 - 2026-05-04: WP initialized at READY as governance-only setup. No `.product/` implementation started.
 - 2026-05-04: Status READY → IN-PROGRESS. Spec extension landed in `openrepose_intake_v0_1.md` "I4 Scale + DB Hardening Extension" + `openrepose_library_v0_1.md` "I4 Multi-Operator Concurrency Hardening". Manual extension landed in `intake-and-triage.md#i4-hardening` covering producer attribution, storage_state, bulk registration, recovery, search filter, and concurrent triage. Five new rule_ids defined: INTAKE-005..009 (block/warn/info mix). Migration `006_i4_intake_scale_hardening.sql` schema shape locked in spec; implementation pending in next commit.
+- 2026-05-04: Migration/data-layer implementation landed in prior commits: `006_i4_intake_scale_hardening.sql`, `library/intake/storage.py`, `library/intake/bulk.py`, search filtering, and scale/e2e tests. Follow-up dispatcher patch wires `intake_register_outputs_bulk`, `intake_recover_audit`, `intake_recover_retry`, and `intake_process_file_ops`; `BulkIntakeError` and `StorageError` now inherit `IntakeOutputError` so dispatcher error envelopes stay structured.
+- 2026-05-04: Status IN-PROGRESS → REVIEW. Proof: 17/17 scale + parallel e2e tests passed with JUnit at `target/test-artifacts/WP-I4-001/junit.xml`; 7/7 dispatcher smoke tests passed; `scripts/audit-repo.ps1` clean. Operator sign-off pending.

@@ -96,6 +96,7 @@ from .library.targets import (
     target_recount as target_recount_fn,
 )
 from .library.intake import (
+    BULK_BATCH_MAX_DEFAULT,
     IntakeOutputError,
     LibraryRunError,
     begin_run,
@@ -108,7 +109,11 @@ from .library.intake import (
     list_outputs,
     list_projects,
     list_tasks,
+    process_pending_file_ops,
+    recover_audit,
+    recover_retry,
     register_output,
+    register_outputs_bulk,
     reject_output,
     reroute_output,
     resolve_card_by_slug,
@@ -2403,6 +2408,148 @@ def _h_task_reject_wholesale(
 
 
 # ---------------------------------------------------------------------------
+# I4 hardening commands (WP-I4-001)
+# Spec: .gov/spec/openrepose_intake_v0_1.md
+#       "I4 Scale + DB Hardening Extension"
+# ---------------------------------------------------------------------------
+
+
+def _h_intake_register_outputs_bulk(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Bulk counterpart to intake_register_output. One transaction per
+    request. Idempotent on retry via the partial UNIQUE index on
+    (task_id, agent_id, idempotency_key).
+
+    Required payload:
+      task_id, run_id, agent_id, outputs[]
+    Optional payload:
+      source_model, bulk_batch_max
+    Each output dict requires: file_path, content_hash, width, height.
+    Each output dict accepts: idempotency_key, producer_run_id, metadata.
+    """
+    pool = _ensure_pool(d)
+    task_id = cmd.get("task_id")
+    run_id = cmd.get("run_id")
+    agent_id = cmd.get("agent_id")
+    source_model = cmd.get("source_model")
+    outputs = cmd.get("outputs")
+    bulk_batch_max = int(cmd.get("bulk_batch_max", BULK_BATCH_MAX_DEFAULT))
+
+    if not isinstance(task_id, str) or not task_id:
+        raise OpenReposeCommandError(
+            "intake_register_outputs_bulk requires 'task_id'"
+        )
+    if not isinstance(run_id, str) or not run_id:
+        raise OpenReposeCommandError(
+            "intake_register_outputs_bulk requires 'run_id'"
+        )
+    if not isinstance(agent_id, str) or not agent_id:
+        raise OpenReposeCommandError(
+            "intake_register_outputs_bulk requires 'agent_id'"
+        )
+    if not isinstance(outputs, list):
+        raise OpenReposeCommandError(
+            "intake_register_outputs_bulk requires 'outputs' (list)"
+        )
+
+    with pool.connection() as conn:
+        task = get_task(conn, task_id=task_id)
+        if task is None:
+            raise OpenReposeCommandError(f"task {task_id} not found")
+        if task.status in ("rejected_wholesale", "aborted"):
+            raise OpenReposeCommandError(
+                f"task {task_id} is terminal (status={task.status}); "
+                f"cannot register"
+            )
+
+        result = register_outputs_bulk(
+            conn,
+            task_id=task_id,
+            run_id=run_id,
+            project_id=str(task.project_id),
+            agent_id=agent_id,
+            source_model=source_model,
+            outputs=outputs,
+            bulk_batch_max=bulk_batch_max,
+            outputs_root=_intake_outputs_root(d),
+        )
+    _refresh_intake_state(d, task_id)
+    return result.to_dict()
+
+
+def _h_intake_recover_audit(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Read-only recovery audit. Optionally scoped to a single task.
+
+    Optional payload:
+      task_id           filter to a single task's outputs / file-ops
+      check_disk        when True, additionally check on-disk presence
+                        for non-terminal rows; defaults False because
+                        large libraries make this expensive
+    """
+    pool = _ensure_pool(d)
+    task_id = cmd.get("task_id")
+    check_disk = bool(cmd.get("check_disk", False))
+    outputs_root = _intake_outputs_root(d) if check_disk else None
+    with pool.connection() as conn:
+        audit = recover_audit(
+            conn, task_id=task_id, outputs_root=outputs_root,
+        )
+    return audit.to_dict()
+
+
+def _h_intake_recover_retry(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Retry one library_file_ops row exactly once.
+
+    Required payload:
+      file_op_id
+    """
+    pool = _ensure_pool(d)
+    file_op_id = cmd.get("file_op_id")
+    if not isinstance(file_op_id, str) or not file_op_id:
+        raise OpenReposeCommandError("intake_recover_retry requires 'file_op_id'")
+    actor = _operator_slug(d) or "system"
+    with pool.connection() as conn:
+        result = recover_retry(
+            conn,
+            file_op_id=file_op_id,
+            outputs_root=_intake_outputs_root(d),
+            actor=actor,
+        )
+    return result
+
+
+def _h_intake_process_file_ops(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Drain pending library_file_ops rows. Operator/test driven.
+
+    The bulk + auto-route paths enqueue file-op rows but do not
+    execute them inline (so the bulk transaction stays bounded). This
+    command runs one drain pass.
+
+    Optional payload:
+      limit             max rows to claim (default 20)
+      claimed_by        worker slug for the claim (default operator slug)
+    """
+    pool = _ensure_pool(d)
+    limit = int(cmd.get("limit", 20))
+    claimed_by = cmd.get("claimed_by") or _operator_slug(d) or "dispatcher"
+    with pool.connection() as conn:
+        counters = process_pending_file_ops(
+            conn,
+            outputs_root=_intake_outputs_root(d),
+            claimed_by=claimed_by,
+            limit=limit,
+        )
+    return counters
+
+
+# ---------------------------------------------------------------------------
 # AMood commands (WP-I3-006)
 # Spec: .gov/spec/openrepose_amood_v0_1.md "Command Surface (AMood-specific)"
 # ---------------------------------------------------------------------------
@@ -3037,6 +3184,11 @@ _HANDLERS = {
     "promote_to_library": _h_promote_to_library,
     "task_reject_wholesale": _h_task_reject_wholesale,
     "intake_begin_run": _h_intake_begin_run,
+    # I4 hardening commands (WP-I4-001).
+    "intake_register_outputs_bulk": _h_intake_register_outputs_bulk,
+    "intake_recover_audit":         _h_intake_recover_audit,
+    "intake_recover_retry":         _h_intake_recover_retry,
+    "intake_process_file_ops":      _h_intake_process_file_ops,
     # AMood commands (WP-I3-006).
     "init_batch_package":     _h_init_batch_package,
     "library_create_card":    _h_library_create_card,
