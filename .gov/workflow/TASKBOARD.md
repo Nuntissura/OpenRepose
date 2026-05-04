@@ -1,12 +1,12 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-04 (WP-I4-001 intake scale + DB hardening shipped to REVIEW. 9 WPs now pending operator sign-off across I1, I3, and I4.)
+Last Updated: 2026-05-04 (WP-I4-002 opened IN-PROGRESS for the orstart codex contract banner. 9 WPs remain pending operator sign-off across I1, I3, and I4.)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 0
+- WPs in flight (READY + IN-PROGRESS): 1 (WP-I4-002 orstart codex contract banner)
 - WPs pending review (REVIEW): 9 (WP-I1-003 settings commands + WP-I1-005 drag-and-drop + WP-I1-016 clear workspace + WP-I1-036 multi-file workspace spec; WP-I3-009 audit-script extension; WP-I3-007 requirements editor + target tree; WP-I3-008 triage GUI tab + snapshot targets; WP-I3-010 e2e EXP120 verification; WP-I4-001 intake scale + DB hardening)
 - WPs done (I3): 5 (WP-I3-001 spec lock; WP-I3-002 stance primitives; WP-I3-003 PG schema migrations; WP-I3-004 intake/project/task command surface; WP-I3-005 default-staging ComfyUI bridge; WP-I3-006 AMood data-model commands)
 - WPs blocked (BLOCKED): 0
@@ -24,6 +24,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
+| WP-I4-002 | Orstart codex contract banner | assistant | IN-PROGRESS | INFRASTRUCTURE | XS | 2026-05-04 |
 
 ## Pending Review
 
