@@ -494,6 +494,7 @@ def _open_file_impl(d: CommandDispatcher, path: str, avatar_slug: str | None, fi
         from .util.slugify import sanitize_avatar_slug
         effective_slug = sanitize_avatar_slug(p.stem)
 
+    previous_active = d._active_file_id
     d.state.set_portrait(str(p), avatar_slug=effective_slug)
     d.state.set_yaw(value_deg=0.0, bin_label="0")
     d.state.set_rig(status="fitting")
@@ -508,7 +509,18 @@ def _open_file_impl(d: CommandDispatcher, path: str, avatar_slug: str | None, fi
         if cal is not None:
             cal_loaded_from = str(cal_p)
 
-    rig = Rig.from_portrait(p, calibration=cal)
+    try:
+        rig = Rig.from_portrait(p, calibration=cal)
+    except Exception:
+        if previous_active and previous_active in d._files:
+            _apply_slot_to_state(d, d._files[previous_active])
+        elif d._file_order:
+            _apply_slot_to_state(d, d._files[d._file_order[-1]])
+        else:
+            _clear_active_state(d)
+            _sync_state_files(d)
+        d.state.write()
+        raise
     d._rig = rig
     d._active_file_id = fid
     _refresh_calibration_state(d.state, active_avatar=effective_slug, calibration=cal, loaded_from=cal_loaded_from)

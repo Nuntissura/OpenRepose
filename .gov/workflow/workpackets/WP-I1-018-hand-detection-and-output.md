@@ -186,3 +186,4 @@ Add MediaPipe Hands detection to the rig pipeline and emit the resulting 21-keyp
 
 - 2026-05-04: Status DRAFT -> IN-PROGRESS; research notes added; implementation authorized by operator for autonomous overnight work.
 - 2026-05-04: Product implementation pass landed for hand landmark storage, yaw rotation, OpenPose JSON hand arrays, preview hand rendering, state telemetry, and built-in Help manual note. Validation evidence pending; WP stays IN-PROGRESS until tests/visual proof are run.
+- 2026-05-04: Focused validation passed after stale-test updates and failed-import rollback fix: `compileall` clean; `pytest test_openpose_serialize.py test_rotation.py test_drag_and_drop.py test_state_file.py test_clear_workspace.py -q --tb=short` -> 47 passed, 1 known Windows reader-warning. Evidence pending under target before REVIEW.

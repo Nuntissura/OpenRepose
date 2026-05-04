@@ -125,7 +125,11 @@ def test_drop_on_main_window_dispatches_import(qtbot, app: App, aeri_master: Pat
     _drop_on(win, _mime_for(aeri_master))
 
     assert app.state.rig["status"] == "ok"
+    # The second file has an accepted image suffix but invalid bytes. The
+    # new multi-file policy attempts it, but a failed fit must not leave the
+    # failed path mirrored as active state.
     assert app.state.portrait == str(aeri_master)
+    assert len(app.state.files) == 1
     assert app.state.avatar_slug  # non-empty
 
 
@@ -170,7 +174,7 @@ def test_drop_non_image_does_not_import(qtbot, app: App, tmp_path: Path):
     assert app.state.portrait is None
 
 
-def test_drop_multi_file_imports_first_only(
+def test_drop_multi_file_imports_all_valid_and_restores_on_failed_second(
     qtbot, app: App, aeri_master: Path, tmp_path: Path
 ):
     from openrepose.gui.main_window import MainWindow

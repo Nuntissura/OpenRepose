@@ -38,8 +38,9 @@ def test_serialize_keypoint_array_lengths(aeri_rig: Rig) -> None:
     p = serialize(rotated)[0]["people"][0]
     assert len(p["pose_keypoints_2d"]) == 18 * 3
     assert len(p["face_keypoints_2d"]) == 70 * 3
-    assert p["hand_left_keypoints_2d"] is None
+    assert len(p["hand_left_keypoints_2d"]) == 21 * 3
     assert len(p["hand_right_keypoints_2d"]) == 21 * 3
+    assert all(v == 0.0 for v in p["hand_left_keypoints_2d"])
     assert all(v == 0.0 for v in p["hand_right_keypoints_2d"])
 
 
