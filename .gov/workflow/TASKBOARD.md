@@ -1,23 +1,23 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-04 (WP-I1-010 multi-angle automation advanced to REVIEW.)
+Last Updated: 2026-05-04 (WP-I1-002 orbital camera promoted to IN-PROGRESS for autonomous implementation.)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 0
+- WPs in flight (READY + IN-PROGRESS): 1 (WP-I1-002 orbital camera in 3D viewport)
 - WPs pending review (REVIEW): 9 (WP-I1-003 settings commands + WP-I1-005 drag-and-drop + WP-I1-010 multi-angle automation + WP-I1-016 clear workspace; WP-I1-018 hand detection + OpenPose hand output; WP-I1-037 multi-file workspace implementation; WP-I3-009 audit-script extension; WP-I3-010 e2e EXP120 verification; WP-I4-002 orstart codex contract banner)
 - WPs done (I3): 8 (WP-I3-001..008; latest sign-off adds WP-I3-007 requirements editor + target tree and WP-I3-008 triage GUI tab + snapshot targets)
 - WPs done (I4): 1 (WP-I4-001 intake scale + DB hardening signed off 2026-05-04)
 - WPs blocked (BLOCKED): 0
-- WPs draft (DRAFT, eligible to promote): 13 (12 I1 backlog + WP-I3-011 future OpenRepose AMood GPT + Claude wrappers)
+- WPs draft (DRAFT, eligible to promote): 12 (11 I1 backlog + WP-I3-011 future OpenRepose AMood GPT + Claude wrappers)
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
 - WPs done (I0): 4 (WP-I0-001/002/003/004) — I0 CLOSED 2026-05-02
 - WPs done (I1): 15 (12 prior + WP-I1-034/035 signed off 2026-05-03 Sweep A + WP-I1-036 multi-file workspace spec signed off 2026-05-04)
 - WPs done (I2): 8 (WP-I2-001..008 — Feature 3 OpenPose Library + ComfyUI bridge + PostgreSQL — I2 CLOSED 2026-05-03 Sweep A)
 - WPs reserved-not-drafted: 3 (WP-I1-019/020/021 joint-manipulation chain — operator deferred to later)
-- Iterations open: I1 (WP-I1-010 + WP-I1-018 + WP-I1-037 REVIEW; polish bundle in REVIEW: WP-I1-003 + 005 + 016; WP-I1-036 spec DONE 2026-05-04), I3 (Sweep B in REVIEW awaiting operator sign-off across 2 WPs: WP-I3-009 + WP-I3-010), I4 (WP-I4-002 REVIEW awaiting operator sign-off; WP-I4-001 DONE 2026-05-04)
+- Iterations open: I1 (WP-I1-002 IN-PROGRESS; WP-I1-010 + WP-I1-018 + WP-I1-037 REVIEW; polish bundle in REVIEW: WP-I1-003 + 005 + 016; WP-I1-036 spec DONE 2026-05-04), I3 (Sweep B in REVIEW awaiting operator sign-off across 2 WPs: WP-I3-009 + WP-I3-010), I4 (WP-I4-002 REVIEW awaiting operator sign-off; WP-I4-001 DONE 2026-05-04)
 
 ## Active
 
@@ -25,6 +25,7 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
+| WP-I1-002 | Orbital camera in 3D viewport | assistant | IN-PROGRESS | IMPLEMENTATION | S | 2026-05-04 |
 
 ## Pending Review
 
@@ -67,7 +68,6 @@ I0 closed 2026-05-02. The I0-blocking constraint on every I1 WP below is satisfi
 
 | WP-ID | Title | Class | Effort | Priority | Headless | Predecessor |
 |-------|-------|-------|--------|----------|----------|-------------|
-| WP-I1-002 | Orbital camera in 3D viewport | IMPLEMENTATION | S | Polish | n/a | WP-I0-004 |
 | WP-I1-004 | Extended keyboard shortcuts | IMPLEMENTATION | XS | Polish (parked: operator wants more app-usage time before defining the shortcut set) | n/a | WP-I0-004 |
 | WP-I1-006 | GUI theme refinements | IMPLEMENTATION | S | Polish | n/a | WP-I0-004 |
 | WP-I1-007 | Pitch / roll rotation extension | IMPLEMENTATION | M | Feature expansion | yes | I0 + DOCUMENTATION WP |

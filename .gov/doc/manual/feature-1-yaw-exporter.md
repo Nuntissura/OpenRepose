@@ -42,6 +42,15 @@ Accepted shapes:
 
 The metadata is written only to `manifest.json`. It is not embedded in the OpenPose keypoint JSON files, so downstream DWPose/RenderPeopleKps compatibility stays clean. Unknown keys are preserved as data. A list length mismatch is rejected before files are written.
 
+## 3D viewport orbital inspection camera
+
+The 3D viewport has a GUI-only orbital inspection camera. Drag inside the 3D viewport with the left mouse button held to orbit the camera around the fitted rig. This helps inspect face/shoulder depth without changing the actual rig yaw.
+
+Important distinction:
+
+- **Rig yaw** is the production value controlled by the yaw slider / `set_yaw` / `set_yaw_bin`; it affects OpenPose preview and export.
+- **Orbital camera** is only the operator's 3D inspection view; it does not affect OpenPose export, command state, or `snapshot {target:"3d_viewport"}`.
+
 ## OpenPose schema
 
 - `body_18` — 18 body keypoints (OpenPose / DWPose convention).

@@ -2,11 +2,11 @@
 
 ## Header
 
-- **Owner**: TBD (operator)
+- **Owner**: assistant
 - **Date Opened**: 2026-05-02
-- **Status**: DRAFT
+- **Status**: IN-PROGRESS
 - **Iteration**: I1
-- **Workflow Version**: 1.0
+- **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
 - **Effort Estimate**: S
 - **Linked Spec**: `.gov/spec/openrepose_v0_1.md` Feature 1 / GUI Requirements (existing 3D viewport pane description) — extend with operator-controlled inspection camera.
@@ -19,6 +19,14 @@ Add operator-controlled orbital camera to the 3D mesh viewport so the operator c
 
 - **Predecessor(s)**: WP-I0-004 must reach DONE.
 - **Successor(s)**: none.
+
+## Research Notes
+
+| Date | Source | URL | Takeaway | Verdict |
+|------|--------|-----|----------|---------|
+| 2026-05-04 | Qt for Python QWidget docs | https://doc.qt.io/qtforpython-6/PySide6/QtWidgets/QWidget.html | QWidget exposes `mousePressEvent`, `mouseMoveEvent`, and `mouseReleaseEvent`; implementing orbital drag directly on the viewport widget is the native Qt seam. | adopt |
+| 2026-05-04 | Qt for Python QMouseEvent docs | https://doc.qt.io/qtforpython-6/PySide6/QtGui/QMouseEvent.html | QMouseEvent exposes widget-relative pointer position; use position deltas rather than global cursor state so the drag does not depend on OS focus/window position. | adopt |
+| 2026-05-04 | Existing OpenRepose snapshot contract | local `.gov/spec/openrepose_v0_1.md` Snapshot Subsystem | LLM `3d_viewport` snapshots must stay deterministic; operator orbital camera state is GUI-only and must not affect the snapshot renderer. | adopt |
 
 ## Reality Boundary
 
@@ -48,6 +56,7 @@ Add operator-controlled orbital camera to the 3D mesh viewport so the operator c
 - [ ] Mouse drag rotates the 3D viewport image in real time.
 - [ ] Snapshot output for `3d_viewport` is unaffected by operator's orbital camera state.
 - [ ] pytest-qt suite covers drag → camera state change → render delta.
+- [ ] **Manual Impact**: Yes - extends `.gov/doc/manual/feature-1-yaw-exporter.md` with the distinction between rig yaw and GUI-only orbital inspection camera.
 
 ## Linked Requirements / Spec Sections
 
@@ -107,7 +116,7 @@ Add operator-controlled orbital camera to the 3D mesh viewport so the operator c
 
 ## Decisions Log
 
-- (none yet at DRAFT stage; populate during implementation)
+- 2026-05-04: Keep orbital camera GUI-only; no command/state surface. Reason: it is an inspection convenience, while LLM snapshots need deterministic canonical camera output.
 
 ## Fallback Register
 
@@ -115,7 +124,7 @@ Add operator-controlled orbital camera to the 3D mesh viewport so the operator c
 
 ## Change Ledger
 
-- (filled at REVIEW)
+- 2026-05-04: Promoted DRAFT -> IN-PROGRESS for autonomous implementation after filtering out operator-preference/release-gated WPs. Research notes and manual-impact line added before product edits.
 
 ## Checkpoint Commit Plan
 
@@ -142,9 +151,10 @@ Add operator-controlled orbital camera to the 3D mesh viewport so the operator c
 
 ## Evidence
 
-- (filled at REVIEW)
+- 2026-05-04: Promoted DRAFT -> IN-PROGRESS; governance kickoff prepared before `.product/` edits.
 
 ## Progress Log
 
 - 2026-05-02: WP drafted, status DRAFT.
 - 2026-05-02: Enhanced with full template sections (Files Touched, Test Plan, Risks, Rollback, Exit Criteria, etc.) for session-survivability.
+- 2026-05-04: Status DRAFT -> IN-PROGRESS; implementation authorized by operator for autonomous overnight work.

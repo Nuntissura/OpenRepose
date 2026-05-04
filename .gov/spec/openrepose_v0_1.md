@@ -343,6 +343,7 @@ The desktop GUI is operator-facing only. LLM agents do not interact with the GUI
 - First launch: window appears normally so the operator can find it. After that, no code path under operator-driven OR LLM-driven commands calls `raise_()`, `activateWindow()`, `showNormal()`, or any focus-stealing API. Position is restored from the operator's last placement if WP-I1-003 settings persistence is in effect.
 - Optional system-tray icon (operator opt-in). Tray menu: Show / Hide / Quit. No notifications, no toasts, no audio.
 - Live updates: when the LLM control surface processes a command that changes state (rig fit, yaw, export), both viewports and the inspector readouts update silently. The operator sees the new state if they're looking; the window does not demand attention.
+- 3D viewport orbital inspection camera (WP-I1-002): left-button drag changes GUI-only `camera_yaw_deg` / `camera_pitch_deg` for operator inspection. This does not mutate rig yaw, command state, exported files, or `snapshot {target:"3d_viewport"}` output. Pitch is clamped to avoid gimbal flip.
 - Keyboard shortcuts on every action; visible in tooltips.
 - Numerical readouts visible at all times in the status bar and inspector.
 
