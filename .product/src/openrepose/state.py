@@ -352,16 +352,24 @@ class AppState:
                 "axis": "y",
             }
 
-    def add_export(self, *, type_: str, out_dir: str, files: list[str]) -> None:
+    def add_export(
+        self,
+        *,
+        type_: str,
+        out_dir: str,
+        files: list[str],
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
         with self._lock:
-            self.exports.append(
-                {
-                    "type": type_,
-                    "out_dir": out_dir,
-                    "completed_at": _now(),
-                    "files": list(files),
-                }
-            )
+            record = {
+                "type": type_,
+                "out_dir": out_dir,
+                "completed_at": _now(),
+                "files": list(files),
+            }
+            if metadata:
+                record.update(dict(metadata))
+            self.exports.append(record)
             self._cap_array("exports")
 
     def add_snapshot(self, *, target: str, out_path: str) -> None:

@@ -1,13 +1,13 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-04 (WP-I1-010 multi-angle automation promoted to IN-PROGRESS for autonomous implementation.)
+Last Updated: 2026-05-04 (WP-I1-010 multi-angle automation advanced to REVIEW.)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 1 (WP-I1-010 multi-angle automation)
-- WPs pending review (REVIEW): 8 (WP-I1-003 settings commands + WP-I1-005 drag-and-drop + WP-I1-016 clear workspace; WP-I1-018 hand detection + OpenPose hand output; WP-I1-037 multi-file workspace implementation; WP-I3-009 audit-script extension; WP-I3-010 e2e EXP120 verification; WP-I4-002 orstart codex contract banner)
+- WPs in flight (READY + IN-PROGRESS): 0
+- WPs pending review (REVIEW): 9 (WP-I1-003 settings commands + WP-I1-005 drag-and-drop + WP-I1-010 multi-angle automation + WP-I1-016 clear workspace; WP-I1-018 hand detection + OpenPose hand output; WP-I1-037 multi-file workspace implementation; WP-I3-009 audit-script extension; WP-I3-010 e2e EXP120 verification; WP-I4-002 orstart codex contract banner)
 - WPs done (I3): 8 (WP-I3-001..008; latest sign-off adds WP-I3-007 requirements editor + target tree and WP-I3-008 triage GUI tab + snapshot targets)
 - WPs done (I4): 1 (WP-I4-001 intake scale + DB hardening signed off 2026-05-04)
 - WPs blocked (BLOCKED): 0
@@ -17,7 +17,7 @@ Live status of all OpenRepose workpackets. Update in the same session as any wor
 - WPs done (I1): 15 (12 prior + WP-I1-034/035 signed off 2026-05-03 Sweep A + WP-I1-036 multi-file workspace spec signed off 2026-05-04)
 - WPs done (I2): 8 (WP-I2-001..008 — Feature 3 OpenPose Library + ComfyUI bridge + PostgreSQL — I2 CLOSED 2026-05-03 Sweep A)
 - WPs reserved-not-drafted: 3 (WP-I1-019/020/021 joint-manipulation chain — operator deferred to later)
-- Iterations open: I1 (WP-I1-010 IN-PROGRESS; WP-I1-018 + WP-I1-037 REVIEW; polish bundle in REVIEW: WP-I1-003 + 005 + 016; WP-I1-036 spec DONE 2026-05-04), I3 (Sweep B in REVIEW awaiting operator sign-off across 2 WPs: WP-I3-009 + WP-I3-010), I4 (WP-I4-002 REVIEW awaiting operator sign-off; WP-I4-001 DONE 2026-05-04)
+- Iterations open: I1 (WP-I1-010 + WP-I1-018 + WP-I1-037 REVIEW; polish bundle in REVIEW: WP-I1-003 + 005 + 016; WP-I1-036 spec DONE 2026-05-04), I3 (Sweep B in REVIEW awaiting operator sign-off across 2 WPs: WP-I3-009 + WP-I3-010), I4 (WP-I4-002 REVIEW awaiting operator sign-off; WP-I4-001 DONE 2026-05-04)
 
 ## Active
 
@@ -25,7 +25,6 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I1-010 | Multi-angle automation (`export_batch.per_angle_metadata` + manifest mapping) | assistant | IN-PROGRESS | IMPLEMENTATION | M | 2026-05-04 |
 
 ## Pending Review
 
@@ -36,6 +35,7 @@ Implementation claims to be done; awaiting operator verification.
 | WP-I1-003 | Settings persistence (set_settings + clear_settings commands; settings stayed at AppConfigLocation per kickoff-decision reversal) | assistant | IMPLEMENTATION | 2026-05-04 | 12/12 new + 43/43 existing settings-store tests = 55/55 in `target/test-artifacts/WP-I1-003/`; 119/119 polish-bundle + GUI regression; audit clean. |
 | WP-I1-016 | Clear workspace command + toolbar button (next to Open) + Edit menu | assistant | IMPLEMENTATION | 2026-05-04 | 11/11 in `target/test-artifacts/WP-I1-016/`; 119/119 polish-bundle + GUI regression; audit clean. |
 | WP-I1-005 | Drag-and-drop portrait import (MainWindow + both viewports; multi-file = accept first + WARN rest) | assistant | IMPLEMENTATION | 2026-05-04 | 15/15 in `target/test-artifacts/WP-I1-005/`; 119/119 polish-bundle + GUI regression; audit clean. |
+| WP-I1-010 | Multi-angle automation (`export_batch.per_angle_metadata` + manifest mapping) | assistant | IMPLEMENTATION | 2026-05-04 | 19/19 focused export/command tests passing with JUnit `target/test-artifacts/WP-I1-010/pytest_results.xml`; sample manifest proof at `target/test-artifacts/WP-I1-010/sample-manifest-proof.json`; compileall + audit clean. |
 | WP-I1-018 | Hand detection + OpenPose hand output | assistant | IMPLEMENTATION | 2026-05-04 | `compileall` clean; focused hand/multi-file regression 47/47 passing; PostgreSQL library regression 30/30 passing; sample-image evidence under `target/test-artifacts/WP-I1-018-WP-I1-037/` shows 0/21/42 detected hand landmarks and 63-value left/right hand arrays in each export. Full-suite pytest timed out and is recorded as residual validation risk. |
 | WP-I1-037 | Multi-file workspace implementation | assistant | IMPLEMENTATION | 2026-05-04 | Sample-image validation opened 3 file slots, switched active file, exported 3 per-file JSON+PNG pairs, and snapshotted all 3 OpenPose viewports; `state_files_count=3`. Topology updated for new commands; `scripts/audit-repo.ps1` clean. |
 | WP-I3-009 | Audit script extension (rule registry coverage) | assistant | INFRASTRUCTURE | 2026-05-03 | `pwsh scripts/audit-repo.ps1` clean (8 OK, 1 SKIP) on HEAD; negative test in `target/test-artifacts/WP-I3-009/`. |

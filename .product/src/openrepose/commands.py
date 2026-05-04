@@ -343,6 +343,17 @@ class CommandDispatcher:
 
 
 _FILE_MANAGEMENT_COMMANDS = {"open_file", "close_file", "set_active_file", "list_files"}
+_PER_ANGLE_METADATA_MAX_BYTES = 1_000_000
+_KNOWN_PER_ANGLE_METADATA_KEYS = {
+    "prompt_slug",
+    "seed",
+    "controlnet_strength",
+    "sampler",
+    "scheduler",
+    "workflow_slug",
+    "workflow",
+    "notes",
+}
 
 
 def _new_file_id() -> str:
@@ -479,6 +490,90 @@ def _close_file_id(d: CommandDispatcher, file_id: str) -> dict[str, Any]:
             _clear_active_state(d)
     _sync_state_files(d)
     return {"closed_file_id": file_id, "active_file_id": d._active_file_id, "files": list(d.state.files)}
+
+
+def _normalise_per_angle_metadata(
+    raw: Any,
+    *,
+    angles: list[str],
+    log: Logger,
+) -> dict[str, dict[str, Any]]:
+    """Validate and normalize export_batch per-angle metadata.
+
+    Accepted inputs:
+      - None -> {}
+      - list aligned with canonical angle labels; entries are dict or None.
+      - dict keyed by canonical/parseable yaw bin; values are dict or None.
+
+    The output is always a yaw-bin keyed dict so downstream scripts can look
+    up metadata without relying on list order.
+    """
+    if raw is None:
+        return {}
+    angle_set = set(angles)
+    unknown_keys: set[str] = set()
+
+    def _validate_item(angle: str, item: Any) -> dict[str, Any] | None:
+        if item is None:
+            return None
+        if not isinstance(item, dict):
+            raise OpenReposeCommandError(
+                f"per_angle_metadata for {angle!r} must be an object or null"
+            )
+        for key in item:
+            if not isinstance(key, str) or not key:
+                raise OpenReposeCommandError(
+                    f"per_angle_metadata for {angle!r} has a non-string or empty key"
+                )
+        encoded = json.dumps(item, ensure_ascii=False)
+        if len(encoded.encode("utf-8")) > _PER_ANGLE_METADATA_MAX_BYTES:
+            raise OpenReposeCommandError(
+                f"per_angle_metadata for {angle!r} exceeds {_PER_ANGLE_METADATA_MAX_BYTES} bytes"
+            )
+        unknown_keys.update(set(item) - _KNOWN_PER_ANGLE_METADATA_KEYS)
+        return dict(item)
+
+    normalised: dict[str, dict[str, Any]] = {}
+    if isinstance(raw, list):
+        if len(raw) != len(angles):
+            raise OpenReposeCommandError(
+                "per_angle_metadata list length must match angles length"
+            )
+        for angle, item in zip(angles, raw, strict=True):
+            meta = _validate_item(angle, item)
+            if meta is not None:
+                normalised[angle] = meta
+    elif isinstance(raw, dict):
+        for key, item in raw.items():
+            if not isinstance(key, str) or not key:
+                raise OpenReposeCommandError(
+                    "per_angle_metadata object keys must be non-empty yaw bin strings"
+                )
+            canonical = parse_bin(key).label
+            if canonical not in angle_set:
+                raise OpenReposeCommandError(
+                    f"per_angle_metadata key {key!r} is not present in angles"
+                )
+            meta = _validate_item(canonical, item)
+            if meta is not None:
+                normalised[canonical] = meta
+    else:
+        raise OpenReposeCommandError(
+            "per_angle_metadata must be a list aligned with angles or an object keyed by yaw bin"
+        )
+
+    encoded_all = json.dumps(normalised, ensure_ascii=False)
+    if len(encoded_all.encode("utf-8")) > _PER_ANGLE_METADATA_MAX_BYTES:
+        raise OpenReposeCommandError(
+            f"per_angle_metadata exceeds {_PER_ANGLE_METADATA_MAX_BYTES} bytes"
+        )
+    if unknown_keys:
+        log.warn(
+            "export.batch_metadata",
+            "unknown per-angle metadata keys preserved",
+            keys=",".join(sorted(unknown_keys)),
+        )
+    return normalised
 
 
 def _open_file_impl(d: CommandDispatcher, path: str, avatar_slug: str | None, file_id: str | None = None) -> dict[str, Any]:
@@ -730,6 +825,15 @@ def _h_export_batch(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]
         angles = standard_13_angle_bins()
     if not isinstance(angles, list) or not all(isinstance(a, str) for a in angles):
         raise OpenReposeCommandError("angles must be a list of bin strings")
+    bin_objs = [parse_bin(label) for label in angles]
+    angles = [bin_obj.label for bin_obj in bin_objs]
+    if len(set(angles)) != len(angles):
+        raise OpenReposeCommandError("angles must not contain duplicate yaw bins")
+    per_angle_metadata = _normalise_per_angle_metadata(
+        cmd.get("per_angle_metadata"),
+        angles=angles,
+        log=d.log,
+    )
 
     out_dir_raw = cmd.get("out_dir")
     if isinstance(out_dir_raw, str) and out_dir_raw:
@@ -756,8 +860,7 @@ def _h_export_batch(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]
         d.settings.canvas_border_color if d.settings is not None else None
     )
     from .render.draw_openpose import render_openpose_to_png
-    for label in angles:
-        bin_obj = parse_bin(label)  # validates each label
+    for bin_obj in bin_objs:
         safe_bin = bin_obj.label.replace(" ", "-")
         out_json = out_dir / f"{avatar_slug}_yaw_{safe_bin}.json"
         out_png = out_json.with_suffix(".png")
@@ -783,22 +886,35 @@ def _h_export_batch(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]
         written.append(str(out_png))
 
     manifest_path = out_dir / "manifest.json"
+    manifest = {
+        "avatar_slug": avatar_slug,
+        "portrait": d.state.portrait,
+        "angles": angles,
+        "files": written,
+        "per_angle_metadata": per_angle_metadata,
+        "per_angle_metadata_count": len(per_angle_metadata),
+        "completed_at": _now_iso(),
+    }
     manifest_path.write_text(
         json.dumps(
-            {
-                "avatar_slug": avatar_slug,
-                "portrait": d.state.portrait,
-                "angles": angles,
-                "files": written,
-                "completed_at": _now_iso(),
-            },
+            manifest,
             indent=2,
+            ensure_ascii=False,
         ),
         encoding="utf-8",
     )
     written.append(str(manifest_path))
 
-    d.state.add_export(type_="batch", out_dir=str(out_dir), files=written)
+    d.state.add_export(
+        type_="batch",
+        out_dir=str(out_dir),
+        files=written,
+        metadata={
+            "manifest": str(manifest_path),
+            "per_angle_metadata": per_angle_metadata,
+            "per_angle_metadata_count": len(per_angle_metadata),
+        },
+    )
     d.state.write()
     d.log.ok(
         "export.batch",
@@ -806,7 +922,13 @@ def _h_export_batch(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]
         angles=len(angles),
         out_dir=str(out_dir),
     )
-    return {"out_dir": str(out_dir), "files": written, "angles": angles}
+    return {
+        "out_dir": str(out_dir),
+        "files": written,
+        "angles": angles,
+        "per_angle_metadata": per_angle_metadata,
+        "per_angle_metadata_count": len(per_angle_metadata),
+    }
 
 
 def _h_snapshot(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
