@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-04
 - **Last Updated**: 2026-05-04
-- **Status**: READY
+- **Status**: IN-PROGRESS
 - **Iteration**: I4
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -251,3 +251,4 @@ Required because this WP changes command surfaces used by LLM agents, but it add
 ## Progress Log
 
 - 2026-05-04: WP initialized at READY as governance-only setup. No `.product/` implementation started.
+- 2026-05-04: Status READY → IN-PROGRESS. Spec extension landed in `openrepose_intake_v0_1.md` "I4 Scale + DB Hardening Extension" + `openrepose_library_v0_1.md` "I4 Multi-Operator Concurrency Hardening". Manual extension landed in `intake-and-triage.md#i4-hardening` covering producer attribution, storage_state, bulk registration, recovery, search filter, and concurrent triage. Five new rule_ids defined: INTAKE-005..009 (block/warn/info mix). Migration `006_i4_intake_scale_hardening.sql` schema shape locked in spec; implementation pending in next commit.

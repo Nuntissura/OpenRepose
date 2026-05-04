@@ -380,3 +380,36 @@ Both targets respect the existing snapshot subsystem rules: no `raise_/activateW
 - **Proof Target**: pytest covers schema migrations, register / update / delete / search dispatcher commands, multi-operator lock collision (two pool clients, one acquires lock, second gets structured error), ComfyUI bridge POST end-to-end (mock the HTTP receiver), trigram fuzzy search ("inimate" matches "intimate"), full-text search (search "lighting" matches a story beat with "low-key lighting"). Manual: operator runs ComfyUI with the custom node installed, generates an image, sees the entry appear in the Library tab; runs a search; opens an entry from a parallel operator session and sees the lock indicator.
 - **Allowed Temporary Fallbacks**: smart tags can fail to extract from non-standard ComfyUI workflow shapes; the entry still registers but with `auto:smart-tag-extraction-failed:1` so the operator can re-extract later. ComfyUI bridge HTTP failure logs WARN but does not block image save.
 - **Promotion Guard**: do not promote Feature 3 spec from `DRAFT` to `STABLE` until: (a) at least 3 operators have used the library concurrently for one focused work session without lock-collision UX problems; (b) ComfyUI bridge survives at least 100 round-trips without dropped registrations; (c) `pg_dump` + restore round-trip preserves all entries + tags + prompts + story_beats + notes verbatim.
+
+## I4 Multi-Operator Concurrency Hardening (OPEN — WP-I4-001)
+
+Extension layered on top of v0.1 concurrency. v0.1 stays stable; this section adds the contract pieces that surface when multiple LLM/worker producers and operators load the library simultaneously. The detailed schema and command shapes live in `openrepose_intake_v0_1.md` "I4 Scale + DB Hardening Extension"; this section is the library-side companion.
+
+### `library_search` Default Filtering
+
+`library_search` excludes intake-staging rows from the main library view by default. Without this, multi-producer load contaminates the operator's primary discovery surface with `pending`, `soft_accepted`, `diagnostic`, and `rejected` entries.
+
+- Default `status_filter`: `['promoted']`.
+- Explicit opt-in: `include_staging=true` (adds the staging statuses) or `status_filter=[<allowlist>]` (full override).
+- Legacy I2 entries with `status='promoted'` (set as the default on the I3 migration) remain visible without `include_legacy=true`. Pre-I3 rows with NULL status (none expected after migration 002, but defended) require `include_legacy=true`.
+- Rule citation `INTAKE-009` (severity `info`) explains the default behavior in the response when `include_staging` is unset and the result count differs from the unfiltered count.
+
+### Bulk Insert + Idempotency
+
+The bulk producer path (`intake_register_outputs_bulk`) uses PostgreSQL `INSERT ... ON CONFLICT (task_id, agent_id, idempotency_key) DO NOTHING RETURNING ...` to make retries safe at the DB level rather than via pre-read / insert race patterns. `content_hash` remains dedup evidence (warn-level), not the sole identity key.
+
+### Triage Claim Semantics
+
+Concurrent triage workers claim batches of `pending` outputs with `SELECT ... FOR UPDATE SKIP LOCKED` so two workers see disjoint sets without blocking. Claims hold for the transaction lifetime; the worker either advances rows to a terminal state and commits, or rolls back and the rows return to `pending`.
+
+### Transaction Ownership
+
+Data-layer helpers under `library/` and `library/intake/` MUST NOT call `connection.commit()` or `connection.rollback()`. Transaction boundaries belong to command/service handlers. WP-I4-001 audits the touched modules and converts internal commits to caller-owned commits; broader cleanup is follow-up WP scope.
+
+### File-Operation Outbox
+
+Every status transition that needs a filesystem effect (move on soft_accept / promote, move on auto-route, delete on wholesale-reject) writes a `library_file_ops` row in the same DB transaction as the status update. The filesystem op runs after commit; failure leaves a retryable DB state with `library_outputs.storage_state='file_op_failed'`. There are no silent stale `file_path`s.
+
+### Schema Bump
+
+Migration `006_i4_intake_scale_hardening.sql` adds the columns and tables above and bumps `schema_version` from `5` to `6`. The migration applies cleanly from a fresh DB and from an I3-current DB.

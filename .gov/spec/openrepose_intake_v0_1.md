@@ -370,3 +370,230 @@ INTAKE-004   library_search excludes status='pending' by default (explicit inclu
 - **Proof Target**: I3 IMPLEMENTATION WPs cite this spec by anchor; pytest covers two-stage CHECK constraint, wholesale-reject transactional rollback, advisory-lock under concurrent intake registrations (uses I2-008 pattern); end-to-end test runs a 50-output mock task through bridge → intake → triage → soft_accept → finalize → library; library_search filters pending by default with passing `include_pending=true`.
 - **Allowed Temporary Fallbacks**: probabilistic auto-prefilter is advisory only; bridge default-staging migration may keep the direct-write path for one I3 IMPLEMENTATION WP cycle behind an `OPENREPOSE_LEGACY_DIRECT_WRITE=1` flag, removed in the next WP. Mark with FALLBACK comments per Workflow Version 1.1.
 - **Promotion Guard**: do not declare intake v0.1 stable until: (a) operator processes one full EXP120-style task end-to-end (bridge → triage → finalize) with all 4 layers exercised, (b) `task_reject_wholesale` correctly rolls back ≥100 outputs in one transaction without orphan files, (c) auto-route reversal path tested with a deliberately mis-detected metadata case.
+
+## I4 Scale + DB Hardening Extension (OPEN — WP-I4-001)
+
+Extension layered on top of the v0.1 contract above. v0.1 stays stable; this section adds idempotency, producer attribution, durable file-state tracking, and bulk registration so multiple concurrent producers can submit hundreds of outputs per task. Spec status: OPEN until WP-I4-001 reaches DONE.
+
+### Producer Attribution On `library_outputs`
+
+Migration `006_i4_intake_scale_hardening.sql` (schema_version 5 → 6) adds four producer-identity columns. They answer "who submitted this output, on which logical run, with what retry key" without conflating producer identity with our internal `library_runs.id`.
+
+```sql
+ALTER TABLE library_outputs
+    ADD COLUMN source_model      TEXT,                  -- producer-supplied model identifier (e.g. 'sdxl-base-1.0', 'flux-dev')
+    ADD COLUMN agent_id          TEXT,                  -- LLM/worker agent slug submitting the row
+    ADD COLUMN producer_run_id   TEXT,                  -- producer's own run id (free-text; not our library_runs.id)
+    ADD COLUMN idempotency_key   TEXT;                  -- producer-supplied retry key; scoped per (task_id, agent_id)
+```
+
+`source_model` is free-text by design; producers vary too quickly for a controlled enum. Uniqueness for safe retry is enforced on the triple `(task_id, agent_id, idempotency_key)`. `content_hash` remains dedup evidence (warn-level), not the sole identity key — two outputs may legitimately be byte-identical samples of the same prompt.
+
+```sql
+CREATE UNIQUE INDEX library_outputs_idempotency_uk
+    ON library_outputs (task_id, agent_id, idempotency_key)
+    WHERE idempotency_key IS NOT NULL;
+
+CREATE INDEX library_outputs_agent_idx
+    ON library_outputs (task_id, agent_id)
+    WHERE agent_id IS NOT NULL;
+```
+
+### Storage State
+
+`status` describes the output's *semantic* lifecycle (pending → soft_accepted → promoted → ...). `storage_state` describes where the *file* currently lives and whether the last filesystem operation succeeded. The two are decoupled because PostgreSQL transactions and filesystem moves cannot share a transaction manager — the DB can be correct while the file is missing or mid-move.
+
+```sql
+ALTER TABLE library_outputs
+    ADD COLUMN storage_state TEXT NOT NULL DEFAULT 'raw'
+        CONSTRAINT lib_outputs_storage_state_enum
+            CHECK (storage_state IN
+                ('raw','diagnostic','rejected','soft_accepted','accepted','missing','file_op_failed'));
+
+CREATE INDEX library_outputs_storage_state_idx
+    ON library_outputs (storage_state)
+    WHERE storage_state IN ('missing','file_op_failed');
+```
+
+State map (initial; transitions executed by `library/intake/storage.py`):
+
+```text
+raw              file is at outputs/intake/<task_id>/raw/<filename>; matches the bridge drop location
+diagnostic       file moved to outputs/intake/<task_id>/diagnostic/<bucket>/<filename>; auto-route landed here
+rejected         file moved to outputs/intake/<task_id>/rejected/<filename>; kept for audit
+soft_accepted    file moved to outputs/library/<project>/<batch>/soft_accepted/<filename>; LLM stage-1 accept
+accepted         file moved to outputs/library/<project>/<batch>/accepted/<filename>; operator stage-2 finalize
+missing          DB row exists but the on-disk file is gone (detected by recovery audit)
+file_op_failed   the most recent move/delete operation failed; library_file_ops row holds details
+```
+
+`status` and `storage_state` move together for the happy path but can diverge during retry/recovery. Recovery audit reports any row whose `(status, storage_state)` is incoherent.
+
+### Lifecycle Events (append-only)
+
+```sql
+CREATE TABLE library_output_events (
+    id                  UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
+    output_id           UUID         NOT NULL REFERENCES library_outputs(id) ON DELETE CASCADE,
+    event_type          TEXT         NOT NULL,                          -- 'register' | 'soft_accept' | 'reject' | 'finalize' | 'auto_route' | 'reroute' | 'wholesale_reject' | 'storage_transition' | 'file_op_failed' | 'recover'
+    from_status         TEXT,
+    to_status           TEXT,
+    from_storage_state  TEXT,
+    to_storage_state    TEXT,
+    actor               TEXT         NOT NULL,                          -- agent_id, operator slug, or 'system'
+    payload_json        JSONB        NOT NULL DEFAULT '{}'::jsonb,
+    created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    CONSTRAINT library_output_events_type_enum
+        CHECK (event_type IN
+            ('register','soft_accept','reject','finalize',
+             'auto_route','reroute','wholesale_reject',
+             'storage_transition','file_op_failed','recover'))
+);
+
+CREATE INDEX library_output_events_output_idx ON library_output_events (output_id);
+CREATE INDEX library_output_events_type_idx   ON library_output_events (event_type);
+```
+
+Append-only by convention (no UPDATE/DELETE in product code). Audit and recovery commands replay this table to rebuild lost intent.
+
+### File-Operation Outbox
+
+```sql
+CREATE TABLE library_file_ops (
+    id              UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
+    output_id       UUID         NOT NULL REFERENCES library_outputs(id) ON DELETE CASCADE,
+    op_type         TEXT         NOT NULL,                              -- 'move' | 'delete'
+    src_path        TEXT         NOT NULL,
+    dst_path        TEXT,                                               -- NULL for delete
+    status          TEXT         NOT NULL DEFAULT 'pending',
+    attempt_count   INT          NOT NULL DEFAULT 0,
+    last_error      TEXT,
+    claimed_at      TIMESTAMPTZ,
+    claimed_by      TEXT,
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    completed_at    TIMESTAMPTZ,
+    CONSTRAINT library_file_ops_op_type_enum
+        CHECK (op_type IN ('move','delete')),
+    CONSTRAINT library_file_ops_status_enum
+        CHECK (status IN ('pending','in_flight','done','failed'))
+);
+
+CREATE INDEX library_file_ops_pending_idx
+    ON library_file_ops (created_at)
+    WHERE status IN ('pending','in_flight');
+CREATE INDEX library_file_ops_output_idx ON library_file_ops (output_id);
+```
+
+Every status transition that needs a filesystem effect inserts a `library_file_ops` row inside the same DB transaction as the status update. A separate worker (or the same dispatcher inline, bounded by attempt cap) executes the filesystem op and updates the row. If the move fails, the DB still has a truthful record: `library_outputs.storage_state='file_op_failed'` and a `library_file_ops` row carrying the error and retry count. There are no silent stale paths.
+
+### Bulk Registration Command
+
+`intake_register_outputs_bulk` is the bulk counterpart to `intake_register_output`. It does not replace the single-output primitive — bulk shares its validation, auto-route, and event-emission paths. Bulk registers per-run: every bulk request carries one `(task_id, run_id)` pair so provenance stays explicit.
+
+```text
+intake_register_outputs_bulk(
+  task_id, run_id,
+  agent_id, source_model,
+  outputs: [
+    {file_path, content_hash, width, height, idempotency_key, producer_run_id, metadata?},
+    ...                                                                                # up to bulk_batch_max per request
+  ]
+) -> {
+  inserted:    [{idempotency_key, output_id}, ...],
+  duplicates:  [{idempotency_key, existing_output_id, content_hash_match: bool}, ...],
+  rejected:    [{idempotency_key, reason, rule_id?}, ...],                              # validation failure or auto-route to rejected/diagnostic
+  diagnostic:  [{idempotency_key, output_id, auto_route_bucket}, ...]
+}
+```
+
+Bulk-mode contracts:
+
+- All rows insert under one transaction; partial commit is impossible. If the transaction rolls back, the per-file-op outbox rows roll back with it.
+- Duplicate idempotency keys *within the same request* are rejected deterministically (first wins; subsequent duplicates land in `rejected` with `reason='duplicate_idempotency_key_in_request'`).
+- A retried bulk request with the same `(task_id, agent_id, idempotency_key)` set returns each existing row in `duplicates`; zero new `library_outputs` rows are created and `library_tasks.received_count` is not double-incremented.
+- The single-output primitive `intake_register_output` continues to work for ad-hoc inline payloads. Bulk callers SHOULD pass `file_path` (relative to the bridge / staging root) rather than inline base64 to keep request bodies bounded.
+- A producer-soft cap on outputs-per-request is enforced (`bulk_batch_max`, default `200`); requests exceeding the cap are rejected before any DB write.
+
+### Recovery / Audit Command
+
+```text
+intake_recover_audit(task_id?) -> {
+  missing_files:        [{output_id, file_path, status, storage_state}, ...],          # DB row exists; on-disk file absent
+  pending_file_ops:     [{file_op_id, output_id, op_type, src_path, dst_path, attempt_count}, ...],
+  failed_file_ops:      [{file_op_id, output_id, op_type, last_error, attempt_count, last_attempt_at}, ...],
+  storage_state_mismatches: [{output_id, status, storage_state, expected_storage_state}, ...]
+}
+
+intake_recover_retry(file_op_id) -> {file_op_id, status, attempt_count, error?}
+```
+
+Audit is read-only and idempotent. Retry advances the file-op outbox row exactly once.
+
+### Search Filtering Default
+
+`library_search` excludes intake-staging rows by default. Today's behavior contaminates the operator's main library view with `pending`, `soft_accepted`, `diagnostic`, and `rejected` rows under the multi-producer load this WP enables.
+
+```text
+default:                 status IN ('promoted')
+include_staging=true:    status IN ('promoted','soft_accepted','pending','triaging','diagnostic','rejected','abandoned')
+status_filter=[...]:     explicit allowlist (overrides default)
+include_legacy=true:     also include rows with NULL status (pre-I3 I2 entries that never received a status)
+```
+
+Promoted I2 entries created before `library_entries.status` existed default to `status='promoted'` per migration 002 and remain visible without `include_legacy`.
+
+### Transaction Ownership
+
+Data-layer helpers under `library/intake/` and `library/` MUST NOT call `connection.commit()` or `connection.rollback()`. Transaction boundaries belong to command/service handlers in `library/intake/{tasks,runs,outputs}.py` and `commands.py`. Helpers receive a connection (or cursor) and return.
+
+This is required so:
+
+- Bulk command runs every per-row operation under one transaction owned by the bulk handler.
+- A mid-command exception unwinds every DB effect for the command (no partial state).
+- The file-op outbox row inserts in the same transaction as the status change that scheduled it.
+
+WP-I4-001 audits the touched modules and converts internal commits to caller-owned commits. Scope is the intake/library paths the WP touches, not every DB module repo-wide; broader cleanup is follow-up WP scope.
+
+### Concurrent Triage Claims
+
+When multiple LLM agents share a triage queue, each claim must be exclusive. Claim semantics use PostgreSQL row locks with `SKIP LOCKED`:
+
+```sql
+SELECT id, file_path
+FROM library_outputs
+WHERE task_id = $1 AND status = 'pending'
+ORDER BY created_at
+FOR UPDATE SKIP LOCKED
+LIMIT $2;
+```
+
+Two workers running this query at the same time see disjoint sets. The claim holds for the transaction lifetime; the worker either advances the row to `triaging`/`soft_accepted`/`rejected`/`diagnostic` and commits, or rolls back and the row returns to `pending` for another worker.
+
+### Rule Citations Added By I4
+
+```text
+INTAKE-005   bulk request idempotency: (task_id, agent_id, idempotency_key) unique; retry returns duplicates not new rows  severity: block
+INTAKE-006   storage_state truth: a row with status='promoted' must have storage_state='accepted' or 'missing' (recovery)   severity: warn
+INTAKE-007   data-layer transactions: helpers do not commit; command/service handlers own commit/rollback                   severity: warn
+INTAKE-008   bulk batch cap: requests above bulk_batch_max are rejected pre-write                                           severity: block
+INTAKE-009   library_search default excludes pending/diagnostic/rejected/soft_accepted; include_staging=true to include     severity: info
+```
+
+Manual link: `intake-and-triage.md#i4-hardening`.
+
+### Out Of Scope For I4
+
+- Cross-task content_hash dedup (still v0.2 spec scope).
+- Multi-machine intake sharing.
+- Removing `OPENREPOSE_LEGACY_DIRECT_WRITE` from the bridge (separate hardening WP).
+- ML-backed quality / adult / anatomy classifiers in the auto-route path.
+- Streaming bridge mode where the LLM watches `intake_register_output` events live.
+- Demote / un-promote command (`library_demote`).
+
+### Reality Boundary For I4
+
+- **Real Seam**: 4 producer-attribution columns + `storage_state` + 2 new tables (`library_output_events`, `library_file_ops`) on top of v0.1 schema; 1 bulk command + 2 recovery commands + search-filter hardening + transaction-boundary cleanup; 5 new rule_ids (INTAKE-005..009).
+- **User-Visible Win**: 3 producer streams × 100+ outputs each into one task with zero duplicate rows on retry, accurate counters, no stale `file_path`s, and main `library_search` not contaminated by staging rows.
+- **Proof Target**: `.product/tests/test_e2e_parallel_intake.py` runs ≥3 producer identities × ≥100 outputs each; retried payload returns duplicates not new rows; mid-command rollback proven; file-op failure repaired via recovery command.
+- **Allowed Temporary Fallbacks**: synthetic small PNG bytes are acceptable for bulk tests; producer model names may be synthetic.
+- **Promotion Guard**: do not transition WP-I4-001 to REVIEW until the parallel e2e proof passes, all changed DB paths use command/service-owned transactions, and the recovery command surfaces injected file-op failures correctly.

@@ -297,3 +297,95 @@ Snapshot invocation (LLM-side):
 The dispatcher prefers a live widget grab when the GUI is up, falls back to a headless pure-OpenCV render driven by `state.library` when the GUI is down. Both paths produce the same target name and the same on-disk PNG shape, so an LLM agent never has to know which is in use.
 
 Operator-side triage actions (click-to-soft_accept, click-to-reject, click-to-promote) are intentionally absent in v0.1; they land in a future GUI polish WP after WP-I3-010 verifies the LLM-driven path end-to-end.
+
+## I4 hardening {#i4-hardening}
+
+Layered on top of v0.1 intake. Adds idempotent bulk registration, producer attribution, durable file-state tracking, and search-filter hardening so multiple concurrent producers can submit hundreds of outputs per task without duplicate rows, stale paths, or main-library contamination. Migration `006_i4_intake_scale_hardening.sql` (schema_version 5 → 6) carries the schema additions.
+
+### Producer attribution {#producer-attribution}
+
+Every output row carries four producer-identity columns:
+
+| Column | What it is | Set by |
+|--------|------------|--------|
+| `source_model` | producer-supplied model identifier (e.g. `sdxl-base-1.0`, `flux-dev`) | bridge / producer payload |
+| `agent_id` | LLM/worker agent slug submitting the row | bridge / producer payload |
+| `producer_run_id` | producer's own run id (free-text, not our `library_runs.id`) | bridge / producer payload |
+| `idempotency_key` | producer-supplied retry key, scoped per `(task_id, agent_id)` | bridge / producer payload |
+
+Uniqueness for safe retry is enforced on `(task_id, agent_id, idempotency_key)`. `content_hash` remains warn-level dedup evidence — two outputs may legitimately be byte-identical samples of the same prompt and not be retries.
+
+### Storage state {#storage-state}
+
+`status` describes the row's *semantic* lifecycle (pending → soft_accepted → promoted → ...). `storage_state` describes where the *file* currently lives. The two are decoupled because filesystem moves cannot share a transaction with PostgreSQL.
+
+| storage_state | meaning |
+|---------------|---------|
+| `raw` | file is at `outputs/intake/<task_id>/raw/<filename>` (bridge drop location) |
+| `diagnostic` | file moved to `outputs/intake/<task_id>/diagnostic/<bucket>/<filename>` |
+| `rejected` | file moved to `outputs/intake/<task_id>/rejected/<filename>` |
+| `soft_accepted` | file moved to `outputs/library/<project>/<batch>/soft_accepted/<filename>` |
+| `accepted` | file moved to `outputs/library/<project>/<batch>/accepted/<filename>` |
+| `missing` | DB row exists; on-disk file is gone (detected by recovery audit) |
+| `file_op_failed` | most recent move/delete failed; `library_file_ops` row holds details |
+
+Happy path: `status` and `storage_state` move together. Recovery / retry can leave them temporarily divergent; `intake_recover_audit` reports the divergences.
+
+### Bulk registration {#bulk-registration}
+
+`intake_register_outputs_bulk` is the bulk counterpart to `intake_register_output`. Rules:
+
+- Per-run: one bulk request carries one `(task_id, run_id)` pair. Provenance stays explicit; runs are not implicitly created.
+- Up to `bulk_batch_max` outputs per request (default `200`); over-cap requests are rejected pre-write with `INTAKE-008`.
+- Duplicate idempotency keys *within the same request* are normalized: first wins, subsequent duplicates land in the response's `rejected` array with `reason='duplicate_idempotency_key_in_request'`.
+- A retried bulk request with the same `(task_id, agent_id, idempotency_key)` set returns each existing row in `duplicates`. Zero new rows; `received_count` is not double-incremented.
+- Prefer file-path payloads over inline base64 to keep request bodies bounded.
+
+Response shape:
+
+```json
+{
+  "inserted":    [{"idempotency_key": "...", "output_id": "uuid"}],
+  "duplicates":  [{"idempotency_key": "...", "existing_output_id": "uuid", "content_hash_match": true}],
+  "rejected":    [{"idempotency_key": "...", "reason": "...", "rule_id": "INTAKE-005"}],
+  "diagnostic":  [{"idempotency_key": "...", "output_id": "uuid", "auto_route_bucket": "..."}]
+}
+```
+
+Single-output `intake_register_output` continues to work for ad-hoc inline payloads.
+
+### Recovery and audit {#recovery}
+
+```text
+intake_recover_audit(task_id?)   -> missing_files, pending_file_ops, failed_file_ops, storage_state_mismatches
+intake_recover_retry(file_op_id) -> advances the file-op row exactly once
+```
+
+Audit is read-only and idempotent. After a worker crash mid-finalize, run audit to find the pending/failed file-ops, then retry. The DB never silently drifts from disk reality.
+
+### Search filter default {#search-filter}
+
+Default `library_search` excludes intake-staging rows so the operator's main library view stays clean under multi-producer load:
+
+| Flag | Behavior |
+|------|----------|
+| (default) | `status IN ('promoted')` |
+| `include_staging=true` | also includes `pending`, `triaging`, `soft_accepted`, `diagnostic`, `rejected`, `abandoned` |
+| `status_filter=[...]` | explicit allowlist (overrides default) |
+| `include_legacy=true` | also includes rows with NULL status (pre-I3 entries; none expected after migration 002) |
+
+When `include_staging` is unset and the result count differs from the unfiltered count, the response carries citation `INTAKE-009` (severity `info`) so the caller knows staging was filtered.
+
+### Concurrent triage workers {#concurrent-triage}
+
+Multiple LLM agents sharing one triage queue claim rows with `SELECT ... FOR UPDATE SKIP LOCKED`. Two workers see disjoint sets without blocking. The claim holds for the transaction lifetime; the worker either advances the rows to a terminal state and commits, or rolls back and the rows return to `pending` for another worker.
+
+### Rule citations added by I4 {#i4-rules}
+
+| Rule | Severity | Short |
+|------|----------|-------|
+| `INTAKE-005` | block | bulk request idempotency: `(task_id, agent_id, idempotency_key)` unique; retry returns duplicates not new rows |
+| `INTAKE-006` | warn | storage_state truth: `status='promoted'` requires `storage_state='accepted'` (or `missing` flagged for recovery) |
+| `INTAKE-007` | warn | data-layer transactions: helpers do not commit; command/service handlers own commit/rollback |
+| `INTAKE-008` | block | bulk batch cap: requests above `bulk_batch_max` (default 200) are rejected pre-write |
+| `INTAKE-009` | info | `library_search` default excludes pending/diagnostic/rejected/soft_accepted; `include_staging=true` to include |

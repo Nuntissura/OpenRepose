@@ -6,7 +6,7 @@ Live status of all OpenRepose workpackets. Update in the same session as any wor
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 4 (WP-I1-003 settings persistence; WP-I1-005 drag-and-drop portrait import; WP-I1-016 clear workspace command + button — I1 polish bundle, sequential within the sweep; WP-I4-001 intake scale + DB hardening READY)
+- WPs in flight (READY + IN-PROGRESS): 4 (WP-I1-003 settings persistence; WP-I1-005 drag-and-drop portrait import; WP-I1-016 clear workspace command + button — I1 polish bundle, sequential within the sweep; WP-I4-001 intake scale + DB hardening IN-PROGRESS — spec/manual landed)
 - WPs pending review (REVIEW): 4 (WP-I3-009 audit-script extension; WP-I3-007 requirements editor + target tree; WP-I3-008 triage GUI tab + snapshot targets; WP-I3-010 e2e EXP120 verification)
 - WPs done (I3): 5 (WP-I3-001 spec lock; WP-I3-002 stance primitives; WP-I3-003 PG schema migrations; WP-I3-004 intake/project/task command surface; WP-I3-005 default-staging ComfyUI bridge; WP-I3-006 AMood data-model commands)
 - WPs blocked (BLOCKED): 0
@@ -27,7 +27,7 @@ Workpackets currently progressing toward DONE.
 | WP-I1-003 | Settings persistence | assistant | IN-PROGRESS | IMPLEMENTATION | S | 2026-05-04 |
 | WP-I1-016 | Clear workspace command + button | assistant | IN-PROGRESS | IMPLEMENTATION | XS | 2026-05-04 |
 | WP-I1-005 | Drag-and-drop portrait import | assistant | IN-PROGRESS | IMPLEMENTATION | XS | 2026-05-04 |
-| WP-I4-001 | Intake scale + DB hardening | assistant | READY | IMPLEMENTATION | L | 2026-05-04 |
+| WP-I4-001 | Intake scale + DB hardening | assistant | IN-PROGRESS | IMPLEMENTATION | L | 2026-05-04 |
 
 ## Pending Review
 
