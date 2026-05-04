@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Callable
 
 import cv2
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QPointF, Qt
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QLabel, QSizePolicy
 
@@ -25,6 +25,14 @@ class Viewport3D(QLabel):
         self.setMinimumSize(320, 400)
         self.setStyleSheet("background-color: #202020;")
         self._placeholder("no rig loaded")
+        self.camera_yaw_deg = 0.0
+        self.camera_pitch_deg = 0.0
+        self._dragging_camera = False
+        self._last_drag_pos: QPointF | None = None
+        self._last_rotated: RotatedRig | None = None
+        self.setToolTip(
+            "Left-drag orbits the 3D inspection camera only; rig yaw/export are unchanged."
+        )
         # WP-I1-005: viewport accepts portrait drops; MainWindow installs
         # the callback that does the actual import dispatch.
         self.setAcceptDrops(True)
@@ -55,9 +63,56 @@ class Viewport3D(QLabel):
             self._drop_callback(path)
 
     def update_rig(self, rotated: RotatedRig) -> None:
+        self._last_rotated = rotated
         # Render at the rig's portrait size, then scale to widget for display.
-        bgr = render_3d_viewport(rotated)
+        bgr = render_3d_viewport(
+            rotated,
+            camera_yaw_deg=self.camera_yaw_deg,
+            camera_pitch_deg=self.camera_pitch_deg,
+        )
         self._show_bgr(bgr)
+
+    def reset_orbital_camera(self) -> None:
+        self.camera_yaw_deg = 0.0
+        self.camera_pitch_deg = 0.0
+        if self._last_rotated is not None:
+            self.update_rig(self._last_rotated)
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt API)
+        if event.button() == Qt.MouseButton.LeftButton and self._last_rotated is not None:
+            self._dragging_camera = True
+            self._last_drag_pos = event.position()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:  # noqa: N802 (Qt API)
+        if (
+            self._dragging_camera
+            and self._last_drag_pos is not None
+            and self._last_rotated is not None
+            and event.buttons() & Qt.MouseButton.LeftButton
+        ):
+            pos = event.position()
+            delta = pos - self._last_drag_pos
+            self._last_drag_pos = pos
+            self.camera_yaw_deg += float(delta.x()) * 0.35
+            self.camera_pitch_deg = max(
+                -89.0,
+                min(89.0, self.camera_pitch_deg + float(delta.y()) * 0.35),
+            )
+            self.update_rig(self._last_rotated)
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802 (Qt API)
+        if event.button() == Qt.MouseButton.LeftButton and self._dragging_camera:
+            self._dragging_camera = False
+            self._last_drag_pos = None
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
     def _show_bgr(self, bgr) -> None:
         h, w = bgr.shape[:2]

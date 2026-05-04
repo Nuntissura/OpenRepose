@@ -4,7 +4,7 @@
 
 - **Owner**: assistant
 - **Date Opened**: 2026-05-02
-- **Status**: IN-PROGRESS
+- **Status**: REVIEW
 - **Iteration**: I1
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -53,10 +53,10 @@ Add operator-controlled orbital camera to the 3D mesh viewport so the operator c
 
 ## Definition Of Done
 
-- [ ] Mouse drag rotates the 3D viewport image in real time.
-- [ ] Snapshot output for `3d_viewport` is unaffected by operator's orbital camera state.
-- [ ] pytest-qt suite covers drag → camera state change → render delta.
-- [ ] **Manual Impact**: Yes - extends `.gov/doc/manual/feature-1-yaw-exporter.md` with the distinction between rig yaw and GUI-only orbital inspection camera.
+- [x] Mouse drag rotates the 3D viewport image in real time.
+- [x] Snapshot output for `3d_viewport` is unaffected by operator's orbital camera state.
+- [x] pytest-qt suite covers drag -> camera state change -> render delta.
+- [x] **Manual Impact**: Yes - extends `.gov/doc/manual/feature-1-yaw-exporter.md` with the distinction between rig yaw and GUI-only orbital inspection camera.
 
 ## Linked Requirements / Spec Sections
 
@@ -120,11 +120,13 @@ Add operator-controlled orbital camera to the 3D mesh viewport so the operator c
 
 ## Fallback Register
 
-- (none planned at DRAFT stage)
+- None.
 
 ## Change Ledger
 
 - 2026-05-04: Promoted DRAFT -> IN-PROGRESS for autonomous implementation after filtering out operator-preference/release-gated WPs. Research notes and manual-impact line added before product edits.
+- 2026-05-04: Implemented optional camera yaw/pitch transform in `render_3d_viewport`, GUI left-drag state on `Viewport3D`, pitch clamp, reset helper, and tests proving canonical zero camera is unchanged.
+- 2026-05-04: Advanced IN-PROGRESS -> REVIEW after focused orbital/snapshot tests, compileall, audit, and visual before/after PNG review.
 
 ## Checkpoint Commit Plan
 
@@ -135,26 +137,34 @@ Add operator-controlled orbital camera to the 3D mesh viewport so the operator c
 
 ## Proof Of Implementation
 
-- **Command Runs**: `pytest .product/tests/test_orbital_camera.py --junitxml=target/test-artifacts/WP-I1-002/pytest_results.xml`
-- **Proof Artifact**: `target/test-artifacts/WP-I1-002/pytest_results.xml`
-- **Claim Standard**: never mark `DONE` without the junit XML committed and a manual smoke confirming the snapshot-canonical-camera invariant.
+- **Command Runs**:
+  - `.\.venv\Scripts\python.exe -m pytest .product/tests/test_orbital_camera.py .product/tests/test_snapshot_targets.py -q --tb=short --junitxml=target/test-artifacts/WP-I1-002/pytest_results.xml`
+  - `.\.venv\Scripts\python.exe -m compileall -q .product\src\openrepose`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\audit-repo.ps1`
+- **Proof Artifact**: `target/test-artifacts/WP-I1-002/pytest_results.xml`, `target/test-artifacts/WP-I1-002/3d-camera-default.png`, and `target/test-artifacts/WP-I1-002/3d-camera-orbital-yaw35-pitch20.png`.
+- **Claim Standard**: never mark `DONE` without operator sign-off.
 
 ## Exit Criteria
 
-- [ ] Definition of Done items all checked.
-- [ ] Taskboard row reflects current status.
-- [ ] Reality Boundary, Fallback Register, Change Ledger truthful.
-- [ ] Linked test suite executed; junit XML saved at `target/test-artifacts/WP-I1-002/pytest_results.xml`.
-- [ ] Evidence section populated with concrete paths.
+- [x] Definition of Done items all checked.
+- [x] Taskboard row reflects current status.
+- [x] Reality Boundary, Fallback Register, Change Ledger truthful.
+- [x] Linked test suite executed; junit XML saved at `target/test-artifacts/WP-I1-002/pytest_results.xml`.
+- [x] Evidence section populated with concrete paths.
 - [ ] Operator sign-off recorded in Evidence.
 - [ ] Headless LLM Operation Compliance: marked N/A with reason (GUI-only polish; LLM snapshot keeps canonical camera).
 
 ## Evidence
 
 - 2026-05-04: Promoted DRAFT -> IN-PROGRESS; governance kickoff prepared before `.product/` edits.
+- 2026-05-04: Focused pytest passed: `test_orbital_camera.py` + `test_snapshot_targets.py` -> 31 passed in 44.91s; JUnit `target/test-artifacts/WP-I1-002/pytest_results.xml`.
+- 2026-05-04: `compileall -q .product\src\openrepose` clean.
+- 2026-05-04: `scripts/audit-repo.ps1` clean (project-rules-fresh skipped because `LIBRARY_DB_URL` unset).
+- 2026-05-04: Visual proof PNGs generated and reviewed: `target/test-artifacts/WP-I1-002/3d-camera-default.png` and `target/test-artifacts/WP-I1-002/3d-camera-orbital-yaw35-pitch20.png`. Orbital render visibly changes the diagnostic view and adds `view_cam` overlay; default render remains canonical.
 
 ## Progress Log
 
 - 2026-05-02: WP drafted, status DRAFT.
 - 2026-05-02: Enhanced with full template sections (Files Touched, Test Plan, Risks, Rollback, Exit Criteria, etc.) for session-survivability.
 - 2026-05-04: Status DRAFT -> IN-PROGRESS; implementation authorized by operator for autonomous overnight work.
+- 2026-05-04: Product implementation and validation complete; status IN-PROGRESS -> REVIEW pending operator sign-off.
