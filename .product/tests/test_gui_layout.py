@@ -56,13 +56,15 @@ def test_two_viewports_exist(app_and_window) -> None:
 
 def test_dock_tabs_present(app_and_window) -> None:
     """WP-I1-031 collapsed Calibration + Markers + Reframer under Tools.
-    WP-I2-006 added Library between Tools and Options."""
+    WP-I2-006 added Library between Tools and Options.
+    WP-I3-008 added Triage between Library and Options."""
     _app, window = app_and_window
     tab_titles = [window._tabs.tabText(i) for i in range(window._tabs.count())]
     assert tab_titles == [
         "Inspector",
         "Tools",
         "Library",
+        "Triage",
         "Options",
         "Log",
         "Help",

@@ -22,6 +22,7 @@ from ..app import App
 from ..render.widget_grab import set_widget_provider
 from ..rotation import rotate_yaw
 from ..yaw_bin import parse_bin, signed_deg_to_bin, standard_13_angle_bins
+from .drop_helper import decide_drop, mime_has_acceptable_image
 from .help_pane import HelpPane
 from .inspector import InspectorPane
 from .library import LibraryPane
@@ -58,6 +59,13 @@ class MainWindow(QMainWindow):
         self._build_central_widget()
         self._build_status_bar()
         self._wire_actions()
+
+        # WP-I1-005: drop targets are MainWindow + both viewports.
+        # Viewports forward via the same _import_portrait_path entry point
+        # so there is one canonical handler.
+        self.setAcceptDrops(True)
+        self._viewport_3d.set_drop_callback(self._import_portrait_path)
+        self._viewport_openpose.set_drop_callback(self._import_portrait_path)
 
         # Register widget provider so the snapshot subsystem can grab live
         # widgets when this window is visible. Widgets are realized during
@@ -102,6 +110,16 @@ class MainWindow(QMainWindow):
         act_quit.setShortcut(QKeySequence("Ctrl+Q"))
         act_quit.triggered.connect(self.close)
         file_menu.addAction(act_quit)
+
+        # WP-I1-016: Edit menu hosts the Clear workspace action; the
+        # toolbar button next to Open is the primary operator surface.
+        edit_menu = menu.addMenu("&Edit")
+        self.act_clear_workspace = QAction("&Clear workspace", self)
+        self.act_clear_workspace.setStatusTip(
+            "Drop the active document's rig and blank the viewports."
+        )
+        self.act_clear_workspace.triggered.connect(self._on_clear_workspace)
+        edit_menu.addAction(self.act_clear_workspace)
 
     def _build_central_widget(self) -> None:
         # Toolbar.
@@ -159,6 +177,7 @@ class MainWindow(QMainWindow):
     def _wire_actions(self) -> None:
         # Toolbar -> dispatcher commands.
         self._toolbar.open_clicked.connect(self._on_open)
+        self._toolbar.clear_workspace_clicked.connect(self._on_clear_workspace)
         self._toolbar.reload_clicked.connect(self._on_reload)
         self._toolbar.yaw_bin_changed.connect(self._on_yaw_bin_changed)
         self._toolbar.yaw_value_changed.connect(self._on_yaw_value_changed)
@@ -275,24 +294,70 @@ class MainWindow(QMainWindow):
         )
         if not path:
             return
+        self._import_portrait_path(path)
+
+    def _import_portrait_path(self, path: str | Path) -> None:
+        """Shared portrait-import path used by File→Open, drag-and-drop
+        on MainWindow, and drag-and-drop forwarded from the viewports.
+        Picks the slug from OptionsPane (or sanitizes from filename),
+        dispatches `import_portrait`, persists the parent folder."""
         from ..util.slugify import sanitize_avatar_slug
 
+        path_str = str(path)
         slug = (
             self._options.avatar_slug_edit.text().strip()
-            or sanitize_avatar_slug(Path(path).stem)
+            or sanitize_avatar_slug(Path(path_str).stem)
         )
         self._app.handle_command(
-            {"command": "import_portrait", "path": path, "avatar_slug": slug}
+            {"command": "import_portrait", "path": path_str, "avatar_slug": slug}
         )
-        # Persist the chosen folder for next launch.
         try:
-            self._app.settings.update(last_portrait_dir=str(Path(path).parent))
+            self._app.settings.update(last_portrait_dir=str(Path(path_str).parent))
         except Exception:  # noqa: BLE001
-            # Don't let a settings-persist hiccup break the import flow.
             self._app.log.warn(
                 "settings.last_portrait_dir.persist_failed",
                 reason="settings.update raised",
             )
+
+    # WP-I1-005: drag-and-drop portrait import.
+
+    def dragEnterEvent(self, event) -> None:  # noqa: N802 (Qt API)
+        if mime_has_acceptable_image(event.mimeData()):
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event) -> None:  # noqa: N802 (Qt API)
+        if mime_has_acceptable_image(event.mimeData()):
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:  # noqa: N802 (Qt API)
+        decision = decide_drop(event.mimeData())
+        if decision.path is None:
+            self._app.log.warn(
+                "import.drop_rejected",
+                reason=decision.reason or "unknown",
+                ignored=",".join(decision.ignored) if decision.ignored else "",
+            )
+            event.ignore()
+            return
+        if decision.ignored:
+            self._app.log.warn(
+                "import.drop_multi_file",
+                reason="accepted first image; remaining entries ignored",
+                accepted=decision.path.name,
+                ignored=",".join(decision.ignored),
+            )
+        event.acceptProposedAction()
+        self._import_portrait_path(decision.path)
+
+    def _on_clear_workspace(self) -> None:
+        """Toolbar / Edit menu → dispatch the headless clear_workspace
+        command. No confirmation dialog (the action is operator-explicit;
+        WP-I1-016 In Scope rules out a modal)."""
+        self._app.handle_command({"command": "clear_workspace"})
 
     def _on_reload(self) -> None:
         portrait = self._app.state.portrait

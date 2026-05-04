@@ -4,7 +4,7 @@
 
 - **Owner**: assistant
 - **Date Opened**: 2026-05-02
-- **Status**: IN-PROGRESS
+- **Status**: REVIEW
 - **Iteration**: I1
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -43,14 +43,14 @@ Operator drags a PNG/JPG file from Explorer into the OpenRepose window; OpenRepo
 
 ## Headless LLM Operation Compliance
 
-- [x] N/A — drag-and-drop is operator-only convenience; LLM uses `import_portrait`.
+- [x] N/A — drag-and-drop is operator-only convenience; LLM uses the existing `import_portrait` command.
 
 ## Definition Of Done
 
-- [ ] Drag a portrait into the window; rig fits; viewports populate.
-- [ ] Non-image drops rejected with a log WARN, no crash.
-- [ ] Tests cover both happy and rejection paths.
-- [ ] Manual Impact: Yes — extends `feature-1-yaw-exporter.md` Import section with the drag-and-drop flow + multi-file policy + the link to WP-I1-036 for true multi-file workspace support.
+- [x] Drag a portrait into the window; rig fits; viewports populate (covered headlessly via synthetic QDropEvent in `test_drop_on_main_window_dispatches_import`).
+- [x] Non-image drops rejected with a log WARN, no crash (`import.drop_rejected` + `import.drop_multi_file` log ops).
+- [x] Tests cover both happy and rejection paths (15 new tests).
+- [x] Manual Impact: Yes — extends `feature-1-yaw-exporter.md` Importing-a-portrait section with the drag-and-drop flow + multi-file policy + the link to WP-I1-036 for true multi-file workspace support.
 
 ## Linked Requirements / Spec Sections
 
@@ -114,6 +114,9 @@ Operator drags a PNG/JPG file from Explorer into the OpenRepose window; OpenRepo
 
 - 2026-05-04 (kickoff): multi-file drop policy = accept the first image, log WARN listing the ignored entries; do NOT silently iterate, do NOT reject the whole drop. Reason: operator wants multi-file workspace ASAP via WP-I1-036; in the interim a multi-drop should still produce one usable import rather than nothing.
 - 2026-05-04 (kickoff): drop targets = MainWindow central widget + both viewport panes; viewports forward drops to MainWindow (single dispatch site).
+- 2026-05-04 (implementation): factored validation into a small `gui/drop_helper.py` (`mime_has_acceptable_image`, `decide_drop`, `DropDecision` dataclass) so MainWindow + Viewport3D + ViewportOpenPose share the same accept/reject contract. `dragEnterEvent` + `dragMoveEvent` use the cheap pre-check; `dropEvent` uses the full `decide_drop`. Forwarding from viewports to MainWindow happens via a `set_drop_callback(cb)` setter, not via parent-walking.
+- 2026-05-04 (implementation): refactored MainWindow to share an `_import_portrait_path(path)` method between `_on_open` (File→Open) and the new dropEvent. Slug resolution + `last_portrait_dir` persistence live in one place now.
+- 2026-05-04 (implementation): rejected `.lnk` shell links explicitly. Windows Explorer can resolve them to images, but the resolution can surprise the operator; require a real image MIME type / extension. Recorded in `_REJECTED_SUFFIXES`.
 
 ## Fallback Register
 
@@ -121,7 +124,11 @@ Operator drags a PNG/JPG file from Explorer into the OpenRepose window; OpenRepo
 
 ## Change Ledger
 
-- (filled at REVIEW)
+- 2026-05-04 — Added `.product/src/openrepose/gui/drop_helper.py` (44 lines) with the validation contract: `mime_has_acceptable_image(mime_data)` for the cheap pre-check, `decide_drop(mime_data) → DropDecision(path, ignored, reason)` for the full inspection. Suffix allow-list = `.png`/`.jpg`/`.jpeg`; suffix block-list = `.lnk`. Missing files are rejected.
+- 2026-05-04 — MainWindow gained `setAcceptDrops(True)` + `dragEnterEvent` + `dragMoveEvent` + `dropEvent`. dropEvent logs `import.drop_rejected` (no path) or `import.drop_multi_file` (extras ignored), then dispatches `import_portrait` via the new shared `_import_portrait_path` method.
+- 2026-05-04 — Refactored `_on_open` to delegate to `_import_portrait_path` (slug resolution + `last_portrait_dir` persistence now live in one place).
+- 2026-05-04 — Viewport3D + ViewportOpenPose gained `setAcceptDrops(True)` + drag/drop handlers + a `set_drop_callback(cb)` setter; MainWindow installs the callback in `__init__`. Both viewports forward drops to the same `_import_portrait_path`.
+- 2026-05-04 — Added `.product/tests/test_drag_and_drop.py` with 15 tests: 8 helper unit tests (PNG accept, JPG accept, non-image reject, .lnk reject, missing-file reject, multi-file pick-first + ignored list, empty mime, quick-check); 7 end-to-end tests via synthetic `QDropEvent` (drop on MainWindow + each viewport, non-image rejection, multi-file imports first only, last_portrait_dir persisted, forbidden-yaw-phrase filename does not crash).
 
 ## Checkpoint Commit Plan
 
@@ -137,20 +144,24 @@ Operator drags a PNG/JPG file from Explorer into the OpenRepose window; OpenRepo
 
 ## Exit Criteria
 
-- [ ] Definition of Done items all checked.
-- [ ] Taskboard row reflects current status.
-- [ ] Reality Boundary, Fallback Register, Change Ledger truthful.
-- [ ] Linked test suite executed; junit XML saved at `target/test-artifacts/WP-I1-005/pytest_results.xml`.
-- [ ] Evidence section populated with concrete paths.
+- [x] Definition of Done items all checked.
+- [x] Taskboard row reflects current status.
+- [x] Reality Boundary, Fallback Register, Change Ledger truthful.
+- [x] Linked test suite executed; junit XML saved at `target/test-artifacts/WP-I1-005/pytest_results.xml`.
+- [x] Evidence section populated with concrete paths.
 - [ ] Operator sign-off recorded in Evidence.
-- [ ] Headless LLM Operation Compliance: marked N/A with reason (operator-only convenience; LLM uses `import_portrait`).
+- [x] Headless LLM Operation Compliance: marked N/A with reason (operator-only convenience; LLM uses `import_portrait`).
 
 ## Evidence
 
-- (filled at REVIEW)
+- `target/test-artifacts/WP-I1-005/pytest_results.xml` — 15/15 passing.
+- Combined polish-bundle regression: 119/119 passing across `test_drag_and_drop.py` + `test_clear_workspace.py` + `test_settings_commands.py` + `test_settings_store.py` + `test_export_folder.py` + `test_command_handlers.py` + `test_gui_layout.py` + `test_gui_no_focus_steal.py` + `test_gui_state_sync.py`.
+- `pwsh scripts/audit-repo.ps1` clean (8 OK, 1 SKIP).
+- Manual: `.gov/doc/manual/feature-1-yaw-exporter.md` "Importing a portrait" section.
 
 ## Progress Log
 
 - 2026-05-02: WP drafted, status DRAFT.
 - 2026-05-02: Enhanced with full template sections (Files Touched, Test Plan, Risks, Rollback, Exit Criteria, etc.) for session-survivability.
 - 2026-05-04: Promoted DRAFT → IN-PROGRESS as part of polish bundle (with WP-I1-003 + WP-I1-016). Workflow Version bumped 1.0 → 1.1; Manual Impact line added; multi-file drop policy frozen.
+- 2026-05-04: IMPLEMENTATION → REVIEW. Validation helper + drop handlers on MainWindow + both viewports + shared `_import_portrait_path`. 15/15 new tests passing; manual extended.

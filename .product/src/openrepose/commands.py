@@ -691,6 +691,33 @@ def _h_dump_state(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _h_clear_workspace(
+    d: CommandDispatcher, cmd: dict[str, Any]
+) -> dict[str, Any]:
+    """Drop the active document's rig, reset its yaw to `0`, clear the
+    portrait + avatar slug. Distinct from `clear_outputs` (which only
+    purges the export/snapshot/error arrays). Operator settings, log,
+    body-part-visibility, marker-visibility, and calibration stay
+    untouched.
+
+    Scope contract: ACTIVE document only. Forward-compat with WP-I1-036
+    multi-file workspace; today there is one document so this clears the
+    only loaded portrait.
+    """
+    d._rig = None
+    d.state.set_rig(status="none")
+    d.state.set_yaw(value_deg=0.0, bin_label="0")
+    d.state.set_portrait(None)
+    d.log.ok("workspace.clear")
+    return {
+        "cleared": True,
+        "portrait": None,
+        "avatar_slug": None,
+        "rig": dict(d.state.rig),
+        "yaw": dict(d.state.yaw),
+    }
+
+
 def _h_clear_outputs(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     scope = cmd.get("scope", "all")
     if scope not in ("snapshots", "exports", "all"):
@@ -1358,6 +1385,50 @@ def _h_get_frame(
     return {"frame": dict(d.state.frame)}
 
 
+_SETTINGS_VALID_FIELDS = (
+    "export_folder",
+    "single_export_subdir_template",
+    "batch_export_subdir_template",
+    "last_portrait_dir",
+    "canvas_border_color",
+    "library_db_url",
+    "library_root",
+    "operator_slug",
+)
+
+
+def _settings_dump_payload(d: CommandDispatcher) -> dict[str, Any]:
+    """Shared payload shape used by dump_settings / set_settings /
+    clear_settings. Always redacts `library_db_url`."""
+    resolved, default_used = (
+        d.settings.export_folder_resolved_with_fallback_flag()
+    )
+    settings_dict = d.settings.to_dict()
+    if settings_dict.get("library_db_url"):
+        settings_dict["library_db_url"] = d.settings.redacted_db_url()
+    return {
+        "present": True,
+        "settings": settings_dict,
+        "settings_path": str(d.settings.settings_path),
+        "resolved_export_folder": str(resolved),
+        "resolved_library_root": str(d.settings.resolved_library_root()),
+        "effective_operator_slug": d.settings.effective_operator_slug(),
+        "default_used": default_used,
+    }
+
+
+def _refresh_settings_state(d: CommandDispatcher) -> tuple[str, bool]:
+    resolved, default_used = (
+        d.settings.export_folder_resolved_with_fallback_flag()
+    )
+    d.state.set_settings_status(
+        export_folder=str(resolved),
+        default_used=default_used,
+        settings_path=str(d.settings.settings_path),
+    )
+    return str(resolved), default_used
+
+
 def _h_dump_settings(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     """Return the effective settings JSON (operator-chosen export folder +
     subdir templates + library config), the resolved export folder, and
@@ -1374,21 +1445,64 @@ def _h_dump_settings(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any
             "resolved_export_folder": str(d.outputs_root),
             "default_used": True,
         }
-    resolved, default_used = (
-        d.settings.export_folder_resolved_with_fallback_flag()
+    return _settings_dump_payload(d)
+
+
+def _h_set_settings(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    """Patch operator settings. Body: `fields` = dict of one or more
+    settings field names mapped to new values. Unknown fields raise
+    OpenReposeSettingsError; the existing on-disk file is untouched.
+
+    Returns the same shape as `dump_settings` (with `library_db_url`
+    redacted) so the caller sees the resulting state. Note: changing
+    `library_db_url` does not reopen the live pool; the new URL takes
+    effect on next App launch."""
+    if d.settings is None:
+        raise OpenReposeCommandError(
+            "set_settings unavailable: dispatcher has no Settings instance"
+        )
+    fields = cmd.get("fields")
+    if not isinstance(fields, dict) or not fields:
+        raise OpenReposeCommandError(
+            "set_settings requires non-empty 'fields' (dict of "
+            f"{{name: value}}); valid names: {sorted(_SETTINGS_VALID_FIELDS)}"
+        )
+    d.settings.update(**fields)
+    resolved, default_used = _refresh_settings_state(d)
+    d.log.ok(
+        "settings.update",
+        fields=",".join(sorted(fields.keys())),
+        export_folder=resolved,
+        default_used=default_used,
     )
-    settings_dict = d.settings.to_dict()
-    if settings_dict.get("library_db_url"):
-        settings_dict["library_db_url"] = d.settings.redacted_db_url()
-    return {
-        "present": True,
-        "settings": settings_dict,
-        "settings_path": str(d.settings.settings_path),
-        "resolved_export_folder": str(resolved),
-        "resolved_library_root": str(d.settings.resolved_library_root()),
-        "effective_operator_slug": d.settings.effective_operator_slug(),
-        "default_used": default_used,
-    }
+    payload = _settings_dump_payload(d)
+    payload["updated_fields"] = sorted(fields.keys())
+    return payload
+
+
+def _h_clear_settings(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    """Reset every operator-managed settings field to its default and
+    persist. Preserves `settings_path` and `schema_version`. Mutates the
+    live `Settings` instance in place so any references held elsewhere
+    (e.g. App.settings) see the new defaults immediately."""
+    if d.settings is None:
+        raise OpenReposeCommandError(
+            "clear_settings unavailable: dispatcher has no Settings instance"
+        )
+    defaults = Settings(settings_path=d.settings.settings_path)
+    d.settings.update(
+        **{name: getattr(defaults, name) for name in _SETTINGS_VALID_FIELDS}
+    )
+    resolved, default_used = _refresh_settings_state(d)
+    d.log.ok(
+        "settings.clear",
+        path=str(d.settings.settings_path),
+        export_folder=resolved,
+        default_used=default_used,
+    )
+    payload = _settings_dump_payload(d)
+    payload["cleared"] = True
+    return payload
 
 
 def _mediapipe_version_string() -> str:
@@ -2879,6 +2993,7 @@ _HANDLERS = {
     "dump_rig": _h_dump_rig,
     "dump_state": _h_dump_state,
     "clear_outputs": _h_clear_outputs,
+    "clear_workspace": _h_clear_workspace,
     "set_calibration_points": _h_set_calibration_points,
     "dump_calibration": _h_dump_calibration,
     "clear_calibration": _h_clear_calibration,
@@ -2895,6 +3010,8 @@ _HANDLERS = {
     "reset_frame": _h_reset_frame,
     "get_frame": _h_get_frame,
     "dump_settings": _h_dump_settings,
+    "set_settings": _h_set_settings,
+    "clear_settings": _h_clear_settings,
     # Library commands (WP-I2-004).
     "register_library_entry": _h_register_library_entry,
     "update_library_entry": _h_update_library_entry,

@@ -27,6 +27,7 @@ class Toolbar(QToolBar):
     """
 
     open_clicked = Signal()
+    clear_workspace_clicked = Signal()   # WP-I1-016
     reload_clicked = Signal()
     yaw_bin_changed = Signal(str)        # new bin label
     yaw_value_changed = Signal(float)    # new degree value (slider drag)
@@ -38,10 +39,22 @@ class Toolbar(QToolBar):
         self.setMovable(False)
         self.setIconSize(self.iconSize())  # keep default
 
-        # Open / Reload.
+        # Open / Clear / Reload. WP-I1-016 placed Clear immediately next
+        # to Open (operator request) so the destructive workspace action
+        # sits visually paired with its constructive sibling.
         btn_open = QPushButton("Open")
         btn_open.clicked.connect(self.open_clicked.emit)
         self.addWidget(btn_open)
+
+        self.btn_clear_workspace = QPushButton("Clear workspace")
+        self.btn_clear_workspace.setToolTip(
+            "Drop the active document's rig, reset yaw to 0, blank the "
+            "viewports. Settings, log, and other documents are untouched."
+        )
+        self.btn_clear_workspace.clicked.connect(
+            self.clear_workspace_clicked.emit
+        )
+        self.addWidget(self.btn_clear_workspace)
 
         btn_reload = QPushButton("Reload")
         btn_reload.clicked.connect(self.reload_clicked.emit)

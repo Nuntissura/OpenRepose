@@ -288,10 +288,17 @@ class AppState:
             if last_err is not None:
                 raise last_err
 
-    def set_portrait(self, path: str, avatar_slug: str | None = None) -> None:
+    def set_portrait(
+        self, path: str | None, avatar_slug: str | None = None
+    ) -> None:
+        """Record the active portrait. Pass `path=None` to clear the
+        active document (avatar_slug is also cleared in that case so the
+        rig + slug travel together)."""
         with self._lock:
             self.portrait = path
-            if avatar_slug is not None:
+            if path is None:
+                self.avatar_slug = None
+            elif avatar_slug is not None:
                 self.avatar_slug = avatar_slug
 
     def set_rig(

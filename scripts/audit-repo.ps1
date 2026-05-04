@@ -443,7 +443,7 @@ if ($pyFiles) {
 $preI3Allowlist = @(
     # Feature 1 — yaw exporter (WP-I0-001..004, WP-I1-022/023/027/030)
     'import_portrait', 'set_yaw', 'set_yaw_bin', 'export_single', 'export_batch',
-    'snapshot', 'dump_rig', 'dump_state', 'clear_outputs',
+    'snapshot', 'dump_rig', 'dump_state', 'clear_outputs', 'clear_workspace',
     # Feature 2 — calibration overlay (WP-I1-001/028/034)
     'set_calibration_points', 'dump_calibration', 'clear_calibration', 'delete_markers',
     'get_calibration_status',
@@ -451,7 +451,7 @@ $preI3Allowlist = @(
     'set_body_part_visibility', 'get_body_part_visibility',
     'set_marker_visibility', 'get_marker_visibility', 'reset_marker_visibility',
     'set_frame_scale', 'set_frame_offset', 'set_frame_anchor', 'reset_frame', 'get_frame',
-    'dump_settings',
+    'dump_settings', 'set_settings', 'clear_settings',
     # Feature 3 — OpenPose library (WP-I2-004)
     'register_library_entry', 'update_library_entry', 'delete_library_entry',
     'library_search', 'get_library_entry', 'set_library_tags', 'dump_library_schema'
