@@ -2,14 +2,14 @@
 
 ## Header
 
-- **Owner**: TBD (operator)
+- **Owner**: assistant
 - **Date Opened**: 2026-05-02
-- **Status**: DRAFT
+- **Status**: IN-PROGRESS
 - **Iteration**: I1
-- **Workflow Version**: 1.0
+- **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
 - **Effort Estimate**: M
-- **Linked Spec**: future spec section "Multi-angle automation".
+- **Linked Spec**: `.gov/spec/openrepose_v0_1.md` Output Formats + LLM Control Surface (`export_batch`).
 
 ## Intent
 
@@ -19,6 +19,14 @@ Extend `export_batch` so each angle in the batch can carry an operator-defined p
 
 - **Predecessor(s)**: WP-I0-001..004 (foundation).
 - **Related**: WP-I1-009 identity-export profiles (could be combined into a workflow where each angle exports a full identity bundle).
+
+## Research Notes
+
+| Date | Source | URL | Takeaway | Verdict |
+|------|--------|-----|----------|---------|
+| 2026-05-04 | JSON Schema object reference | https://json-schema.org/understanding-json-schema/reference/object | JSON Schema treats objects as key/value mappings and supports `additionalProperties`; for this WP, strict validation should apply to the envelope (`per_angle_metadata` list length/shape) while individual metadata dicts remain extensible data. | adapt |
+| 2026-05-04 | Python `json` module docs | https://docs.python.org/3.14/library/json.html | Standard-library `json.dump` supports deterministic, human-readable manifest writes via `indent` and optional `sort_keys`; no dependency is needed for manifest extension. | adopt |
+| 2026-05-04 | Existing OpenRepose export contract | local `.gov/spec/openrepose_v0_1.md` Output Formats and `.product/src/openrepose/openpose_serialize.py` | Current batch manifest is the correct seam; extend it without changing OpenPose JSON keypoint files. | adopt |
 
 ## Reality Boundary
 
@@ -49,6 +57,7 @@ Extend `export_batch` so each angle in the batch can carry an operator-defined p
 
 - [ ] `export_batch` accepts `per_angle_metadata` and writes it into the manifest.
 - [ ] Tests cover three configurations (none / partial / full).
+- [ ] **Manual Impact**: Yes - extends `.gov/doc/manual/feature-1-yaw-exporter.md` with `per_angle_metadata` command shape and manifest behavior.
 
 ## Linked Requirements / Spec Sections
 
@@ -112,7 +121,8 @@ Extend `export_batch` so each angle in the batch can carry an operator-defined p
 
 ## Decisions Log
 
-- (none yet at DRAFT stage; populate during implementation)
+- 2026-05-04: Keep per-angle metadata as manifest-only data. Reason: OpenPose JSON keypoint files should remain compatible with DWPose/RenderPeopleKps consumers; workflow metadata belongs in `manifest.json`.
+- 2026-05-04: Validate envelope strictly and metadata dicts loosely. Reason: agents need stable list/angle alignment, but downstream workflow keys are intentionally operator/agent-defined.
 
 ## Fallback Register
 
@@ -120,7 +130,7 @@ Extend `export_batch` so each angle in the batch can carry an operator-defined p
 
 ## Change Ledger
 
-- (filled at REVIEW)
+- 2026-05-04: Promoted DRAFT -> IN-PROGRESS for autonomous implementation after operator requested all no-input WPs. Research notes added and spec/manual update planned before product edits.
 
 ## Checkpoint Commit Plan
 
@@ -146,9 +156,10 @@ Extend `export_batch` so each angle in the batch can carry an operator-defined p
 
 ## Evidence
 
-- (filled at REVIEW)
+- 2026-05-04: Promoted DRAFT -> IN-PROGRESS; governance kickoff prepared before `.product/` edits.
 
 ## Progress Log
 
 - 2026-05-02: WP drafted, status DRAFT.
 - 2026-05-02: Enhanced with full template sections (Files Touched, Test Plan, Risks, Rollback, Exit Criteria, etc.) for session-survivability.
+- 2026-05-04: Status DRAFT -> IN-PROGRESS; research recorded; implementation authorized by operator for autonomous overnight work.

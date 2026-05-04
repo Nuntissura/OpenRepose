@@ -87,6 +87,13 @@ ot detected from detector unavailable.
 
 `manifest.json` records: source portrait path, rig fit timestamp, app version, list of exported angles, settings used (focal length / projection mode / margin parameters), and any notes the GUI captured.
 
+WP-I1-010 extends batch manifests with optional per-angle workflow metadata. The `export_batch` command accepts `per_angle_metadata` as either:
+
+- a list aligned with the `angles` list / default angle order, where each item is an object or `null`; or
+- an object keyed by canonical yaw bin (`"0"`, `"her-left 15"`, `"her-right 30"`, etc.).
+
+The exporter validates the envelope before writing files. A list length mismatch is a structured command error. Each metadata object is copied into `manifest.json` without being written into the OpenPose keypoint JSON files. Unknown metadata keys are allowed because downstream prompt/seed/workflow schemas are operator-defined; the manifest records them as data, not as OpenRepose UI labels.
+
 ### Mechanical Log Format
 
 Every log line OpenRepose emits, whether to stdout, the rolling file under `target/logs/openrepose-YYYYMMDD.log`, or the in-GUI log pane, follows one of these four exact shapes:
@@ -196,7 +203,7 @@ Per-command arguments:
 
 { "command": "export_single", "out_dir": "optional, defaults to outputs/<avatar-slug>/" }
 
-{ "command": "export_batch", "out_dir": "optional", "angles": ["optional list, defaults to 13-angle standard"] }
+{ "command": "export_batch", "out_dir": "optional", "angles": ["optional list, defaults to 13-angle standard"], "per_angle_metadata": "optional list aligned with angles or object keyed by yaw bin" }
 
 { "command": "snapshot", "target": "3d_viewport|openpose_viewport|inspector_pane|log_pane|options_pane|status_bar|toolbar|full_window", "out_path": "optional, defaults to outputs/.runtime/snapshots/<auto>.png" }
 

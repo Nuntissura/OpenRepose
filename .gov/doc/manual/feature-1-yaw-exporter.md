@@ -11,6 +11,37 @@ Per export angle:
 
 Batch exports also write `manifest.json` listing all files + the angles + the run timestamp.
 
+## Batch per-angle metadata
+
+`export_batch` accepts optional `per_angle_metadata` for prompt seeds, sampler notes, workflow slugs, ControlNet strengths, or any other downstream dispatch data the operator/LLM wants to carry with the exported yaw set.
+
+Accepted shapes:
+
+```json
+{
+  "command": "export_batch",
+  "angles": ["0", "her-left 15", "her-right 15"],
+  "per_angle_metadata": [
+    {"prompt_slug": "base", "seed": 1001},
+    {"prompt_slug": "her-left-variant", "seed": 1002},
+    {"prompt_slug": "her-right-variant", "seed": 1003}
+  ]
+}
+```
+
+```json
+{
+  "command": "export_batch",
+  "per_angle_metadata": {
+    "0": {"prompt_slug": "base"},
+    "her-left 15": {"prompt_slug": "left-a"},
+    "her-right 15": {"prompt_slug": "right-a"}
+  }
+}
+```
+
+The metadata is written only to `manifest.json`. It is not embedded in the OpenPose keypoint JSON files, so downstream DWPose/RenderPeopleKps compatibility stays clean. Unknown keys are preserved as data. A list length mismatch is rejected before files are written.
+
 ## OpenPose schema
 
 - `body_18` — 18 body keypoints (OpenPose / DWPose convention).
