@@ -165,14 +165,6 @@ class Rig:
                 body_kps[:, :2] = cal_field.apply(
                     body_kps[:, :2].astype(np.float64)
                 )
-                if self.hand_left_conf.max(initial=0.0) > 0.0:
-                    hand_left[:, :2] = cal_field.apply(
-                        hand_left[:, :2].astype(np.float64)
-                    )
-                if self.hand_right_conf.max(initial=0.0) > 0.0:
-                    hand_right[:, :2] = cal_field.apply(
-                        hand_right[:, :2].astype(np.float64)
-                    )
                 if hand_left_conf.max(initial=0.0) > 0.0:
                     hand_left[:, :2] = cal_field.apply(
                         hand_left[:, :2].astype(np.float64)
@@ -263,6 +255,14 @@ class Rig:
                 body_kps[:, :2] = cal_field.apply(
                     body_kps[:, :2].astype(np.float64)
                 )
+                if self.hand_left_conf.max(initial=0.0) > 0.0:
+                    hand_left[:, :2] = cal_field.apply(
+                        hand_left[:, :2].astype(np.float64)
+                    )
+                if self.hand_right_conf.max(initial=0.0) > 0.0:
+                    hand_right[:, :2] = cal_field.apply(
+                        hand_right[:, :2].astype(np.float64)
+                    )
 
         head_anchor = _compute_head_anchor(
             face_mesh, body_kps, self.body_conf

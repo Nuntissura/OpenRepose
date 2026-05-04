@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -27,10 +27,10 @@ class RotatedRig:
     face_mesh_visible: np.ndarray
     body_kps_world: np.ndarray
     body_visible: np.ndarray
-    hand_left_world: np.ndarray
-    hand_left_visible: np.ndarray
-    hand_right_world: np.ndarray
-    hand_right_visible: np.ndarray
+    hand_left_world: np.ndarray = field(default_factory=lambda: np.zeros((21, 3), dtype=np.float32))
+    hand_left_visible: np.ndarray = field(default_factory=lambda: np.zeros((21,), dtype=bool))
+    hand_right_world: np.ndarray = field(default_factory=lambda: np.zeros((21, 3), dtype=np.float32))
+    hand_right_visible: np.ndarray = field(default_factory=lambda: np.zeros((21,), dtype=bool))
 
 
 def rotate_yaw(

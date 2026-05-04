@@ -488,7 +488,11 @@ def _open_file_impl(d: CommandDispatcher, path: str, avatar_slug: str | None, fi
     fid = file_id or _new_file_id()
     if fid in d._files:
         raise OpenReposeCommandError(f"file_id already open: {fid}")
-    effective_slug = avatar_slug or p.stem
+    if avatar_slug:
+        effective_slug = avatar_slug
+    else:
+        from .util.slugify import sanitize_avatar_slug
+        effective_slug = sanitize_avatar_slug(p.stem)
 
     d.state.set_portrait(str(p), avatar_slug=effective_slug)
     d.state.set_yaw(value_deg=0.0, bin_label="0")
@@ -1305,7 +1309,7 @@ def _h_set_body_part_visibility(
     """
     updates: dict[str, bool] = {}
     for k, v in cmd.items():
-        if k in ("command",):
+        if k in ("command", "file_id"):
             continue
         if k not in BODY_GROUPS:
             raise OpenReposeCommandError(
