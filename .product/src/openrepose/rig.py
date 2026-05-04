@@ -18,10 +18,11 @@ where the nose tip (closest to camera) lands at the most-negative z.
 
 from __future__ import annotations
 
+import os
 import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import cv2
 import numpy as np
@@ -52,6 +53,10 @@ class FitMetrics:
     fit_duration_ms: int
     body_partial: bool
     body_partial_missing: tuple[str, ...]
+    hand_landmark_count: int = 0
+    hand_left_detected: bool = False
+    hand_right_detected: bool = False
+    hands_unavailable: bool = False
 
 
 @dataclass(frozen=True)
@@ -86,6 +91,12 @@ class Rig:
     raw_face_mesh: np.ndarray | None = None
     raw_body_kps: np.ndarray | None = None
     calibration: "Calibration | None" = None
+    hand_left_kps: np.ndarray = field(default_factory=lambda: np.zeros((21, 3), dtype=np.float32))
+    hand_right_kps: np.ndarray = field(default_factory=lambda: np.zeros((21, 3), dtype=np.float32))
+    hand_left_conf: np.ndarray = field(default_factory=lambda: np.zeros((21,), dtype=np.float32))
+    hand_right_conf: np.ndarray = field(default_factory=lambda: np.zeros((21,), dtype=np.float32))
+    raw_hand_left_kps: np.ndarray | None = None
+    raw_hand_right_kps: np.ndarray | None = None
 
     @classmethod
     def from_portrait(
@@ -112,7 +123,18 @@ class Rig:
         h, w = rgb.shape[:2]
 
         t_start = time.perf_counter()
-        face_mesh, body_kps, body_conf, partial, missing = _run_mediapipe(rgb)
+        (
+            face_mesh,
+            body_kps,
+            body_conf,
+            hand_left,
+            hand_left_conf,
+            hand_right,
+            hand_right_conf,
+            hands_unavailable,
+            partial,
+            missing,
+        ) = _run_mediapipe(rgb)
         t_ms = int((time.perf_counter() - t_start) * 1000)
 
         if face_mesh.shape[0] == 0:
@@ -122,6 +144,8 @@ class Rig:
 
         raw_face_mesh = face_mesh.copy()
         raw_body_kps = body_kps.copy()
+        raw_hand_left = hand_left.copy()
+        raw_hand_right = hand_right.copy()
 
         # Apply per-avatar calibration to landmark XY before head_anchor so
         # the synthesized neck reflects the operator's marks. Z passes
@@ -133,14 +157,34 @@ class Rig:
             if cal_field is not None:
                 face_mesh = face_mesh.copy()
                 body_kps = body_kps.copy()
+                hand_left = hand_left.copy()
+                hand_right = hand_right.copy()
                 face_mesh[:, :2] = cal_field.apply(
                     face_mesh[:, :2].astype(np.float64)
                 )
                 body_kps[:, :2] = cal_field.apply(
                     body_kps[:, :2].astype(np.float64)
                 )
+                if self.hand_left_conf.max(initial=0.0) > 0.0:
+                    hand_left[:, :2] = cal_field.apply(
+                        hand_left[:, :2].astype(np.float64)
+                    )
+                if self.hand_right_conf.max(initial=0.0) > 0.0:
+                    hand_right[:, :2] = cal_field.apply(
+                        hand_right[:, :2].astype(np.float64)
+                    )
+                if hand_left_conf.max(initial=0.0) > 0.0:
+                    hand_left[:, :2] = cal_field.apply(
+                        hand_left[:, :2].astype(np.float64)
+                    )
+                if hand_right_conf.max(initial=0.0) > 0.0:
+                    hand_right[:, :2] = cal_field.apply(
+                        hand_right[:, :2].astype(np.float64)
+                    )
 
         head_anchor = _compute_head_anchor(face_mesh, body_kps, body_conf)
+
+        hand_count = int((hand_left_conf > 0.0).sum() + (hand_right_conf > 0.0).sum())
 
         return cls(
             portrait_size=(w, h),
@@ -157,10 +201,20 @@ class Rig:
                 fit_duration_ms=t_ms,
                 body_partial=partial,
                 body_partial_missing=tuple(missing),
+                hand_landmark_count=hand_count,
+                hand_left_detected=bool(hand_left_conf.max(initial=0.0) > 0.0),
+                hand_right_detected=bool(hand_right_conf.max(initial=0.0) > 0.0),
+                hands_unavailable=bool(hands_unavailable),
             ),
             raw_face_mesh=raw_face_mesh,
             raw_body_kps=raw_body_kps,
             calibration=calibration,
+            hand_left_kps=hand_left,
+            hand_right_kps=hand_right,
+            hand_left_conf=hand_left_conf,
+            hand_right_conf=hand_right_conf,
+            raw_hand_left_kps=raw_hand_left,
+            raw_hand_right_kps=raw_hand_right,
         )
 
     def with_calibration(self, new_calibration: "Calibration | None") -> "Rig":
@@ -182,8 +236,21 @@ class Rig:
             else self.body_kps
         )
 
+        raw_hand_left = (
+            self.raw_hand_left_kps
+            if self.raw_hand_left_kps is not None
+            else self.hand_left_kps
+        )
+        raw_hand_right = (
+            self.raw_hand_right_kps
+            if self.raw_hand_right_kps is not None
+            else self.hand_right_kps
+        )
+
         face_mesh = raw_face.copy()
         body_kps = raw_body.copy()
+        hand_left = raw_hand_left.copy()
+        hand_right = raw_hand_right.copy()
 
         if new_calibration is not None:
             cal_field = compute_field(
@@ -209,6 +276,10 @@ class Rig:
             raw_face_mesh=raw_face,
             raw_body_kps=raw_body,
             calibration=new_calibration,
+            hand_left_kps=hand_left,
+            hand_right_kps=hand_right,
+            raw_hand_left_kps=raw_hand_left,
+            raw_hand_right_kps=raw_hand_right,
         )
 
     def openpose_face_70(self) -> np.ndarray:
@@ -218,6 +289,15 @@ class Rig:
     def openpose_body_18(self) -> tuple[np.ndarray, np.ndarray]:
         """Return (body_18 xyz, body_18 confidences) mapped from MediaPipe Pose."""
         return map_pose_to_body18(self.body_kps, self.body_conf)
+
+    def openpose_hands_21(self) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Return left/right hand landmark arrays plus confidences."""
+        return (
+            self.hand_left_kps.copy(),
+            self.hand_left_conf.copy(),
+            self.hand_right_kps.copy(),
+            self.hand_right_conf.copy(),
+        )
 
 
 # --- helpers ----------------------------------------------------------------
@@ -251,8 +331,21 @@ def _compute_head_anchor(
 # --- internal MediaPipe runners ---------------------------------------------
 
 
-def _run_mediapipe(rgb_image: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, bool, list[str]]:
-    """Run FaceMesh + Pose. Returns (face_mesh, body_kps, body_conf, partial, missing).
+def _run_mediapipe(
+    rgb_image: np.ndarray,
+) -> tuple[
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    bool,
+    bool,
+    list[str],
+]:
+    """Run FaceMesh + Pose + Hands. Returns landmark arrays, partial, missing.
 
     face_mesh shape: (478, 3) or (0, 3) on failure.
     body_kps shape:  (33, 3).
@@ -312,6 +405,10 @@ def _run_mediapipe(rgb_image: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.nd
             z_scale = fm_nose_z / pose_nose_z
             body_kps[:, 2] *= z_scale
 
+    hand_left, hand_left_conf, hand_right, hand_right_conf, hands_unavailable = _run_hands(
+        rgb_image, mp, body_kps, body_conf
+    )
+
     # Check which OpenPose body slots are missing.
     from .openpose_schema import MP_POSE_TO_BODY18
 
@@ -333,4 +430,128 @@ def _run_mediapipe(rgb_image: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.nd
             missing.append(name_by_op[op_idx])
 
     partial = len(missing) > 0
-    return face_mesh, body_kps, body_conf, partial, missing
+    return (
+        face_mesh,
+        body_kps,
+        body_conf,
+        hand_left,
+        hand_left_conf,
+        hand_right,
+        hand_right_conf,
+        hands_unavailable,
+        partial,
+        missing,
+    )
+
+
+def _run_hands(
+    rgb_image: np.ndarray,
+    mp: Any,
+    body_kps: np.ndarray,
+    body_conf: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, bool]:
+    """Run hand detection.
+
+    Prefer MediaPipe Tasks when OPENREPOSE_HAND_LANDMARKER_TASK points at a
+    `.task` model file; fall back to legacy MediaPipe Hands so OpenRepose keeps
+    working when no model asset is bundled.
+    """
+    h, w = rgb_image.shape[:2]
+    left = np.zeros((21, 3), dtype=np.float32)
+    right = np.zeros((21, 3), dtype=np.float32)
+    left_conf = np.zeros((21,), dtype=np.float32)
+    right_conf = np.zeros((21,), dtype=np.float32)
+
+    task_model = os.environ.get("OPENREPOSE_HAND_LANDMARKER_TASK", "").strip()
+    if task_model and Path(task_model).exists():
+        try:
+            from mediapipe.tasks import python as mp_python  # type: ignore[import-untyped]
+            from mediapipe.tasks.python import vision  # type: ignore[import-untyped]
+
+            options = vision.HandLandmarkerOptions(
+                base_options=mp_python.BaseOptions(model_asset_path=task_model),
+                running_mode=vision.RunningMode.IMAGE,
+                num_hands=2,
+                min_hand_detection_confidence=0.4,
+                min_hand_presence_confidence=0.4,
+            )
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
+            with vision.HandLandmarker.create_from_options(options) as landmarker:
+                result = landmarker.detect(mp_image)
+            for lms, handedness in zip(result.hand_landmarks, result.handedness):
+                label, score = _handedness_label_score(handedness)
+                pts = np.array([[lm.x * w, lm.y * h, lm.z * w] for lm in lms], dtype=np.float32)
+                pts = _align_hand_z(label, pts, body_kps, body_conf)
+                if label == "Left" and left_conf.max(initial=0.0) == 0.0:
+                    left[:] = pts
+                    left_conf[:] = float(score)
+                elif label == "Right" and right_conf.max(initial=0.0) == 0.0:
+                    right[:] = pts
+                    right_conf[:] = float(score)
+            return left, left_conf, right, right_conf, False
+        except Exception:
+            pass
+
+    try:
+        with mp.solutions.hands.Hands(
+            static_image_mode=True,
+            max_num_hands=2,
+            model_complexity=1,
+            min_detection_confidence=0.4,
+        ) as hs:
+            result = hs.process(rgb_image)
+            if result.multi_hand_landmarks:
+                handedness_list = result.multi_handedness or []
+                for idx, hand_lms in enumerate(result.multi_hand_landmarks):
+                    label, score = _handedness_label_score(
+                        handedness_list[idx].classification if idx < len(handedness_list) else None
+                    )
+                    pts = np.array(
+                        [[lm.x * w, lm.y * h, lm.z * w] for lm in hand_lms.landmark],
+                        dtype=np.float32,
+                    )
+                    pts = _align_hand_z(label, pts, body_kps, body_conf)
+                    if label == "Left" and left_conf.max(initial=0.0) == 0.0:
+                        left[:] = pts
+                        left_conf[:] = float(score)
+                    elif label == "Right" and right_conf.max(initial=0.0) == 0.0:
+                        right[:] = pts
+                        right_conf[:] = float(score)
+        return left, left_conf, right, right_conf, False
+    except Exception:
+        return left, left_conf, right, right_conf, True
+
+
+def _handedness_label_score(raw: Any) -> tuple[str, float]:
+    if raw is None:
+        return "Right", 0.5
+    try:
+        item = raw[0]
+    except Exception:
+        item = raw
+    label = (
+        getattr(item, "category_name", None)
+        or getattr(item, "label", None)
+        or getattr(item, "display_name", None)
+    )
+    score = getattr(item, "score", None)
+    label = "Left" if str(label).lower() == "left" else "Right"
+    try:
+        score_f = float(score)
+    except Exception:
+        score_f = 0.5
+    return label, max(0.0, min(1.0, score_f))
+
+
+def _align_hand_z(
+    label: str,
+    hand_kps: np.ndarray,
+    body_kps: np.ndarray,
+    body_conf: np.ndarray,
+) -> np.ndarray:
+    mp_wrist = 15 if label == "Left" else 16
+    if 0 <= mp_wrist < body_conf.shape[0] and body_conf[mp_wrist] > 0.3:
+        wrist_z = float(hand_kps[0, 2])
+        hand_kps = hand_kps.copy()
+        hand_kps[:, 2] = (hand_kps[:, 2] - wrist_z) + float(body_kps[mp_wrist, 2])
+    return hand_kps

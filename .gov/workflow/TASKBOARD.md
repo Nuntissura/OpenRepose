@@ -226,3 +226,4 @@ Future iteration themes not yet drafted as workpackets:
 - I2: re-scope WP-I1-012 garment locks as "garment polyline -> secondary ControlNet input" if multi-ControlNet workflow becomes a production path.
 
 Each becomes its own workpacket when authorized.
+- 2026-05-04: **WP-I1-018 + WP-I1-037 implementation pass landed**. Product files now contain hand-keypoint pipeline changes and multi-file dispatcher/GUI tab changes. WPs remain IN-PROGRESS pending syntax/test/GUI/visual evidence before REVIEW.

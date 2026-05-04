@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QLabel, QSizePolicy
 
 from ..render.draw_openpose import render_openpose
 from ..rotation import RotatedRig
-from .drop_helper import decide_drop, mime_has_acceptable_image
+from .drop_helper import decide_multi_drop, mime_has_acceptable_image
 
 
 class ViewportOpenPose(QLabel):
@@ -45,12 +45,13 @@ class ViewportOpenPose(QLabel):
             event.ignore()
 
     def dropEvent(self, event) -> None:  # noqa: N802 (Qt API)
-        decision = decide_drop(event.mimeData())
-        if decision.path is None or self._drop_callback is None:
+        decision = decide_multi_drop(event.mimeData())
+        if not decision.paths or self._drop_callback is None:
             event.ignore()
             return
         event.acceptProposedAction()
-        self._drop_callback(decision.path)
+        for path in decision.paths:
+            self._drop_callback(path)
 
     def update_rig(
         self,

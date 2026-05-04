@@ -93,6 +93,8 @@ class AppState:
     started_at: str = field(default_factory=_now)
     portrait: str | None = None
     avatar_slug: str | None = None
+    active_file_id: str | None = None
+    files: list[dict[str, Any]] = field(default_factory=list)
     rig: dict[str, Any] = field(
         default_factory=lambda: {
             "status": "none",
@@ -102,6 +104,10 @@ class AppState:
             "body_landmark_count": 0,
             "face_visible_in_openpose": 0,
             "body_visible_in_openpose": 0,
+            "hand_left_detected": False,
+            "hand_right_detected": False,
+            "hand_landmark_count": 0,
+            "hands_unavailable": False,
         }
     )
     yaw: dict[str, Any] = field(
@@ -244,6 +250,8 @@ class AppState:
             "started_at": self.started_at,
             "portrait": self.portrait,
             "avatar_slug": self.avatar_slug,
+            "active_file_id": self.active_file_id,
+            "files": [dict(f) for f in self.files],
             "rig": dict(self.rig),
             "yaw": dict(self.yaw),
             "exports": list(self.exports),
@@ -288,6 +296,11 @@ class AppState:
             if last_err is not None:
                 raise last_err
 
+    def set_files_state(self, *, files: list[dict[str, Any]], active_file_id: str | None) -> None:
+        with self._lock:
+            self.files = [dict(f) for f in files]
+            self.active_file_id = active_file_id
+
     def set_portrait(
         self, path: str | None, avatar_slug: str | None = None
     ) -> None:
@@ -298,6 +311,7 @@ class AppState:
             self.portrait = path
             if path is None:
                 self.avatar_slug = None
+                self.active_file_id = None if not self.files else self.active_file_id
             elif avatar_slug is not None:
                 self.avatar_slug = avatar_slug
 
@@ -310,6 +324,10 @@ class AppState:
         body_landmark_count: int = 0,
         face_visible_in_openpose: int = 0,
         body_visible_in_openpose: int = 0,
+        hand_left_detected: bool = False,
+        hand_right_detected: bool = False,
+        hand_landmark_count: int = 0,
+        hands_unavailable: bool = False,
     ) -> None:
         with self._lock:
             self.rig = {
@@ -320,6 +338,10 @@ class AppState:
                 "body_landmark_count": int(body_landmark_count),
                 "face_visible_in_openpose": int(face_visible_in_openpose),
                 "body_visible_in_openpose": int(body_visible_in_openpose),
+                "hand_left_detected": bool(hand_left_detected),
+                "hand_right_detected": bool(hand_right_detected),
+                "hand_landmark_count": int(hand_landmark_count),
+                "hands_unavailable": bool(hands_unavailable),
             }
 
     def set_yaw(self, *, value_deg: float, bin_label: str) -> None:

@@ -192,3 +192,4 @@ Implement the real multi-file workspace specified by WP-I1-036: multiple portrai
 ## Progress Log
 
 - 2026-05-04: WP initialized at IN-PROGRESS after operator requested autonomous overnight implementation. Governance kickoff commit pending before `.product/` edits.
+- 2026-05-04: Product implementation pass landed for dispatcher file slots, `open_file`/`close_file`/`set_active_file`/`list_files`, active-file state mirror, GUI file tabs, multi-file drop handling, and built-in Help manual note. Validation evidence pending; WP stays IN-PROGRESS until tests/GUI proof are run.

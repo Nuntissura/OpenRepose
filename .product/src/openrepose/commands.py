@@ -12,6 +12,7 @@ import hashlib
 import json
 import shutil
 import threading
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -201,6 +202,25 @@ class CommandResult:
         }
 
 
+
+
+@dataclass
+class FileSlot:
+    """One open portrait in the multi-file workspace (WP-I1-037)."""
+
+    file_id: str
+    path: str
+    avatar_slug: str | None
+    rig: Rig
+    yaw: dict[str, Any]
+    rig_state: dict[str, Any]
+    calibration: dict[str, Any]
+    body_part_visibility: dict[str, bool]
+    marker_visibility: dict[str, dict[str, bool]]
+    detected_markers: dict[str, dict[str, bool]]
+    frame: dict[str, Any]
+    opened_at: str
+
 class CommandDispatcher:
     """Single entry point for all LLM-driven commands.
 
@@ -225,6 +245,9 @@ class CommandDispatcher:
         self.settings = settings  # operator-configured paths; None = legacy default
         self._lock = threading.Lock()
         self._rig: Rig | None = None
+        self._files: dict[str, FileSlot] = {}
+        self._file_order: list[str] = []
+        self._active_file_id: str | None = None
         self._snapshot_handler = snapshot_handler  # set by WP-I0-003 wiring
         # Library subsystem pool. Wired by `App.__init__` after construction
         # (WP-I2-001). Library command handlers (added in WP-I2-004) read
@@ -245,7 +268,16 @@ class CommandDispatcher:
             if handler is None:
                 raise OpenReposeCommandError(f"unknown command: {cmd!r}")
             with self._lock:
+                requested_file_id = command_dict.get("file_id")
+                if (
+                    isinstance(requested_file_id, str)
+                    and requested_file_id
+                    and cmd not in _FILE_MANAGEMENT_COMMANDS
+                ):
+                    _activate_file(self, requested_file_id)
                 payload = handler(self, command_dict)
+                _capture_active_slot(self)
+                _sync_state_files(self)
             self.state.end_command(status="ok")
             self.state.write()
             self.log.ok("cmd.completed", command=cmd, status="ok")
@@ -309,51 +341,175 @@ class CommandDispatcher:
         return self._rig
 
 
-# --- handlers (registered in _HANDLERS at module bottom) --------------------
+
+_FILE_MANAGEMENT_COMMANDS = {"open_file", "close_file", "set_active_file", "list_files"}
 
 
-def _h_import_portrait(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
-    path = cmd.get("path")
-    avatar_slug = cmd.get("avatar_slug")
-    if not isinstance(path, str) or not path:
-        raise OpenReposeCommandError("import_portrait requires 'path'")
-    if avatar_slug is not None and (
-        not isinstance(avatar_slug, str) or not avatar_slug
-    ):
+def _new_file_id() -> str:
+    return uuid.uuid4().hex
+
+
+def _rig_state_from_rig(rig: Rig, *, status: str = "ok") -> dict[str, Any]:
+    import numpy as np
+    face_70 = rig.openpose_face_70()
+    body_18, _conf_18 = rig.openpose_body_18()
+    return {
+        "status": status,
+        "fit_at": _now_iso() if status == "ok" else None,
+        "fit_duration_ms": int(rig.fit_metrics.fit_duration_ms),
+        "face_landmark_count": int(rig.fit_metrics.face_landmark_count),
+        "body_landmark_count": int(rig.fit_metrics.body_landmark_count),
+        "face_visible_in_openpose": int(np.count_nonzero(np.any(face_70[:, :2] != 0, axis=1))),
+        "body_visible_in_openpose": int(np.count_nonzero(np.any(body_18[:, :2] != 0, axis=1))),
+        "hand_left_detected": bool(rig.fit_metrics.hand_left_detected),
+        "hand_right_detected": bool(rig.fit_metrics.hand_right_detected),
+        "hand_landmark_count": int(rig.fit_metrics.hand_landmark_count),
+        "hands_unavailable": bool(rig.fit_metrics.hands_unavailable),
+    }
+
+
+def _set_state_rig_from_rig(d: CommandDispatcher, rig: Rig) -> None:
+    rs = _rig_state_from_rig(rig)
+    d.state.set_rig(
+        status="ok",
+        fit_duration_ms=rs["fit_duration_ms"],
+        face_landmark_count=rs["face_landmark_count"],
+        body_landmark_count=rs["body_landmark_count"],
+        face_visible_in_openpose=rs["face_visible_in_openpose"],
+        body_visible_in_openpose=rs["body_visible_in_openpose"],
+        hand_left_detected=rs["hand_left_detected"],
+        hand_right_detected=rs["hand_right_detected"],
+        hand_landmark_count=rs["hand_landmark_count"],
+        hands_unavailable=rs["hands_unavailable"],
+    )
+
+
+def _slot_summary(d: CommandDispatcher, slot: FileSlot) -> dict[str, Any]:
+    return {
+        "file_id": slot.file_id,
+        "path": slot.path,
+        "avatar_slug": slot.avatar_slug,
+        "active": slot.file_id == d._active_file_id,
+        "yaw": dict(slot.yaw),
+        "rig": dict(slot.rig_state),
+        "frame": dict(slot.frame),
+        "body_part_visibility": dict(slot.body_part_visibility),
+    }
+
+
+def _sync_state_files(d: CommandDispatcher) -> None:
+    d.state.set_files_state(
+        files=[_slot_summary(d, d._files[fid]) for fid in d._file_order if fid in d._files],
+        active_file_id=d._active_file_id,
+    )
+
+
+def _capture_active_slot(d: CommandDispatcher) -> None:
+    fid = d._active_file_id
+    if not fid or fid not in d._files or d._rig is None:
+        _sync_state_files(d)
+        return
+    slot = d._files[fid]
+    slot.rig = d._rig
+    slot.yaw = dict(d.state.yaw)
+    slot.rig_state = dict(d.state.rig)
+    slot.calibration = dict(d.state.calibration)
+    slot.body_part_visibility = dict(d.state.body_part_visibility)
+    slot.marker_visibility = _copy_marker_visibility(d.state.marker_visibility)
+    slot.detected_markers = {k: dict(v) for k, v in d.state.detected_markers.items()}
+    slot.frame = dict(d.state.frame)
+    _sync_state_files(d)
+
+
+def _clear_active_state(d: CommandDispatcher) -> None:
+    d._rig = None
+    d._active_file_id = None
+    d.state.set_portrait(None)
+    d.state.set_rig(status="none")
+    d.state.set_yaw(value_deg=0.0, bin_label="0")
+    with d.state._lock:
+        d.state.calibration = {
+            "active_avatar": None,
+            "completeness": "none",
+            "marker_count": 0,
+            "missing_required": [],
+            "field_cached": False,
+            "loaded_from": None,
+            "last_dump_at": d.state.calibration.get("last_dump_at"),
+        }
+        d.state.marker_visibility = default_marker_visibility()
+        d.state.detected_markers = {"body_18": {}, "face_70": {}}
+        d.state.frame = default_frame()
+
+
+def _apply_slot_to_state(d: CommandDispatcher, slot: FileSlot) -> None:
+    d._active_file_id = slot.file_id
+    d._rig = slot.rig
+    d.state.set_portrait(slot.path, avatar_slug=slot.avatar_slug)
+    with d.state._lock:
+        d.state.rig = dict(slot.rig_state)
+        d.state.yaw = dict(slot.yaw)
+        d.state.calibration = dict(slot.calibration)
+        d.state.body_part_visibility = dict(slot.body_part_visibility)
+        d.state.marker_visibility = _copy_marker_visibility(slot.marker_visibility)
+        d.state.detected_markers = {k: dict(v) for k, v in slot.detected_markers.items()}
+        d.state.frame = dict(slot.frame)
+    _sync_state_files(d)
+
+
+def _activate_file(d: CommandDispatcher, file_id: str) -> FileSlot:
+    slot = d._files.get(file_id)
+    if slot is None:
+        raise OpenReposeCommandError(f"unknown file_id: {file_id}")
+    _capture_active_slot(d)
+    _apply_slot_to_state(d, slot)
+    return slot
+
+
+def _close_file_id(d: CommandDispatcher, file_id: str) -> dict[str, Any]:
+    if file_id not in d._files:
+        raise OpenReposeCommandError(f"unknown file_id: {file_id}")
+    was_active = file_id == d._active_file_id
+    del d._files[file_id]
+    d._file_order = [fid for fid in d._file_order if fid != file_id]
+    if was_active:
+        if d._file_order:
+            _apply_slot_to_state(d, d._files[d._file_order[-1]])
+        else:
+            _clear_active_state(d)
+    _sync_state_files(d)
+    return {"closed_file_id": file_id, "active_file_id": d._active_file_id, "files": list(d.state.files)}
+
+
+def _open_file_impl(d: CommandDispatcher, path: str, avatar_slug: str | None, file_id: str | None = None) -> dict[str, Any]:
+    if avatar_slug is not None and (not isinstance(avatar_slug, str) or not avatar_slug):
         raise OpenReposeCommandError("avatar_slug must be a non-empty string")
     p = Path(path)
-    d.state.set_portrait(str(p), avatar_slug=avatar_slug)
+    fid = file_id or _new_file_id()
+    if fid in d._files:
+        raise OpenReposeCommandError(f"file_id already open: {fid}")
+    effective_slug = avatar_slug or p.stem
+
+    d.state.set_portrait(str(p), avatar_slug=effective_slug)
+    d.state.set_yaw(value_deg=0.0, bin_label="0")
     d.state.set_rig(status="fitting")
     d.state.write()
-    d.log.ok("rig.fitting", portrait=str(p), avatar_slug=avatar_slug or "")
+    d.log.ok("rig.fitting", portrait=str(p), avatar_slug=effective_slug or "")
 
-    # Auto-load per-avatar calibration if one exists for this avatar slug.
-    # Spec "Application Flow": calibration is applied during Rig.from_portrait
-    # before rotation. When no calibration JSON exists, the rig pipeline is
-    # equivalent to the identity field.
     cal = None
     cal_loaded_from: str | None = None
-    if avatar_slug:
-        cal_p = calibration_path(d.outputs_root, avatar_slug)
+    if effective_slug:
+        cal_p = calibration_path(d.outputs_root, effective_slug)
         cal = load_calibration(cal_p)
         if cal is not None:
             cal_loaded_from = str(cal_p)
 
     rig = Rig.from_portrait(p, calibration=cal)
     d._rig = rig
-    _refresh_calibration_state(
-        d.state,
-        active_avatar=avatar_slug,
-        calibration=cal,
-        loaded_from=cal_loaded_from,
-    )
-    # WP-I1-029 fix: auto-uncheck undetected markers in the Markers tab
-    # so the operator's checkbox state matches reality. Existing operator
-    # overrides take priority — we only fill in entries that the operator
-    # has not explicitly set. detected_markers is populated unconditionally
-    # so the GUI can show "no detection" indicators next to undetected rows.
+    d._active_file_id = fid
+    _refresh_calibration_state(d.state, active_avatar=effective_slug, calibration=cal, loaded_from=cal_loaded_from)
     auto_uncheck, detected = _compute_marker_detection(rig)
-    new_mv = _copy_marker_visibility(d.state.marker_visibility)
+    new_mv = default_marker_visibility()
     for schema, defaults in auto_uncheck.items():
         existing = new_mv.setdefault(schema, {})
         for idx_key, visible in defaults.items():
@@ -361,43 +517,92 @@ def _h_import_portrait(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, A
     with d.state._lock:
         d.state.marker_visibility = new_mv
         d.state.detected_markers = detected
+        d.state.frame = default_frame()
+    _set_state_rig_from_rig(d, rig)
 
-    # Compute openpose-mapped counts for the state snapshot.
-    face_70 = rig.openpose_face_70()
-    body_18, _conf_18 = rig.openpose_body_18()
-    int((face_70[:, 0] != 0).sum() + (face_70[:, 1] != 0).sum() > 0)
-    # Approximate visible: count non-(0,0) rows.
-    import numpy as np
-
-    face_visible_count = int(np.count_nonzero(np.any(face_70[:, :2] != 0, axis=1)))
-    body_visible_count = int(np.count_nonzero(np.any(body_18[:, :2] != 0, axis=1)))
-
-    d.state.set_rig(
-        status="ok",
-        fit_duration_ms=rig.fit_metrics.fit_duration_ms,
-        face_landmark_count=rig.fit_metrics.face_landmark_count,
-        body_landmark_count=rig.fit_metrics.body_landmark_count,
-        face_visible_in_openpose=face_visible_count,
-        body_visible_in_openpose=body_visible_count,
+    slot = FileSlot(
+        file_id=fid,
+        path=str(p),
+        avatar_slug=effective_slug,
+        rig=rig,
+        yaw=dict(d.state.yaw),
+        rig_state=dict(d.state.rig),
+        calibration=dict(d.state.calibration),
+        body_part_visibility=dict(d.state.body_part_visibility),
+        marker_visibility=_copy_marker_visibility(d.state.marker_visibility),
+        detected_markers={k: dict(v) for k, v in d.state.detected_markers.items()},
+        frame=dict(d.state.frame),
+        opened_at=_now_iso(),
     )
+    d._files[fid] = slot
+    d._file_order.append(fid)
+    _sync_state_files(d)
     d.state.write()
     d.log.ok(
         "rig.fit",
         portrait=str(p),
         face=rig.fit_metrics.face_landmark_count,
         body=rig.fit_metrics.body_landmark_count,
+        hands=rig.fit_metrics.hand_landmark_count,
         t_ms=rig.fit_metrics.fit_duration_ms,
         body_partial=rig.fit_metrics.body_partial,
     )
     return {
+        "file_id": fid,
         "portrait": str(p),
-        "avatar_slug": avatar_slug,
+        "avatar_slug": effective_slug,
         "fit_duration_ms": rig.fit_metrics.fit_duration_ms,
         "face_landmark_count": rig.fit_metrics.face_landmark_count,
         "body_landmark_count": rig.fit_metrics.body_landmark_count,
+        "hand_landmark_count": rig.fit_metrics.hand_landmark_count,
+        "hand_left_detected": rig.fit_metrics.hand_left_detected,
+        "hand_right_detected": rig.fit_metrics.hand_right_detected,
+        "hands_unavailable": rig.fit_metrics.hands_unavailable,
         "body_partial": rig.fit_metrics.body_partial,
         "body_partial_missing": list(rig.fit_metrics.body_partial_missing),
     }
+
+
+def _h_open_file(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    path = cmd.get("path")
+    if not isinstance(path, str) or not path:
+        raise OpenReposeCommandError("open_file requires 'path'")
+    file_id = cmd.get("file_id")
+    if file_id is not None and (not isinstance(file_id, str) or not file_id):
+        raise OpenReposeCommandError("file_id must be a non-empty string when supplied")
+    return _open_file_impl(d, path, cmd.get("avatar_slug"), file_id=file_id)
+
+
+def _h_close_file(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    file_id = cmd.get("file_id") or d._active_file_id
+    if not isinstance(file_id, str) or not file_id:
+        raise OpenReposeCommandError("close_file requires 'file_id' or an active file")
+    result = _close_file_id(d, file_id)
+    d.log.ok("workspace.file_close", file_id=file_id, active=d._active_file_id or "")
+    return result
+
+
+def _h_set_active_file(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    file_id = cmd.get("file_id")
+    if not isinstance(file_id, str) or not file_id:
+        raise OpenReposeCommandError("set_active_file requires 'file_id'")
+    slot = _activate_file(d, file_id)
+    d.state.write()
+    d.log.ok("workspace.file_active", file_id=file_id)
+    return {"active_file_id": file_id, "file": _slot_summary(d, slot)}
+
+
+def _h_list_files(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    _sync_state_files(d)
+    return {"active_file_id": d._active_file_id, "files": list(d.state.files)}
+
+# --- handlers (registered in _HANDLERS at module bottom) --------------------
+
+
+def _h_import_portrait(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
+    payload = _h_open_file(d, cmd)
+    payload["alias"] = "import_portrait"
+    return payload
 
 
 def _h_set_yaw(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
@@ -699,20 +904,15 @@ def _h_dump_state(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
 def _h_clear_workspace(
     d: CommandDispatcher, cmd: dict[str, Any]
 ) -> dict[str, Any]:
-    """Drop the active document's rig, reset its yaw to `0`, clear the
-    portrait + avatar slug. Distinct from `clear_outputs` (which only
-    purges the export/snapshot/error arrays). Operator settings, log,
-    body-part-visibility, marker-visibility, and calibration stay
-    untouched.
+    """Close the active file slot and return to empty state when last file closes."""
+    file_id = cmd.get("file_id") or d._active_file_id
+    if isinstance(file_id, str) and file_id in d._files:
+        result = _close_file_id(d, file_id)
+        d.log.ok("workspace.clear", file_id=file_id)
+        return {"cleared": True, **result}
 
-    Scope contract: ACTIVE document only. Forward-compat with WP-I1-036
-    multi-file workspace; today there is one document so this clears the
-    only loaded portrait.
-    """
-    d._rig = None
-    d.state.set_rig(status="none")
-    d.state.set_yaw(value_deg=0.0, bin_label="0")
-    d.state.set_portrait(None)
+    _clear_active_state(d)
+    _sync_state_files(d)
     d.log.ok("workspace.clear")
     return {
         "cleared": True,
@@ -720,8 +920,8 @@ def _h_clear_workspace(
         "avatar_slug": None,
         "rig": dict(d.state.rig),
         "yaw": dict(d.state.yaw),
+        "files": list(d.state.files),
     }
-
 
 def _h_clear_outputs(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, Any]:
     scope = cmd.get("scope", "all")
@@ -3132,6 +3332,10 @@ def _h_target_recount(d: CommandDispatcher, cmd: dict[str, Any]) -> dict[str, An
 
 _HANDLERS = {
     "import_portrait": _h_import_portrait,
+    "open_file": _h_open_file,
+    "close_file": _h_close_file,
+    "set_active_file": _h_set_active_file,
+    "list_files": _h_list_files,
     "set_yaw": _h_set_yaw,
     "set_yaw_bin": _h_set_yaw_bin,
     "export_single": _h_export_single,

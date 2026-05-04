@@ -12,6 +12,7 @@ from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
+    QLabel,
     QMainWindow,
     QSplitter,
     QTabWidget,
@@ -22,7 +23,7 @@ from ..app import App
 from ..render.widget_grab import set_widget_provider
 from ..rotation import rotate_yaw
 from ..yaw_bin import parse_bin, signed_deg_to_bin, standard_13_angle_bins
-from .drop_helper import decide_drop, mime_has_acceptable_image
+from .drop_helper import decide_multi_drop, mime_has_acceptable_image
 from .help_pane import HelpPane
 from .inspector import InspectorPane
 from .library import LibraryPane
@@ -126,13 +127,16 @@ class MainWindow(QMainWindow):
         self._toolbar = Toolbar(self)
         self.addToolBar(self._toolbar)
 
-        # Two-pane center.
-        self._viewport_3d = Viewport3D()
-        self._viewport_openpose = ViewportOpenPose()
-        center_split = QSplitter(Qt.Orientation.Horizontal)
-        center_split.addWidget(self._viewport_3d)
-        center_split.addWidget(self._viewport_openpose)
-        center_split.setSizes([480, 480])
+        # Multi-file workspace (WP-I1-037): file tabs own viewport pairs.
+        self._file_pages: dict[str, tuple[QWidget, Viewport3D, ViewportOpenPose]] = {}
+        self._syncing_file_tabs = False
+        self._file_tabs = QTabWidget()
+        self._file_tabs.setTabsClosable(True)
+        self._file_tabs.setMovable(True)
+        self._file_tabs.tabCloseRequested.connect(self._on_file_tab_close_requested)
+        self._file_tabs.currentChanged.connect(self._on_file_tab_changed)
+        empty_page, self._viewport_3d, self._viewport_openpose = self._create_file_page("__empty__")
+        self._file_tabs.addTab(empty_page, "Drop portrait")
 
         # Right dock with tabs.
         self._tabs = QTabWidget()
@@ -160,7 +164,7 @@ class MainWindow(QMainWindow):
 
         # Outer layout.
         outer = QSplitter(Qt.Orientation.Horizontal)
-        outer.addWidget(center_split)
+        outer.addWidget(self._file_tabs)
         outer.addWidget(self._tabs)
         outer.setSizes([960, 320])
 
@@ -255,6 +259,95 @@ class MainWindow(QMainWindow):
             lambda: self._app.handle_command({"command": "dump_rig"})
         )
 
+
+    # --- multi-file workspace ------------------------------------------
+
+    def _create_file_page(
+        self, file_id: str
+    ) -> tuple[QWidget, Viewport3D, ViewportOpenPose]:
+        page = QWidget()
+        page.setProperty("file_id", file_id)
+        view3d = Viewport3D()
+        view_openpose = ViewportOpenPose()
+        view3d.set_drop_callback(self._import_portrait_path)
+        view_openpose.set_drop_callback(self._import_portrait_path)
+        split = QSplitter(Qt.Orientation.Horizontal)
+        split.addWidget(view3d)
+        split.addWidget(view_openpose)
+        split.setSizes([480, 480])
+        layout = QHBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(split)
+        self._file_pages[file_id] = (page, view3d, view_openpose)
+        return page, view3d, view_openpose
+
+    def _tab_file_id(self, index: int) -> str | None:
+        widget = self._file_tabs.widget(index)
+        if widget is None:
+            return None
+        raw = widget.property("file_id")
+        return str(raw) if raw else None
+
+    def _sync_file_tabs(self, state_dict: dict) -> None:
+        files = list(state_dict.get("files") or [])
+        active_file_id = state_dict.get("active_file_id")
+        wanted = [str(f.get("file_id")) for f in files if f.get("file_id")]
+        wanted_set = set(wanted)
+        self._syncing_file_tabs = True
+        try:
+            # Remove stale real tabs and the empty tab when files exist.
+            for i in range(self._file_tabs.count() - 1, -1, -1):
+                fid = self._tab_file_id(i)
+                if fid == "__empty__" and files:
+                    self._file_tabs.removeTab(i)
+                    continue
+                if fid and fid != "__empty__" and fid not in wanted_set:
+                    self._file_tabs.removeTab(i)
+                    self._file_pages.pop(fid, None)
+
+            if not files:
+                if "__empty__" not in self._file_pages:
+                    page, _, _ = self._create_file_page("__empty__")
+                    self._file_tabs.addTab(page, "Drop portrait")
+                elif self._file_tabs.count() == 0:
+                    self._file_tabs.addTab(self._file_pages["__empty__"][0], "Drop portrait")
+                self._file_tabs.setCurrentIndex(0)
+            else:
+                for item in files:
+                    fid = str(item.get("file_id"))
+                    if fid not in self._file_pages:
+                        page, _, _ = self._create_file_page(fid)
+                        label = str(item.get("avatar_slug") or Path(str(item.get("path", "portrait"))).stem)
+                        self._file_tabs.addTab(page, label[:32])
+                    else:
+                        page = self._file_pages[fid][0]
+                        idx = self._file_tabs.indexOf(page)
+                        if idx >= 0:
+                            label = str(item.get("avatar_slug") or Path(str(item.get("path", "portrait"))).stem)
+                            self._file_tabs.setTabText(idx, label[:32])
+                if active_file_id in self._file_pages:
+                    idx = self._file_tabs.indexOf(self._file_pages[str(active_file_id)][0])
+                    if idx >= 0 and idx != self._file_tabs.currentIndex():
+                        self._file_tabs.setCurrentIndex(idx)
+
+            current_fid = self._tab_file_id(self._file_tabs.currentIndex())
+            if current_fid and current_fid in self._file_pages:
+                _, self._viewport_3d, self._viewport_openpose = self._file_pages[current_fid]
+        finally:
+            self._syncing_file_tabs = False
+
+    def _on_file_tab_close_requested(self, index: int) -> None:
+        fid = self._tab_file_id(index)
+        if fid and fid != "__empty__":
+            self._app.handle_command({"command": "close_file", "file_id": fid})
+
+    def _on_file_tab_changed(self, index: int) -> None:
+        if self._syncing_file_tabs:
+            return
+        fid = self._tab_file_id(index)
+        if fid and fid != "__empty__" and fid != self._app.state.active_file_id:
+            self._app.handle_command({"command": "set_active_file", "file_id": fid})
+
     # --- snapshot widget provider ---------------------------------------
 
     def _provide_widget(self, target: str) -> object | None:
@@ -334,8 +427,8 @@ class MainWindow(QMainWindow):
             event.ignore()
 
     def dropEvent(self, event) -> None:  # noqa: N802 (Qt API)
-        decision = decide_drop(event.mimeData())
-        if decision.path is None:
+        decision = decide_multi_drop(event.mimeData())
+        if not decision.paths:
             self._app.log.warn(
                 "import.drop_rejected",
                 reason=decision.reason or "unknown",
@@ -345,13 +438,14 @@ class MainWindow(QMainWindow):
             return
         if decision.ignored:
             self._app.log.warn(
-                "import.drop_multi_file",
-                reason="accepted first image; remaining entries ignored",
-                accepted=decision.path.name,
+                "import.drop_partial",
+                reason="accepted image files; rejected unsupported entries",
+                accepted=",".join(p.name for p in decision.paths),
                 ignored=",".join(decision.ignored),
             )
         event.acceptProposedAction()
-        self._import_portrait_path(decision.path)
+        for path in decision.paths:
+            self._import_portrait_path(path)
 
     def _on_clear_workspace(self) -> None:
         """Toolbar / Edit menu → dispatch the headless clear_workspace
@@ -419,6 +513,7 @@ class MainWindow(QMainWindow):
 
     def _on_state_poll(self) -> None:
         s = self._app.state.to_dict()
+        self._sync_file_tabs(s)
         # Update toolbar (suppress emit; programmatic).
         self._toolbar.set_state(
             s["yaw"]["current_value_deg"],

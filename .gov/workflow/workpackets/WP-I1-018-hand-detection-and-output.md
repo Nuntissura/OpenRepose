@@ -185,3 +185,4 @@ Add MediaPipe Hands detection to the rig pipeline and emit the resulting 21-keyp
 - 2026-05-02: Enhanced with full template sections (Files Touched, Test Plan, Risks, Rollback, Exit Criteria, etc.) for session-survivability.
 
 - 2026-05-04: Status DRAFT -> IN-PROGRESS; research notes added; implementation authorized by operator for autonomous overnight work.
+- 2026-05-04: Product implementation pass landed for hand landmark storage, yaw rotation, OpenPose JSON hand arrays, preview hand rendering, state telemetry, and built-in Help manual note. Validation evidence pending; WP stays IN-PROGRESS until tests/visual proof are run.

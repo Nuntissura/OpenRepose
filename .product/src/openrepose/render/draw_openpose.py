@@ -26,6 +26,7 @@ from ..openpose_schema import (
     BODY_R_EAR,
     BODY_R_EYE,
     BODY_R_SHOULDER,
+    OPENPOSE_HAND_CONNECTIONS,
     MP_POSE_TO_BODY18,
     apply_body_part_visibility,
     apply_frame_to_keypoints,
@@ -79,9 +80,13 @@ LIMB_COLORS_BGR: tuple[tuple[int, int, int], ...] = (
 
 KEYPOINT_COLOR_BGR = (255, 255, 255)
 FACE_DOT_COLOR_BGR = (255, 255, 255)
+HAND_DOT_COLOR_BGR = (255, 255, 255)
+HAND_LINE_COLOR_BGR = (0, 255, 255)
 LIMB_LINE_THICKNESS = 4
 KEYPOINT_RADIUS = 4
 FACE_DOT_RADIUS = 1
+HAND_DOT_RADIUS = 2
+HAND_LINE_THICKNESS = 2
 CANVAS_BORDER_THICKNESS = 2
 
 
@@ -178,11 +183,7 @@ def render_openpose(
 
     # Frame reframing (WP-I1-023): scale + offset coords; line widths and
     # dot sizes are canvas-pixel constants and stay invariant.
-    head_anchor_xy = (
-        rotated.head_anchor[:2]
-        if hasattr(rotated, "head_anchor") and rotated.head_anchor is not None
-        else None
-    )
+    head_anchor_xy = rotated.head_anchor_world[:2]
     body18 = apply_frame_to_keypoints(
         body18, frame, head_anchor_xy, (canvas_width, canvas_height)
     )
@@ -192,6 +193,23 @@ def render_openpose(
         head_anchor_xy,
         (canvas_width, canvas_height),
     )
+    hand_left_xy = apply_frame_to_keypoints(
+        rotated.hand_left_world[:, :2].astype(np.float64),
+        frame,
+        head_anchor_xy,
+        (canvas_width, canvas_height),
+    )
+    hand_right_xy = apply_frame_to_keypoints(
+        rotated.hand_right_world[:, :2].astype(np.float64),
+        frame,
+        head_anchor_xy,
+        (canvas_width, canvas_height),
+    )
+    hands_visible = True
+    if body_part_visibility is not None:
+        hands_visible = bool(body_part_visibility.get("hands", True))
+    hand_left_visible = rotated.hand_left_visible.copy() if hands_visible else np.zeros_like(rotated.hand_left_visible)
+    hand_right_visible = rotated.hand_right_visible.copy() if hands_visible else np.zeros_like(rotated.hand_right_visible)
 
     # Same defensive check on face_70 — if FaceMesh wasn't detected the
     # coords are zeros; do not draw stray face dots at origin.
@@ -218,6 +236,10 @@ def render_openpose(
             continue
         p = (int(round(face70_xy[i, 0])), int(round(face70_xy[i, 1])))
         cv2.circle(canvas, p, FACE_DOT_RADIUS, FACE_DOT_COLOR_BGR, -1, lineType=cv2.LINE_AA)
+
+    # Hand skeletons (WP-I1-018).
+    _draw_hand(canvas, hand_left_xy, hand_left_visible)
+    _draw_hand(canvas, hand_right_xy, hand_right_visible)
 
     # Canvas border outline (WP-I1-032). Skipped if color is None / invalid;
     # the operator chooses the color via Options. Drawn last so it sits on
@@ -275,3 +297,22 @@ def _face_visibility_from_478(face_visible_478: np.ndarray) -> np.ndarray:
         if 0 <= mp_idx < n:
             out[op_idx] = bool(face_visible_478[mp_idx])
     return out
+
+
+def _draw_hand(canvas: np.ndarray, xy: np.ndarray, visible: np.ndarray) -> None:
+    """Draw one 21-keypoint OpenPose hand."""
+    if xy.shape[0] < 21 or not bool(np.any(visible)):
+        return
+    at_origin = (np.abs(xy) < 1.0).all(axis=1)
+    visible = visible & ~at_origin
+    for a, b in OPENPOSE_HAND_CONNECTIONS:
+        if not visible[a] or not visible[b]:
+            continue
+        pa = (int(round(xy[a, 0])), int(round(xy[a, 1])))
+        pb = (int(round(xy[b, 0])), int(round(xy[b, 1])))
+        cv2.line(canvas, pa, pb, HAND_LINE_COLOR_BGR, HAND_LINE_THICKNESS, lineType=cv2.LINE_AA)
+    for i in range(21):
+        if not visible[i]:
+            continue
+        p = (int(round(xy[i, 0])), int(round(xy[i, 1])))
+        cv2.circle(canvas, p, HAND_DOT_RADIUS, HAND_DOT_COLOR_BGR, -1, lineType=cv2.LINE_AA)

@@ -72,3 +72,10 @@ Headless surface (WP-I1-003 added `set_settings` + `clear_settings` alongside th
 - `clear_settings` — reset every operator-managed field back to its default and persist. `settings_path` and `schema_version` are preserved.
 
 `library_db_url` is always returned redacted (`postgresql://user:***@host/db`) in command responses; the unredacted value lives in `settings.json` and is consumed internally by the dispatcher.
+
+
+## Hand keypoints (WP-I1-018)
+
+When visible hands are detected, OpenRepose emits OpenPose-compatible `hand_left_keypoints_2d` and `hand_right_keypoints_2d` arrays with 21 `(x, y, confidence)` triples per hand. Undetected hands stay zeroed so downstream OpenPose/DWPose renderers suppress them cleanly.
+
+Runtime note: OpenRepose prefers MediaPipe Tasks `HandLandmarker` when `OPENREPOSE_HAND_LANDMARKER_TASK` points at a local `.task` model. If no Tasks model is configured, it falls back to the bundled legacy MediaPipe Hands path. `state.rig.hands_unavailable` tells an LLM agent whether the detector path was unavailable rather than merely finding no hands.

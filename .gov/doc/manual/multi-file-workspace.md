@@ -83,3 +83,18 @@ Existing snapshot targets (`3d_viewport`, `openpose_viewport`, `inspector_pane`,
 ## Compatibility
 
 v0.1 LLM agents that read `state.portrait`, `state.calibration`, `state.frame` directly continue to work — the top-level mirror reflects the active file. v0.1 commands without `file_id` continue to operate on the active file. The v0.1 single-file workflow is the multi-file workflow with `len(files) == 1`.
+
+
+## Implementation status (WP-I1-037)
+
+The product implementation is now represented by `WP-I1-037`, not by the earlier `WP-I1-036` spec packet. The shipped product path is intended to expose:
+
+- `open_file` to open a portrait into a file slot.
+- `close_file` to close one file slot.
+- `set_active_file` to switch the active file slot.
+- `list_files` to return every open file plus the active file id.
+- `import_portrait` as a backward-compatible alias for `open_file`.
+- `state.json` fields `files[]` and `active_file_id`, while legacy top-level fields mirror the active file.
+- GUI file tabs with close buttons; drag-and-drop opens every acceptable PNG/JPG/JPEG in the drop.
+
+Truth boundary: custom multi-column tab wrapping is still a polish fallback unless a later WP replaces Qt's native tab behavior.

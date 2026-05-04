@@ -113,11 +113,21 @@ MP_FACEMESH_TO_OPENPOSE_70: tuple[int, ...] = (
 
 OPENPOSE_FACE_COUNT = 70
 OPENPOSE_BODY_COUNT = 18
+OPENPOSE_HAND_COUNT = 21
 MEDIAPIPE_FACEMESH_COUNT = 478
 MEDIAPIPE_POSE_COUNT = 33
 
 assert len(MP_FACEMESH_TO_OPENPOSE_70) == OPENPOSE_FACE_COUNT, "face map length mismatch"
 assert len(MP_POSE_TO_BODY18) == OPENPOSE_BODY_COUNT, "body map length mismatch"
+
+# OpenPose / MediaPipe hand topology: wrist + 4 joints per finger.
+OPENPOSE_HAND_CONNECTIONS: tuple[tuple[int, int], ...] = (
+    (0, 1), (1, 2), (2, 3), (3, 4),
+    (0, 5), (5, 6), (6, 7), (7, 8),
+    (0, 9), (9, 10), (10, 11), (11, 12),
+    (0, 13), (13, 14), (14, 15), (15, 16),
+    (0, 17), (17, 18), (18, 19), (19, 20),
+)
 
 
 # --- per-body-part visibility (WP-I1-017) -----------------------------------
