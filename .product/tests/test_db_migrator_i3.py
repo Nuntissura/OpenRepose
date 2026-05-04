@@ -83,14 +83,22 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_i3_migrations_apply_in_order(library_pg):
-    """001..005 apply cleanly; schema_version reflects all five."""
+    """001..006 apply cleanly; schema_version reflects every applied row.
+
+    The list grows when later migrations land (I4 added 006). New
+    migration numbers append on the right; the assertion uses a range
+    so this test does not regress every iteration.
+    """
     import psycopg
 
     with psycopg.connect(_dsn(library_pg)) as conn:
         migrator = Migrator(conn, migrations_dir=_migrations_dir())
         applied = migrator.apply_pending()
-        assert applied == [1, 2, 3, 4, 5]
-        assert migrator.current_version() == 5
+        assert applied == list(range(1, len(applied) + 1)), (
+            f"migrations did not apply in contiguous version order: {applied}"
+        )
+        assert applied[:5] == [1, 2, 3, 4, 5], "I3 baseline broken"
+        assert migrator.current_version() == applied[-1]
 
         # Idempotent re-apply.
         assert migrator.apply_pending() == []
