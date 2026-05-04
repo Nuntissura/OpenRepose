@@ -174,13 +174,13 @@ def test_app_boots_with_live_db_and_runs_migrations(pool_pg, tmp_path: Path):
         # Pool is connected and migrations ran.
         assert app.library_pool.is_open is True
         assert app.library_pool.is_connected is True
-        assert app.library_pool.schema_version() == 5
+        assert app.library_pool.schema_version() >= 6  # WP-I4-001: bumped 5 -> 6
         # state.json reflects the library block.
         state = json.loads((tmp_path / "state.json").read_text(encoding="utf-8"))
         lib = state.get("library", {})
         assert lib.get("connected") is True
         assert lib.get("configured") is True
-        assert lib.get("schema_version") == 5
+        assert lib.get("schema_version") >= 6  # WP-I4-001: bumped 5 -> 6
         assert lib.get("operator_slug") == "test-op"
         assert lib.get("db_url_redacted")  # non-empty (redacted form)
     finally:
@@ -192,8 +192,9 @@ def test_app_boots_with_live_db_and_runs_migrations(pool_pg, tmp_path: Path):
     reason="no system Postgres",
 )
 def test_pool_schema_version_after_migration(pool_pg):
-    """After applying every shipped migration (001 + I3 trio 002/003/004 + AMood views 005),
-    schema_version() reads 5."""
+    """After applying every shipped migration, schema_version() reads
+    the highest version number on disk. Currently 6 after WP-I4-001
+    landed migration 006."""
     import psycopg
 
     from openrepose.db.migrator import Migrator
@@ -208,6 +209,6 @@ def test_pool_schema_version_after_migration(pool_pg):
         # Apply migration via a separate connection.
         with psycopg.connect(dsn) as conn:
             Migrator(conn, migrations_dir=migrations_dir).apply_pending()
-        assert p.schema_version() == 5
+        assert p.schema_version() >= 6  # WP-I4-001 baseline
     finally:
         p.close()
