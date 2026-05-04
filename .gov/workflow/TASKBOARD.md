@@ -1,12 +1,12 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-04 (I1 polish bundle kickoff: WP-I1-003 + WP-I1-005 + WP-I1-016 promoted DRAFT → IN-PROGRESS, all bumped to Workflow Version 1.1 with Manual Impact lines. WP-I1-004 stays DRAFT pending operator app-usage to define the shortcut set. I3 sign-off still pending on the 4 REVIEW WPs.)
+Last Updated: 2026-05-04 (I4 intake scale + DB hardening opened READY alongside the active I1 polish bundle (WP-I1-003 + WP-I1-005 + WP-I1-016 IN-PROGRESS). No I4 implementation started. I3 sign-off still pending on the 4 REVIEW WPs.)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 3 (WP-I1-003 settings persistence; WP-I1-005 drag-and-drop portrait import; WP-I1-016 clear workspace command + button — I1 polish bundle, sequential within the sweep)
+- WPs in flight (READY + IN-PROGRESS): 4 (WP-I1-003 settings persistence; WP-I1-005 drag-and-drop portrait import; WP-I1-016 clear workspace command + button — I1 polish bundle, sequential within the sweep; WP-I4-001 intake scale + DB hardening READY)
 - WPs pending review (REVIEW): 4 (WP-I3-009 audit-script extension; WP-I3-007 requirements editor + target tree; WP-I3-008 triage GUI tab + snapshot targets; WP-I3-010 e2e EXP120 verification)
 - WPs done (I3): 5 (WP-I3-001 spec lock; WP-I3-002 stance primitives; WP-I3-003 PG schema migrations; WP-I3-004 intake/project/task command surface; WP-I3-005 default-staging ComfyUI bridge; WP-I3-006 AMood data-model commands)
 - WPs blocked (BLOCKED): 0
@@ -16,7 +16,7 @@ Live status of all OpenRepose workpackets. Update in the same session as any wor
 - WPs done (I1): 14 (12 prior + WP-I1-034/035 signed off 2026-05-03 Sweep A)
 - WPs done (I2): 8 (WP-I2-001..008 — Feature 3 OpenPose Library + ComfyUI bridge + PostgreSQL — I2 CLOSED 2026-05-03 Sweep A)
 - WPs reserved-not-drafted: 3 (WP-I1-019/020/021 joint-manipulation chain — operator deferred to later)
-- Iterations open: I1 (polish bundle in flight: WP-I1-003 + 005 + 016), I3 (Sweep B in REVIEW awaiting operator sign-off across 4 WPs)
+- Iterations open: I1 (polish bundle in flight: WP-I1-003 + 005 + 016), I3 (Sweep B in REVIEW awaiting operator sign-off across 4 WPs), I4 (WP-I4-001 READY)
 
 ## Active
 
@@ -27,6 +27,7 @@ Workpackets currently progressing toward DONE.
 | WP-I1-003 | Settings persistence | assistant | IN-PROGRESS | IMPLEMENTATION | S | 2026-05-04 |
 | WP-I1-016 | Clear workspace command + button | assistant | IN-PROGRESS | IMPLEMENTATION | XS | 2026-05-04 |
 | WP-I1-005 | Drag-and-drop portrait import | assistant | IN-PROGRESS | IMPLEMENTATION | XS | 2026-05-04 |
+| WP-I4-001 | Intake scale + DB hardening | assistant | READY | IMPLEMENTATION | L | 2026-05-04 |
 
 ## Pending Review
 
@@ -181,6 +182,10 @@ _(none)_
 - 2026-05-03: **WP-I3-003 / WP-I3-004 / WP-I3-005 signed off DONE** by operator. **WP-I3-006 (AMood data-model commands + dedupe service, IMPLEMENTATION, L)** opened at IN-PROGRESS. Scope: 7 dispatcher commands (`init_batch_package`, `library_create_card`, `library_create_variants`, `compatibility_check`, `accepted_set_audit`, `amood_export_tsv`, `amood_import_tsv`), new `library/amood/` subpackage, new migration `005_i3_amood_tsv_views.sql` (10 TSV-shaped views in AMood-locked column order, schema_version 4 → 5), `state.library.amood` block, AMOOD-001 dedupe-warning surface, blueprint-template-driven package layout under `outputs/library/<project>/<batch>/`. Predecessors WP-I3-003/004/005 archived in the same kickoff commit.
 - 2026-05-03: **WP-I3-006 advanced IN-PROGRESS → REVIEW**. Implementation landed: migration 005 with 10 views (`library_amood_*_v`) in locked AMood column order; `library/amood/` subpackage with 8 modules; 7 dispatcher handlers wired into `commands.py` with `OpenReposeAmoodError` propagation; `state.library.amood` block + 3 mutators on AppState. AMOOD-001 surfaces with overlap_count + matched card slug; SAFE-001/002/003 + AMOOD-004 cited from `compatibility_check`. 39 new tests (12 commands + 6 dedupe + 21 TSV) all passing against ephemeral PG; 68/68 regression-prone tests still passing after schema_version 4 → 5 bump. Manual `amood-workflow.md` extended with Commands table, AMOOD-001 citation example, and dedicated anchor sections (`#anti-repetition`, `#abandonment-criteria`, `#fast-triage`, `#safety-boundary`). Audit clean. Two FALLBACK paths recorded in WP Fallback Register (variant change-rules subset; TSV import for 6 system-generated schemas). Awaiting operator sign-off.
 - 2026-05-03: **Sweep A sign-off batch — 12 WPs DONE in one operator-granted commit.** Closed: WP-I1-034 (calibration overview mode + drag/delete + add-marker), WP-I1-035 (in-app manual + manual-impact rule), the full I2 sequence WP-I2-001..008 (Feature 3 OpenPose Library + ComfyUI bridge + PostgreSQL — I2 iteration CLOSED), WP-I3-002 (stance acknowledgement primitives), WP-I3-006 (AMood data-model commands). 583/583 tests pass across the closed scope. I2 + the I3 Sweep A bundle (-002/-003/-004/-005/-006) are now archived. Sweep B (WP-I3-007 + WP-I3-009) is next; handoff doc at `.gov/doc/handoff-2026-05-03-i3-implementation-phase-2.md`.
+
+### I4 — Intake Scale + DB Hardening (OPEN 2026-05-04)
+
+- 2026-05-04: **WP-I4-001 Intake scale + DB hardening** opened at READY. Scope extends the existing I3 intake system rather than replacing it: bulk output registration, idempotent retries, output-level producer attribution (`source_model`, `agent_id`, `producer_run_id`, `idempotency_key`), durable file-state/file-op recovery (`storage_state` enum + outbox), transaction-boundary cleanup (data-layer helpers stop committing internally), search filtering (main `library_search` excludes pending/diagnostic/rejected/soft_accepted by default), and a 3-producer × ≥100 outputs each parallel e2e proof. Migration `006_i4_intake_scale_hardening.sql` will bump `schema_version 5 → 6`. No `.product/` implementation has started.
 
 ## Iteration Pipeline
 
