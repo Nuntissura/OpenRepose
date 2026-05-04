@@ -184,6 +184,8 @@ Write-Output "Run from anywhere inside the repo with: .\orstart"
 Write-Output "Options: -Brief, -NoLive"
 Write-Output ""
 Write-Output "Assistant instruction: treat this output as startup context. Do not rely on memory for repo rules, spec state, or workflow status."
+Write-Output "Assistant instruction: read .gov/CODEX.md after startup; treat it as a binding project contract alongside .gov/AGENTS.md."
+Write-Output "Assistant instruction: follow the codex rules and instructions before advising, editing, or changing workflow state."
 
 Write-Subsection "Git identity and worktree state"
 $prevPref = $ErrorActionPreference

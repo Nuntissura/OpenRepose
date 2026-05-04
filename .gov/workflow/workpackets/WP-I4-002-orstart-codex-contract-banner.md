@@ -5,7 +5,7 @@
 - **Owner**: `assistant`
 - **Date Opened**: `2026-05-04`
 - **Last Updated**: `2026-05-04`
-- **Status**: `IN-PROGRESS`
+- **Status**: `REVIEW`
 - **Iteration**: `I4`
 - **Workflow Version**: `1.1`
 - **Packet Class**: `INFRASTRUCTURE`
@@ -77,10 +77,10 @@ No external research required. This is a wording-only infrastructure change to t
 
 ## Definition Of Done
 
-- [ ] `.\orstart -Brief` prints an explicit instruction to read `.gov/CODEX.md`.
-- [ ] `.\orstart -Brief` states that `.gov/CODEX.md` is binding project context and its rules/instructions must be followed.
-- [ ] `git status --short` reviewed; unrelated pre-existing manual edits remain untouched.
-- [ ] **Manual Impact**: `No - startup banner wording only; no operator-facing application manual surface changes.`
+- [x] `.\orstart -Brief` prints an explicit instruction to read `.gov/CODEX.md`.
+- [x] `.\orstart -Brief` states that `.gov/CODEX.md` is binding project context and its rules/instructions must be followed.
+- [x] `git status --short` reviewed; unrelated pre-existing manual edits remain untouched.
+- [x] **Manual Impact**: `No - startup banner wording only; no operator-facing application manual surface changes.`
 
 ## Test Coverage Plan
 
@@ -102,9 +102,9 @@ None.
 
 ## Change Ledger
 
-- **What Became Real**: pending.
+- **What Became Real**: `scripts/orstart.ps1` now prints explicit assistant instructions to read `.gov/CODEX.md`, treat it as a binding project contract alongside `.gov/AGENTS.md`, and follow codex rules before advising, editing, or changing workflow state.
 - **What Remains Simulated**: none.
-- **Next Blocking Real Seam**: pending.
+- **Next Blocking Real Seam**: operator sign-off before DONE/archive.
 
 ## Checkpoint Commit Plan
 
@@ -114,8 +114,8 @@ None.
 
 ## Proof Of Implementation
 
-- **Command Runs**: pending.
-- **Proof Artifact**: pending.
+- **Command Runs**: `.\orstart -Brief` prints the new instruction lines.
+- **Proof Artifact**: command stdout in assistant session.
 - **Claim Standard**: never mark `DONE` without linked command evidence and artifact paths.
 
 ## Headless LLM Operation Compliance
@@ -133,13 +133,16 @@ N/A - startup banner wording only; no operator-facing or visually interactive ap
 
 ## Evidence
 
-- **Test Suite Execution**: pending.
-- **Logs**: pending.
+- **Test Suite Execution**: `2026-05-04: .\orstart -Brief` passed.
+- **Logs**: command stdout showed:
+  - `Assistant instruction: read .gov/CODEX.md after startup; treat it as a binding project contract alongside .gov/AGENTS.md.`
+  - `Assistant instruction: follow the codex rules and instructions before advising, editing, or changing workflow state.`
 - **Screenshots / Exports**: N/A.
 - **Build Artifacts**: N/A.
-- **Proof Artifact**: pending.
+- **Proof Artifact**: command stdout in assistant session.
 - **Operator Sign-off**: pending.
 
 ## Progress Log
 
 - `2026-05-04`: WP initialized at IN-PROGRESS so the startup banner patch can proceed after kickoff commit and push.
+- `2026-05-04`: Updated `scripts/orstart.ps1`, verified with `.\orstart -Brief`, and moved WP to REVIEW pending operator sign-off.

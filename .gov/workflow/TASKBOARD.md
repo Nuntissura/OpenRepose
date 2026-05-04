@@ -1,13 +1,13 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-04 (WP-I4-002 opened IN-PROGRESS for the orstart codex contract banner. 9 WPs remain pending operator sign-off across I1, I3, and I4.)
+Last Updated: 2026-05-04 (WP-I4-002 orstart codex contract banner shipped to REVIEW. 10 WPs now pending operator sign-off across I1, I3, and I4.)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 1 (WP-I4-002 orstart codex contract banner)
-- WPs pending review (REVIEW): 9 (WP-I1-003 settings commands + WP-I1-005 drag-and-drop + WP-I1-016 clear workspace + WP-I1-036 multi-file workspace spec; WP-I3-009 audit-script extension; WP-I3-007 requirements editor + target tree; WP-I3-008 triage GUI tab + snapshot targets; WP-I3-010 e2e EXP120 verification; WP-I4-001 intake scale + DB hardening)
+- WPs in flight (READY + IN-PROGRESS): 0
+- WPs pending review (REVIEW): 10 (WP-I1-003 settings commands + WP-I1-005 drag-and-drop + WP-I1-016 clear workspace + WP-I1-036 multi-file workspace spec; WP-I3-009 audit-script extension; WP-I3-007 requirements editor + target tree; WP-I3-008 triage GUI tab + snapshot targets; WP-I3-010 e2e EXP120 verification; WP-I4-001 intake scale + DB hardening; WP-I4-002 orstart codex contract banner)
 - WPs done (I3): 5 (WP-I3-001 spec lock; WP-I3-002 stance primitives; WP-I3-003 PG schema migrations; WP-I3-004 intake/project/task command surface; WP-I3-005 default-staging ComfyUI bridge; WP-I3-006 AMood data-model commands)
 - WPs blocked (BLOCKED): 0
 - WPs draft (DRAFT, eligible to promote): 15 (14 I1 backlog + WP-I3-011 future OpenRepose AMood GPT + Claude wrappers)
@@ -24,7 +24,6 @@ Workpackets currently progressing toward DONE.
 
 | WP-ID | Title | Owner | Status | Class | Effort | Updated |
 |-------|-------|-------|--------|-------|--------|---------|
-| WP-I4-002 | Orstart codex contract banner | assistant | IN-PROGRESS | INFRASTRUCTURE | XS | 2026-05-04 |
 
 ## Pending Review
 
@@ -41,6 +40,7 @@ Implementation claims to be done; awaiting operator verification.
 | WP-I3-008 | Triage GUI tab + 3 snapshot targets | assistant | IMPLEMENTATION | 2026-05-04 | 35/35 pytest passing in 23.61s (triage pane + 14 snapshot targets parametrized + GUI no-focus-steal + headless render); audit clean. Evidence in `target/test-artifacts/WP-I3-008/`. |
 | WP-I3-010 | End-to-end EXP120 verification | assistant | VERIFICATION | 2026-05-04 | 3/3 e2e tests passing in 2:47; 29/29 -006/-007 regression after the cards.py wiring fix; audit clean. Evidence in `target/test-artifacts/WP-I3-010/`. **Closes I3 v0.1 on operator sign-off.** |
 | WP-I4-001 | Intake scale + DB hardening | assistant | IMPLEMENTATION | 2026-05-04 | 17/17 scale + parallel e2e tests passing in 5:13 with JUnit at `target/test-artifacts/WP-I4-001/junit.xml`; 7/7 dispatcher tests passing in 3:15; audit clean. |
+| WP-I4-002 | Orstart codex contract banner | assistant | INFRASTRUCTURE | 2026-05-04 | `.\orstart -Brief` prints the new codex-as-binding-contract assistant instructions; unrelated manual edits left untouched. |
 
 ## Blocked
 
