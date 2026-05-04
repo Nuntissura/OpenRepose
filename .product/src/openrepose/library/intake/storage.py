@@ -149,9 +149,10 @@ def set_storage_state(
 ) -> str | None:
     """Update `library_outputs.storage_state` to `new_storage_state`.
 
-    Returns the previous storage_state, or None if the row was not
-    found. Caller owns commit. Raises `StorageError` if
-    `new_storage_state` is not a known enum value.
+    Returns the previous storage_state for callers that need to record
+    a `storage_transition` event (None when the row is missing).
+    Caller owns commit. Raises `StorageError` if `new_storage_state`
+    is not a known enum value.
     """
     if new_storage_state not in INTAKE_006_STORAGE_STATES:
         raise StorageError(
@@ -160,20 +161,18 @@ def set_storage_state(
         )
     with conn.cursor() as cur:
         cur.execute(
-            "UPDATE library_outputs "
-            "SET storage_state = %s "
-            "WHERE id = %s "
-            "RETURNING (SELECT storage_state FROM library_outputs WHERE id = %s)",
-            (new_storage_state, str(output_id), str(output_id)),
+            "SELECT storage_state FROM library_outputs WHERE id = %s",
+            (str(output_id),),
         )
-        row = cur.fetchone()
-    if row is None:
-        return None
-    # The RETURNING subselect runs after the UPDATE in the same statement,
-    # so it reflects the *new* value, not the old. We need the old value
-    # for events; fetch it explicitly. The simpler shape: read first,
-    # then write. Trade one statement for clarity.
-    return None  # not used by callers that already know prev_state
+        prev_row = cur.fetchone()
+        if prev_row is None:
+            return None
+        previous = prev_row[0]
+        cur.execute(
+            "UPDATE library_outputs SET storage_state = %s WHERE id = %s",
+            (new_storage_state, str(output_id)),
+        )
+    return previous
 
 
 # ---------------------------------------------------------------------------

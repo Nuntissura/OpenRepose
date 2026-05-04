@@ -171,6 +171,8 @@ def register_outputs_bulk(  # noqa: PLR0912, PLR0915
             # ON CONFLICT against the partial UNIQUE index. The DO
             # NOTHING + RETURNING pattern returns NULL on conflict;
             # we then fetch the existing row by the conflict tuple.
+            # The index is partial -- PostgreSQL requires the same
+            # predicate inline so the planner can match it.
             cur.execute(
                 "INSERT INTO library_outputs "
                 "(run_id, task_id, file_path, content_hash, width, height, "
@@ -178,7 +180,8 @@ def register_outputs_bulk(  # noqa: PLR0912, PLR0915
                 " agent_id, idempotency_key, source_model, producer_run_id) "
                 "VALUES (%s, %s, %s, %s, %s, %s, 'pending', 'raw', "
                 "        %s, %s, %s, %s) "
-                "ON CONFLICT ON CONSTRAINT library_outputs_idempotency_uk "
+                "ON CONFLICT (task_id, agent_id, idempotency_key) "
+                "WHERE idempotency_key IS NOT NULL AND agent_id IS NOT NULL "
                 "DO NOTHING "
                 "RETURNING id",
                 (

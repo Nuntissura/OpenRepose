@@ -50,6 +50,7 @@ from .storage import (
     recover_audit,
     recover_retry,
     reject_dst_path,
+    set_storage_state,
 )
 from .tasks import (
     LibraryTask,
@@ -101,6 +102,7 @@ __all__ = [
     "register_outputs_bulk",
     "reject_dst_path",
     "reject_output",
+    "set_storage_state",
     "resolve_card_by_slug",
     "reroute_output",
     "run_auto_route",
