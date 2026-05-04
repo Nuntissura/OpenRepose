@@ -5,7 +5,7 @@
 - **Owner**: `assistant`
 - **Date Opened**: `2026-05-03`
 - **Last Updated**: `2026-05-03`
-- **Status**: `REVIEW`
+- **Status**: `DONE`
 - **Iteration**: `I3`
 - **Workflow Version**: `1.1`
 - **Packet Class**: `IMPLEMENTATION`
@@ -223,13 +223,13 @@ This WP adds 8 LLM-issuable commands to the dispatcher; no GUI surface (the GUI 
 
 ## Exit Criteria
 
-- [ ] Definition of Done items all checked.
-- [ ] Taskboard row reflects current status.
-- [ ] Reality Boundary, Fallback Register, and Change Ledger are truthful.
-- [ ] Linked test suite executed; junit XML at `target/test-artifacts/WP-I3-007/junit.xml`.
-- [ ] Evidence section populated with concrete paths.
-- [ ] Operator sign-off recorded in Evidence section.
-- [ ] **Headless LLM Operation Compliance** section all items checked (snapshot target marked N/A with reason).
+- [x] Definition of Done items all checked.
+- [x] Taskboard row reflects current status.
+- [x] Reality Boundary, Fallback Register, and Change Ledger are truthful.
+- [x] Linked test suite executed; junit XML at `target/test-artifacts/WP-I3-007/junit.xml`.
+- [x] Evidence section populated with concrete paths.
+- [x] Operator sign-off recorded in Evidence section.
+- [x] **Headless LLM Operation Compliance** section all items checked (snapshot target marked N/A with reason).
 
 ## Evidence
 
@@ -239,7 +239,7 @@ This WP adds 8 LLM-issuable commands to the dispatcher; no GUI surface (the GUI 
 - **Screenshots / Exports**: `N/A — non-visual surface in this WP`.
 - **Build Artifacts**: `N/A`.
 - **Proof Artifact**: `target/test-artifacts/WP-I3-007/` (junit.xml + pytest-output.txt + audit-clean.txt).
-- **Operator Sign-off**: _(pending)_
+- **Operator Sign-off**: 2026-05-04 operator sign-off recorded in chat; requirements editor + target tree accepted as done.
 
 ## Progress Log
 
@@ -248,3 +248,4 @@ This WP adds 8 LLM-issuable commands to the dispatcher; no GUI surface (the GUI 
 - `2026-05-03`: Round-trip test landed first per handoff. EXP120 byte-stable round-trip GREEN on first implementation cut (12/12 markdown tests).
 - `2026-05-03`: Implementation completed: library/requirements/ subpackage (errors + rules + markdown_io), library/targets.py, state.set_targets_state mutator, 8 dispatcher handlers wired in commands.py. Two iteration bugs caught by integration tests: (a) library_tasks.intake_dir NOT NULL not seeded in test fixture, (b) project_import_markdown didn't update library_projects.name/status from markdown header. Both fixed; round-trip via dispatcher then byte-stable.
 - `2026-05-03`: 29/29 final pytest GREEN (5:13 against ephemeral PG). Audit clean (8 OK, 1 SKIP, 0 violations). Manual extended with v0.1 canonical-form subsection. WP transitioned to REVIEW.
+- `2026-05-04`: Operator sign-off recorded; status REVIEW -> DONE; archived under `.gov/workflow/archive/`.

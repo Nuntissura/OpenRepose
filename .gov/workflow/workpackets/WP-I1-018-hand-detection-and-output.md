@@ -2,11 +2,11 @@
 
 ## Header
 
-- **Owner**: TBD (operator)
+- **Owner**: assistant
 - **Date Opened**: 2026-05-02
-- **Status**: DRAFT
+- **Status**: IN-PROGRESS
 - **Iteration**: I1
-- **Workflow Version**: 1.0
+- **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
 - **Effort Estimate**: M
 - **Linked Spec**: `.gov/spec/openrepose_v0_1.md` Feature 1 / Rig Construction + OpenPose Schema Mapping (extend to include hands).
@@ -20,6 +20,14 @@ Add MediaPipe Hands detection to the rig pipeline and emit the resulting 21-keyp
 - **Predecessor(s)**: WP-I0-001..004 must reach DONE.
 - **Related**: WP-I1-014 MediaPipe Tasks API migration — if Tasks API ships first, this WP uses `mp.tasks.vision.HandLandmarker`; otherwise `mp.solutions.hands.Hands`.
 - **Related**: WP-I1-017 per-body-part visibility — operator can suppress hands via the `hands` flag once both ship.
+
+## Research Notes
+
+| Date | Source | URL | Takeaway | Verdict |
+|------|--------|-----|----------|---------|
+| 2026-05-04 | Google AI Edge MediaPipe Hand Landmarker Python docs | https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker/python | Current Tasks API supports still-image hand detection via `HandLandmarker` IMAGE mode, returns 21 normalized landmarks, world landmarks, and handedness; use this path instead of legacy `mp.solutions.hands` for new work. | adopt |
+| 2026-05-04 | Google AI Edge MediaPipe source | https://github.com/google-ai-edge/mediapipe/blob/master/mediapipe/tasks/python/vision/hand_landmarker.py | `HandLandmarkerResult` exposes `hand_landmarks`, `hand_world_landmarks`, and `handedness`; the module also defines hand connection groups usable as the drawing topology reference. | adapt |
+| 2026-05-04 | OpenPose output docs | https://cmu-perceptual-computing-lab.github.io/openpose/web/html/doc/md_doc_02_output.html | OpenPose serializes hands as `hand_left_keypoints_2d` and `hand_right_keypoints_2d`, analogous to pose/face arrays, with flat coordinate/confidence triples. | adopt |
 
 ## Reality Boundary
 
@@ -66,6 +74,7 @@ Add MediaPipe Hands detection to the rig pipeline and emit the resulting 21-keyp
 - [ ] Verified end-to-end via `RenderPeopleKps` rendering of an exported JSON.
 - [ ] Per-body-part `hands` flag (when WP-I1-017 ships) toggles suppression.
 - [ ] `pytest` zero failures.
+- [ ] **Manual Impact**: Yes - extends `.gov/doc/manual/feature-1-yaw-exporter.md` with hand-detection/output behavior and the `hands_unavailable` runtime note.
 
 ## Linked Requirements / Spec Sections
 
@@ -133,15 +142,15 @@ Add MediaPipe Hands detection to the rig pipeline and emit the resulting 21-keyp
 
 ## Decisions Log
 
-- (none yet at DRAFT stage; populate during implementation)
+- 2026-05-04: Use MediaPipe Tasks `HandLandmarker` in IMAGE mode for still portraits instead of legacy `mp.solutions.hands`. Reason: current Google AI Edge docs describe Tasks as the active Python surface and expose handedness + normalized landmarks directly. Alternatives considered: legacy `mp.solutions.hands`, rejected for new code path unless Tasks import is unavailable.
 
 ## Fallback Register
 
-- (none planned at DRAFT stage)
+- **Path**: hand detector runtime when MediaPipe Tasks/model asset is unavailable. **Required Label In Code/UI**: `hands_unavailable`. **Successor / Debt Owner**: WP-I1-018. **Exit Condition To Remove**: MediaPipe task dependency and model asset path are available in the runtime environment.
 
 ## Change Ledger
 
-- (filled at REVIEW)
+- 2026-05-04: Promoted DRAFT -> IN-PROGRESS after operator requested autonomous overnight implementation. Research recorded. Governance kickoff commit pending before `.product/` edits.
 
 ## Checkpoint Commit Plan
 
@@ -168,9 +177,11 @@ Add MediaPipe Hands detection to the rig pipeline and emit the resulting 21-keyp
 
 ## Evidence
 
-- (filled at REVIEW)
+- 2026-05-04: Promoted DRAFT -> IN-PROGRESS after operator requested autonomous overnight implementation. Research recorded. Governance kickoff commit pending before `.product/` edits.
 
 ## Progress Log
 
 - 2026-05-02: WP drafted, status DRAFT.
 - 2026-05-02: Enhanced with full template sections (Files Touched, Test Plan, Risks, Rollback, Exit Criteria, etc.) for session-survivability.
+
+- 2026-05-04: Status DRAFT -> IN-PROGRESS; research notes added; implementation authorized by operator for autonomous overnight work.

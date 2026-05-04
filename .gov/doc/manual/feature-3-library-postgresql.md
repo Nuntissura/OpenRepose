@@ -1,19 +1,19 @@
 # Feature 3 — OpenPose library + ComfyUI coupling
 
-The third feature, **partially implemented** (I2 iteration in progress). Spec: `.gov/spec/openrepose_library_v0_1.md`.
+The third feature is implemented and I2 is closed. Spec: `.gov/spec/openrepose_library_v0_1.md`.
 
-Status (2026-05-03):
+Status (2026-05-04):
 
-- **WP-I2-001 (REVIEW)**: PostgreSQL pool, hand-rolled migrator, initial schema (`001_library_initial.sql`), `state.library` block, `docker-compose.yml`.
-- **WP-I2-002 (REVIEW)**: Settings v2 (`library_db_url`, `library_root`, `operator_slug`); v1 migration; Options pane Library section; redacted DSN in `dump_settings`.
-- **WP-I2-003 (REVIEW)**: Library data layer (`openrepose.library` package): CRUD on `library_entries`, M-to-N tags, smart-tag extractor, filesystem storage layout under `outputs/library/<entry-uuid>/`.
-- **WP-I2-004 (REVIEW)**: 7 LLM commands wired into the dispatcher (`register_library_entry`, `update_library_entry`, `delete_library_entry`, `library_search`, `get_library_entry`, `set_library_tags`, `dump_library_schema`); prompts / story_beats / notes helpers; `library_search()` Python wrapper; state.library activity tracking.
-- **WP-I2-005 (REVIEW)**: ComfyUI bridge custom node under `.product/comfyui-bridge/` — POSTs `register_library_entry` after each image save; stdlib-only on ComfyUI side; non-blocking on POST failure.
-- **WP-I2-006 (REVIEW)**: Library tab GUI in OpenRepose — search bar, entry list, side-by-side detail, six sub-tabs (Tags / Prompts / Story / Notes / Workflow / Metadata).
-- **WP-I2-007 (REVIEW)**: Two new snapshot targets — `library_entry` (side-by-side openpose + reference for the most recently fetched entry) and `library_search_results` (4×6 thumbnail grid of the most recent search).
-- **WP-I2-008 (REVIEW)**: Closes I2 — multi-operator concurrency tests, 100-entry soak, `pg_dump` round-trip, and the operator setup guide at `.gov/doc/i2-library-setup.md`.
+- **WP-I2-001 (DONE)**: PostgreSQL pool, hand-rolled migrator, initial schema (`001_library_initial.sql`), `state.library` block, `docker-compose.yml`.
+- **WP-I2-002 (DONE)**: Settings v2 (`library_db_url`, `library_root`, `operator_slug`); v1 migration; Options pane Library section; redacted DSN in `dump_settings`.
+- **WP-I2-003 (DONE)**: Library data layer (`openrepose.library` package): CRUD on `library_entries`, M-to-N tags, smart-tag extractor, filesystem storage layout under `outputs/library/<entry-uuid>/`.
+- **WP-I2-004 (DONE)**: 7 LLM commands wired into the dispatcher (`register_library_entry`, `update_library_entry`, `delete_library_entry`, `library_search`, `get_library_entry`, `set_library_tags`, `dump_library_schema`); prompts / story_beats / notes helpers; `library_search()` Python wrapper; state.library activity tracking.
+- **WP-I2-005 (DONE)**: ComfyUI bridge custom node under `.product/comfyui-bridge/` — POSTs `register_library_entry` after each image save; stdlib-only on ComfyUI side; non-blocking on POST failure.
+- **WP-I2-006 (DONE)**: Library tab GUI in OpenRepose — search bar, entry list, side-by-side detail, six sub-tabs (Tags / Prompts / Story / Notes / Workflow / Metadata).
+- **WP-I2-007 (DONE)**: Two snapshot targets — `library_entry` (side-by-side openpose + reference for the most recently fetched entry) and `library_search_results` (4×6 thumbnail grid of the most recent search).
+- **WP-I2-008 (DONE)**: Closed I2 — multi-operator concurrency tests, 100-entry soak, `pg_dump` round-trip, and the operator setup guide at `.gov/doc/i2-library-setup.md`.
 
-## What it will do
+## What it does
 
 Operator-curated library of exported OpenPose wireframes alongside the downstream production artifacts they enabled (rendered images, ComfyUI workflows, prompts, story beats, notes), backed by **PostgreSQL** for multi-operator concurrent use.
 
@@ -31,7 +31,7 @@ One `library_search()` SQL function combines `pg_trgm` trigram fuzzy match (titl
 
 ## Smart tags (WP-I2-003)
 
-When an entry is registered (operator-side or via the future ComfyUI bridge), the dispatcher derives **`auto:` tags** from the workflow JSON + run metadata so the operator can search for them later without manual tagging.
+When an entry is registered (operator-side or via the ComfyUI bridge), the dispatcher derives **`auto:` tags** from the workflow JSON + run metadata so the operator can search for them later without manual tagging.
 
 | Family | Source | Example |
 |--------|--------|---------|
@@ -118,4 +118,4 @@ Every operator action issues the corresponding WP-I2-004 command, so the headles
 
 ## Implementation tracker
 
-WP-I2-001..008 in `.gov/workflow/workpackets/`.
+WP-I2-001..008 are archived under `.gov/workflow/archive/` after operator sign-off.

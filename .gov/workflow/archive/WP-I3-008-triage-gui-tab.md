@@ -5,7 +5,7 @@
 - **Owner**: `assistant`
 - **Date Opened**: `2026-05-04`
 - **Last Updated**: `2026-05-04`
-- **Status**: `REVIEW`
+- **Status**: `DONE`
 - **Iteration**: `I3`
 - **Workflow Version**: `1.1`
 - **Packet Class**: `IMPLEMENTATION`
@@ -193,13 +193,13 @@ Sacred. Captured before work starts.
 
 ## Exit Criteria
 
-- [ ] Definition of Done items all checked.
-- [ ] Taskboard row reflects current status.
-- [ ] Reality Boundary, Fallback Register, and Change Ledger are truthful.
-- [ ] Linked test suite has executed; junit XML at `target/test-artifacts/WP-I3-008/junit.xml`.
-- [ ] Evidence section populated with concrete paths.
-- [ ] Operator sign-off recorded in Evidence section.
-- [ ] **Headless LLM Operation Compliance** section all items checked.
+- [x] Definition of Done items all checked.
+- [x] Taskboard row reflects current status.
+- [x] Reality Boundary, Fallback Register, and Change Ledger are truthful.
+- [x] Linked test suite has executed; junit XML at `target/test-artifacts/WP-I3-008/junit.xml`.
+- [x] Evidence section populated with concrete paths.
+- [x] Operator sign-off recorded in Evidence section.
+- [x] **Headless LLM Operation Compliance** section all items checked.
 
 ## Evidence
 
@@ -209,7 +209,7 @@ Sacred. Captured before work starts.
 - **Screenshots / Exports**: snapshot smoke run produced three valid PNGs (`intake_triage_view` ~24KB, `task_summary_view` ~19KB, `library_card_with_pose` ~14KB); see WP Progress Log entry below.
 - **Build Artifacts**: `N/A`.
 - **Proof Artifact**: `target/test-artifacts/WP-I3-008/` (junit.xml + pytest-output.txt + audit-clean.txt).
-- **Operator Sign-off**: _(pending)_
+- **Operator Sign-off**: 2026-05-04 operator sign-off recorded in chat; Triage GUI tab + snapshot targets accepted as done.
 
 ## Progress Log
 
@@ -217,3 +217,4 @@ Sacred. Captured before work starts.
 - `2026-05-04`: Kickoff commit 013cd02 pushed to origin/main.
 - `2026-05-04`: Implementation: gui/triage/{__init__,pane}.py + render/draw_triage.py + snapshot.py extension + try_grab_widget helper + main_window.py tab registration + manual subsection. Smoke snapshot run produced 3 valid PNGs (intake_triage_view 24KB, task_summary_view 19KB, library_card_with_pose 14KB).
 - `2026-05-04`: 35/35 pytest GREEN. One iteration: string-grep test was too broad (caught "QMessageBox" in docstring); tightened to require an actual `import QMessageBox` line. Audit clean. WP transitioned to REVIEW.
+- `2026-05-04`: Operator sign-off recorded; status REVIEW -> DONE; archived under `.gov/workflow/archive/`.

@@ -1,11 +1,11 @@
-﻿# WP-I4-001 - Intake Scale And DB Hardening
+# WP-I4-001 - Intake Scale And DB Hardening
 
 ## Header
 
 - **Owner**: assistant
 - **Date Opened**: 2026-05-04
 - **Last Updated**: 2026-05-04
-- **Status**: REVIEW
+- **Status**: DONE
 - **Iteration**: I4
 - **Workflow Version**: 1.1
 - **Packet Class**: IMPLEMENTATION
@@ -237,7 +237,7 @@ Required because this WP changes command surfaces used by LLM agents, but it add
 - [x] Reality Boundary, Fallback Register, and Change Ledger are truthful.
 - [x] Linked test suite has executed results saved under `target/test-artifacts/WP-I4-001/`.
 - [x] Evidence section populated with concrete paths.
-- [ ] Operator sign-off recorded in Evidence section.
+- [x] Operator sign-off recorded in Evidence section.
 - [x] **Headless LLM Operation Compliance** section either marked `N/A` with reason, or all items checked.
 
 ## Evidence
@@ -249,7 +249,7 @@ Required because this WP changes command surfaces used by LLM agents, but it add
 - **Screenshots / Exports**: N/A - non-visual hardening WP.
 - **Build Artifacts**: N/A - no distributable build in this WP.
 - **Proof Artifact**: `target/test-artifacts/WP-I4-001/`
-- **Operator Sign-off**: pending.
+- **Operator Sign-off**: 2026-05-04 operator sign-off recorded in chat; WP accepted as done and finished.
 
 ## Progress Log
 
@@ -257,3 +257,4 @@ Required because this WP changes command surfaces used by LLM agents, but it add
 - 2026-05-04: Status READY → IN-PROGRESS. Spec extension landed in `openrepose_intake_v0_1.md` "I4 Scale + DB Hardening Extension" + `openrepose_library_v0_1.md` "I4 Multi-Operator Concurrency Hardening". Manual extension landed in `intake-and-triage.md#i4-hardening` covering producer attribution, storage_state, bulk registration, recovery, search filter, and concurrent triage. Five new rule_ids defined: INTAKE-005..009 (block/warn/info mix). Migration `006_i4_intake_scale_hardening.sql` schema shape locked in spec; implementation pending in next commit.
 - 2026-05-04: Migration/data-layer implementation landed in prior commits: `006_i4_intake_scale_hardening.sql`, `library/intake/storage.py`, `library/intake/bulk.py`, search filtering, and scale/e2e tests. Follow-up dispatcher patch wires `intake_register_outputs_bulk`, `intake_recover_audit`, `intake_recover_retry`, and `intake_process_file_ops`; `BulkIntakeError` and `StorageError` now inherit `IntakeOutputError` so dispatcher error envelopes stay structured.
 - 2026-05-04: Status IN-PROGRESS → REVIEW. Proof: 17/17 scale + parallel e2e tests passed with JUnit at `target/test-artifacts/WP-I4-001/junit.xml`; 7/7 dispatcher smoke tests passed; `scripts/audit-repo.ps1` clean. Operator sign-off pending.
+- 2026-05-04: Operator sign-off recorded; status REVIEW -> DONE; archived under `.gov/workflow/archive/`.

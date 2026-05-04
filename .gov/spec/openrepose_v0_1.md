@@ -79,6 +79,12 @@ PNG specs: black background, OpenPose color spec, no annotations baked into the 
 
 JSON specs: matches the schema produced by ComfyUI's DWPose node + `RenderPeopleKps` node — a top-level array containing one object with `people: [{pose_keypoints_2d, face_keypoints_2d, hand_left_keypoints_2d, hand_right_keypoints_2d}]`, plus `canvas_width`, `canvas_height` at the top level. Coordinates are flat `[x, y, confidence, ...]` triples. Hidden keypoints have all three values set to `0.0`.
 
+### Hand Keypoint Extension (WP-I1-018)
+
+When hand detection is enabled and a portrait contains visible hands, OpenRepose emits OpenPose-compatible hand_left_keypoints_2d and hand_right_keypoints_2d arrays with 21 (x, y, confidence) triples per hand. Undetected or hidden hands emit zeroed triples. The detector path is MediaPipe Tasks HandLandmarker in IMAGE mode when available. The runtime state exposes hand detection flags so an LLM agent can distinguish 
+ot detected from detector unavailable.
+
+
 `manifest.json` records: source portrait path, rig fit timestamp, app version, list of exported angles, settings used (focal length / projection mode / margin parameters), and any notes the GUI captured.
 
 ### Mechanical Log Format

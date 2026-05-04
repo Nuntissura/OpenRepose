@@ -180,9 +180,9 @@ Each task owns its own intake directory. Wholesale-reject is one transaction:
 
 This is why tasks are isolated by directory and not just by tag — a bad batch is removed cleanly without touching others. Rule citation: `INTAKE-003`.
 
-## library_search excludes pending {#library-search}
+## library_search excludes staging {#library-search}
 
-By default, `library_search` filters out outputs with `status = pending`. Add `include_pending=true` to see them. This keeps the main library view clean while triage is in progress. Rule citation: `INTAKE-004`.
+By default, `library_search` returns promoted Library rows and filters out intake/staging rows (`pending`, `triaging`, `soft_accepted`, `diagnostic`, `rejected`, `abandoned`). Add `include_staging=true` to inspect those rows deliberately, or pass `status_filter=[...]` for an explicit allowlist. This keeps the main Library view clean while triage is in progress. Rule citation: `INTAKE-009`.
 
 ## Self-documenting state
 

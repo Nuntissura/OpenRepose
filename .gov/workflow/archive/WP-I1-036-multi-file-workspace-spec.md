@@ -5,7 +5,7 @@
 - **Owner**: assistant
 - **Date Opened**: 2026-05-03
 - **Last Updated**: 2026-05-04
-- **Status**: REVIEW
+- **Status**: DONE
 - **Iteration**: I1 (spec) → I3+ (implementation)
 - **Workflow Version**: 1.1
 - **Packet Class**: DOCUMENTATION
@@ -134,7 +134,7 @@ Author a new "## Multi-File Workspace" section in `.gov/spec/openrepose_v0_1.md`
 - [x] Snapshot targets behavior documented (optional `file_id` parameter; offscreen render preserves no-focus-theft contract).
 - [x] Multi-operator interaction with WP-I1-033 library locks resolved (locked tab shows 🔒 prefix; write commands return error; reads still work).
 - [x] `pwsh scripts/audit-repo.ps1` exits 0.
-- [ ] Operator sign-off recorded.
+- [x] Operator sign-off recorded.
 - [x] **Manual Impact**: Yes — added `.gov/doc/manual/multi-file-workspace.md` summarizing operator workflow + new commands; index updated.
 
 ## Test Coverage Plan
@@ -182,12 +182,12 @@ DOCUMENTATION-class. No new tests. Verification is the audit + spec internal con
 
 ## Exit Criteria
 
-- [x] Definition of Done items all checked (operator sign-off pending).
-- [x] Taskboard row reflects current status (REVIEW).
+- [x] Definition of Done items all checked; operator sign-off recorded.
+- [x] Taskboard row reflects current status (DONE).
 - [x] Reality Boundary truthful.
 - [x] Audit script exits 0.
 - [x] Evidence section populated.
-- [ ] Operator sign-off recorded.
+- [x] Operator sign-off recorded.
 
 ## Evidence
 
@@ -197,8 +197,11 @@ DOCUMENTATION-class. No new tests. Verification is the audit + spec internal con
 - `target/test-artifacts/WP-I1-036/audit.log` — `pwsh scripts/audit-repo.ps1` exits 0 (8 OK, 1 SKIP).
 - `git diff` shows the spec section + manual topic + topology entry.
 
+- **Operator Sign-off**: 2026-05-04 operator sign-off recorded in chat; documentation/spec scope accepted as done. Product implementation remains future work.
+
 ## Progress Log
 
 - 2026-05-03: WP drafted at status DRAFT. Operator surfaced the multi-file workspace need during 2026-05-03 GUI inspection. Authoring deferred to next session per operator request ("i will start a new session to implement this" referring to I2 work; this WP fits naturally alongside I2 in a fresh session).
 - 2026-05-04: Promoted DRAFT → IN-PROGRESS after the I1 polish bundle (WP-I1-003 + 005 + 016) shipped to REVIEW. Architecture decisions from the original DRAFT Decisions Log are honored as-is; surfacing any new decisions during authoring.
 - 2026-05-04: IN-PROGRESS → REVIEW. Spec section authored (~310 lines, 14 subsections) + manual topic file (94 lines) + manual index update + topology fix for parallel WP-I4-001 commands. Audit clean.
+- 2026-05-04: Operator sign-off recorded; DOCUMENTATION scope status REVIEW -> DONE; archived under `.gov/workflow/archive/`. True multi-file product implementation remains future work.

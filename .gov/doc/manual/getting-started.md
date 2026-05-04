@@ -37,6 +37,8 @@ Each export writes BOTH a `.json` (OpenPose keypoints, pretty-printed) AND a `.p
   - Calibration — mark reference points for the active avatar (per-avatar TPS deformation).
   - Markers — uncheck individual OpenPose keypoints to suppress them.
   - Reframer — frame scale + offset + anchor controls.
-- **Options** tab — settings: export folder, body-part visibility, canvas border color.
+- **Library** tab — PostgreSQL-backed search and detail view for OpenPose guides, generated images, prompts, workflow JSON, notes, and tags.
+- **Triage** tab — read-only project/task/card progress view for intake queues, target counters, AMood batch state, and snapshot targets.
+- **Options** tab — settings: export folder, Library DB URL/root/operator slug, body-part visibility, canvas border color.
 - **Log** tab — live OpenRepose log.
 - **Help** tab — this manual.
