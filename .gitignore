@@ -13,6 +13,9 @@ outputs/
 !outputs/.gitkeep
 !outputs/README.md
 
+# Operator-local sample material used for manual/visual validation.
+test_material/
+
 # Python
 __pycache__/
 *.py[cod]
