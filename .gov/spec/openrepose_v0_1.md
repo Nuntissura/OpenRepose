@@ -172,10 +172,12 @@ Bound to `127.0.0.1` only. No CORS, no auth — single-user local tool. If the o
 
 ```json
 {
-  "command": "import_portrait | set_yaw | set_yaw_bin | export_single | export_batch | snapshot | dump_rig | dump_state | clear_outputs",
+  "command": "import_portrait | set_yaw | set_yaw_bin | export_single | export_batch | snapshot | dump_rig | dump_state | clear_outputs | clear_workspace | dump_settings | set_settings | clear_settings | open_file | close_file | set_active_file | list_files | ...",
   "request_id": "optional string for correlation"
 }
 ```
+
+The full I0/I1 command list grows over iterations; new commands are documented in the section that introduces them. Multi-file workspace commands (`open_file`, `close_file`, `set_active_file`, `list_files`) and the `file_id` payload extension on existing commands are documented in section "Multi-File Workspace" below.
 
 Per-command arguments:
 
@@ -311,7 +313,7 @@ The desktop GUI is operator-facing only. LLM agents do not interact with the GUI
 
 - **Top menu bar**: File | Edit | View | Tools | Export | Help.
 - **Toolbar row**: `[Open]` `[Reload]` ... yaw bin dropdown ... yaw slider ... `[Export single]` `[Export batch]` `[Stop]`.
-- **Center, two-pane split**:
+- **Center, two-pane split** (single-file v0.1; the multi-file workspace section "Multi-File Workspace" replaces this with a left-side `FileTabsPane` of closeable tabs, each tab hosting the same two-pane split):
   - Left pane: 3D mesh viewport. Orbital inspection camera (mouse drag rotates the camera-of-inspection, read-only — does not change rig orientation). Face mesh rendered as a translucent surface plus body skeleton lines.
   - Right pane: OpenPose preview. Live render at the current yaw setting; matches the format OpenPoseXL2 was trained on (black background, OpenPose color spec).
 - **Right dock — tabbed**:
@@ -378,6 +380,191 @@ These are targets, not gates. v0.1 ships when the feature is functionally comple
 - **Proof Target**: side-by-side comparison of OpenRepose's `her-left 90` wireframe export against a DWPose detection of an actual `her-left 90` photograph of the same subject. Eye position, ear position, shoulder breadth, jaw outline must agree within a documented tolerance.
 - **Allowed Temporary Fallbacks**: synthetic body z values for hips/elbows/wrists if MediaPipe Pose fails on the input (with explicit label in the manifest).
 - **Promotion Guard**: fallbacks must be removed before the spec is promoted from `DRAFT` to `STABLE`.
+
+## Multi-File Workspace
+
+Cross-cutting capability that lets one running OpenRepose hold several portraits open at once, each with its own rig + per-file state. Authored by WP-I1-036; implementation lands in WP-I1-037+.
+
+### Purpose
+
+Operators routinely work on more than one avatar in a session: comparing the same pose across two subjects, reusing a calibration approach across a small avatar set, copy-pasting frame settings between portraits. Today every import_portrait wipes the previous rig + calibration + frame; switching means re-importing the previous file from disk and re-doing every setting. The multi-file workspace removes that friction by giving each file its own state slot and exposing tabs as the operator-facing surface.
+
+The contract here is the architectural baseline for I1-037+. No code changes in this WP — just the locked spec.
+
+### File Model
+
+A "file" in the workspace is the tuple `(file_id, portrait_path, avatar_slug, derived rig + per-file state)`. `file_id` is a UUID assigned at open time; `portrait_path` is the absolute path the file was imported from; `avatar_slug` is the slug used for export naming + per-avatar calibration JSON lookup. Two files may share an `avatar_slug` (e.g., two crops of the same subject) — they each hold their own rig but read the same `<slug>/calibration.json` from disk.
+
+### Per-File State Shape
+
+These fields move from "global" (one instance, current behavior) to "per-file" (one instance per open file):
+
+- `portrait` — absolute path.
+- `avatar_slug` — string.
+- `rig` — `{status, fit_at, fit_duration_ms, face_landmark_count, body_landmark_count, face_visible_in_openpose, body_visible_in_openpose}`.
+- `yaw` — `{current_value_deg, current_bin, axis}`.
+- `calibration` — `{active_avatar, completeness, marker_count, missing_required, field_cached, loaded_from, last_dump_at}`. Cached copy of the per-avatar calibration JSON; sync model in "Persistence" below.
+- `body_part_visibility` — `{face, body_torso, arms, legs, hands}`.
+- `marker_visibility` — `{body_18: {…}, face_70: {…}}`.
+- `detected_markers` — `{body_18: {…}, face_70: {…}}`.
+- `frame` — `{scale, offset_x, offset_y, anchor_mode, anchor_point}`.
+
+These fields stay global (one instance, application-wide):
+
+- `version`, `started_at`, `last_command`, `errors`, `exports`, `snapshots`, `settings`, `library`, `adult_production_boundary`.
+
+### state.json Layout (v2)
+
+Single-file v0.1 state.json bumps to v2. Top-level keys mirror the active file's per-file state for backward compatibility with v0.1 LLM agents that read `state.portrait` / `state.calibration` / `state.frame` directly. New top-level `files` array holds the full per-file state for every open file; new `active_file_id` field identifies which file the top-level mirror reflects.
+
+```json
+{
+  "version": "2.0",
+  "started_at": "...",
+  "active_file_id": "uuid or null",
+  "files": [
+    {
+      "file_id": "uuid",
+      "portrait": "absolute path",
+      "avatar_slug": "string",
+      "rig": { ... per-file ... },
+      "yaw": { ... per-file ... },
+      "calibration": { ... per-file ... },
+      "body_part_visibility": { ... per-file ... },
+      "marker_visibility": { ... per-file ... },
+      "detected_markers": { ... per-file ... },
+      "frame": { ... per-file ... }
+    }
+  ],
+  "portrait": "<mirror of files[active].portrait or null>",
+  "avatar_slug": "<mirror of files[active].avatar_slug or null>",
+  "rig": { ... mirror of files[active].rig or default ... },
+  "yaw": { ... mirror or default ... },
+  "calibration": { ... mirror or default ... },
+  "body_part_visibility": { ... mirror or default ... },
+  "marker_visibility": { ... mirror or default ... },
+  "detected_markers": { ... mirror or default ... },
+  "frame": { ... mirror or default ... },
+  "settings": { ... global ... },
+  "library": { ... global ... },
+  "exports": [ ... global, capped 100 ... ],
+  "snapshots": [ ... global, capped 100 ... ],
+  "errors": [ ... global, capped 100 ... ],
+  "last_command": { ... global ... },
+  "adult_production_boundary": { ... global ... }
+}
+```
+
+The mirror is read-only as far as LLM agents are concerned — writing to a top-level `portrait` field via inbox or HTTP is undefined behavior. Mutations target either an explicit `file_id` or the active file via the relevant command.
+
+When zero files are open, `active_file_id` is null and the mirrored top-level fields hold the same defaults a fresh app emits today (rig.status = "none", yaw.current_bin = "0", portrait = null, etc.).
+
+### GUI Layout
+
+The current central widget is a `QSplitter(Horizontal)` of `[Viewport3D | ViewportOpenPose] | RightDock`. The multi-file layout replaces the left half with a `FileTabsPane`:
+
+- `FileTabsPane` is a `QTabWidget` with `setTabsClosable(True)` and `setMovable(True)`. Each tab hosts one file's `Viewport3D + ViewportOpenPose` pair (a per-tab `QSplitter`).
+- The right dock (`Inspector`, `Tools`, `Library`, `Triage`, `Options`, `Log`, `Help`) stays unchanged. The right-dock widgets always reflect the active tab's per-file state.
+- The toolbar's existing Open / Clear workspace / Reload / yaw bin / yaw slider / export buttons all operate on the active file. "Clear workspace" (WP-I1-016) clears the active file only — closing the tab is the multi-file equivalent of "clear and remove".
+- Tab title = `<avatar_slug>` (or `<basename>` when the slug is empty/default). Hovering the tab shows the full portrait path as a tooltip.
+- Multi-row / column wrap behavior on tab overflow: deferred polish. v1 implementation may use the standard Qt scroll-arrow overflow; "wrap to a new column" lands as a follow-up WP if the standard overflow proves clunky.
+
+### Drag-and-Drop Import
+
+Drag-drop semantics extend WP-I1-005:
+
+- Drop targets: the FileTabsPane background, an existing tab's Viewport3D, an existing tab's ViewportOpenPose, the empty-state placeholder.
+- Accepted MIME: `image/png`, `image/jpeg`, `image/jpg` (suffix-based detection per `gui/drop_helper.py`); `.lnk` shell links rejected; missing files rejected.
+- Single-file drop on FileTabsPane background or empty-state placeholder: opens a NEW tab and switches focus to it.
+- Single-file drop on an existing tab's viewport: opens a NEW tab (does NOT replace the existing tab's content). Operator switches via the new tab.
+- Multi-file drop: open one tab per acceptable image (this supersedes the WP-I1-005 single-file v1 policy of "accept first, log the rest"; the multi-file workspace makes "open all of them" the natural behavior).
+
+### Tab Management
+
+- Close: tabs render an `X` close button (`setTabsClosable(True)`). Clicking dispatches `close_file {file_id}`.
+- Reorder: tabs are draggable within the tab bar (`setMovable(True)`). Order is operator preference only — no semantic meaning.
+- No confirmation dialog on close (matches the operator-explicit pattern from WP-I1-016 Clear workspace). Close is non-destructive: source files on disk are not touched; only the in-memory file slot + per-file state are dropped.
+- Closing the active tab: the next-rightmost tab becomes active; if it was the last tab, `active_file_id` becomes null and the empty-state placeholder shows.
+
+### Empty State
+
+When `len(files) == 0`, the FileTabsPane area renders a centered placeholder: large dashed-border QLabel reading "Drop a portrait here · or use File → Open portrait... (Ctrl+O)". The placeholder accepts drops via the same drop-helper validation. Clicking the placeholder is a no-op (the operator's hint text covers File→Open).
+
+### LLM Command Surface
+
+Four NEW commands manage the file list:
+
+```json
+{ "command": "open_file", "path": "absolute path to portrait", "avatar_slug": "optional, default = sanitized stem" }
+   → returns { "file_id": "uuid", "active_file_id": "uuid", "files_count": N }
+
+{ "command": "close_file", "file_id": "uuid (or 'active')" }
+   → returns { "closed_file_id": "uuid", "active_file_id": "uuid or null", "files_count": N-1 }
+
+{ "command": "set_active_file", "file_id": "uuid" }
+   → returns { "active_file_id": "uuid" }
+
+{ "command": "list_files" }
+   → returns { "files": [{file_id, portrait, avatar_slug, rig.status}, ...], "active_file_id": "uuid or null" }
+```
+
+EXISTING commands gain an optional `file_id` parameter. When omitted, they target the active file (preserving v0.1 LLM-agent behavior). Commands affected:
+
+- `set_yaw`, `set_yaw_bin`, `export_single`, `export_batch`, `dump_rig`, `clear_workspace`
+- `set_calibration_points`, `dump_calibration`, `clear_calibration`, `delete_markers`, `get_calibration_status`
+- `set_body_part_visibility`, `get_body_part_visibility`
+- `set_marker_visibility`, `get_marker_visibility`, `reset_marker_visibility`
+- `set_frame_scale`, `set_frame_offset`, `set_frame_anchor`, `reset_frame`, `get_frame`
+
+The following commands STAY global (no `file_id` parameter): `import_portrait` (becomes a thin alias for `open_file`), `snapshot`, `dump_state`, `dump_settings`, `set_settings`, `clear_settings`, `clear_outputs`, all library/intake/AMood/requirements commands, `delete_markers` when `file_id` is omitted operates on the active file only.
+
+`import_portrait` is preserved as an alias of `open_file` for v0.1 LLM-agent backward compatibility — agents using the v0.1 contract get the new tab opened transparently.
+
+### Persistence
+
+Workspace persistence is operator-controlled via a new Settings field:
+
+- `Settings.persist_workspace` (bool, default `true`) — when true, on app shutdown the open file list (paths + avatar_slugs only — NOT the per-file state) is written to `<AppConfigLocation>/openrepose/workspace.json`. On next launch, OpenRepose re-imports each file in order and restores the active file.
+- Re-importing N files at launch re-runs MediaPipe N times. Allowed implementation optimization: lazy fit. The workspace.json file list is restored as empty tabs; the rig fits on first switch-to-tab. Lazy fit MUST surface in the tab title (e.g., italic + "(loading…)") and the per-file `rig.status` MUST report `"pending"` until first activation.
+- If a file path no longer exists on disk at restore time, the tab opens with `rig.status = "missing"` and a placeholder explaining the path. Operator can close it or re-import via drag-drop.
+- Per-file state (rig, calibration, frame, visibility) is NOT persisted to workspace.json — it is recomputed from the portrait + the per-avatar calibration.json on each launch. This keeps workspace.json small and avoids drift between sessions.
+
+### Snapshot Targets
+
+Existing snapshot targets gain an optional `file_id` parameter for cross-file inspection:
+
+```json
+{ "command": "snapshot", "target": "3d_viewport", "file_id": "uuid (optional, default = active)", "out_path": "..." }
+```
+
+When `file_id` is omitted, snapshots target the active tab's widgets. When supplied, the snapshot subsystem temporarily renders the requested file's state to an offscreen buffer (the GUI does NOT switch tabs, the operator's view does NOT change). This preserves the no-focus-theft contract and the snapshot rules in the existing "Snapshot Subsystem" section.
+
+The `full_window` composition includes only the active file's viewports (the right dock + status bar + toolbar) — there is no "all tabs in a grid" composition in v0.1. A future polish WP may add `all_files_grid`.
+
+### Multi-Operator Concurrency
+
+The multi-file workspace coexists with the WP-I1-033 / Feature 3 library-level locks: when a file's `avatar_slug` corresponds to a library entry currently locked by another operator (per `library.locked_entries`), the file opens read-only. The tab title shows a `🔒` prefix and write commands targeting that file return `{status: "error", reason: "library entry locked by <other-operator>"}`. Read commands (`dump_rig`, `get_*`, `snapshot`) are unaffected.
+
+This is the only cross-operator interaction in v0.1 multi-file. File slots themselves are per-process, not multi-operator.
+
+### Out Of Scope For v0.1 Multi-File
+
+- Tab tear-off / multi-window mode.
+- Multi-monitor support (each tab still lives in the single OpenRepose main window).
+- Drag-and-drop reordering across columns when tabs wrap (only ordered list within a single tab bar; reorder via QTabWidget drag is supported within the bar).
+- Persistence of per-file state (only paths + slugs persist; state recomputes on launch).
+- Auto-save / unsaved-changes confirmation on close (close is always non-destructive; source files on disk are not touched).
+- Per-tab undo/redo.
+- Cross-tab keyboard navigation shortcuts (defer to WP-I1-004 when that ships).
+- Cross-process multi-operator presence (one operator at a time per local OpenRepose process; the library locks above are the only cross-process surface).
+
+### Reality Boundary For Multi-File Workspace
+
+- **Real Seam**: a real per-file state model in `AppState`, real tabs in the GUI, real new dispatcher commands (`open_file`, `close_file`, `set_active_file`, `list_files`). No "fake-tab" rendering that re-imports on every switch — each tab holds a real `Rig` instance pinned to its file.
+- **User-Visible Win**: operator opens N portraits, each retains its own calibration + frame + visibility + yaw across tab switches. Switching tabs is instant for already-fit files; no MediaPipe re-fit. Drag-and-drop opens new tabs.
+- **Proof Target**: open 3 portraits with distinct calibrations + distinct frame settings; switch between them; assert each tab shows its own state. Inbox-driven equivalent: `open_file` × 3 with different paths; `dump_state` shows 3 entries in `files[]`; `set_active_file` flips the top-level mirror; per-file commands without `file_id` operate on the active file; per-file commands with `file_id` operate on the named file regardless of active.
+- **Allowed Temporary Fallbacks**: lazy-fit on launch (re-run MediaPipe on first switch-to-tab) is permitted to keep startup time bounded with many open files.
+- **Promotion Guard**: spec stays at `DRAFT` until the WP-I1-037+ implementation chain reaches DONE and operator signs off on the workflow with at least 3 files open + per-file calibration + cross-file snapshot.
 
 ## Feature 2: Per-Avatar Calibration Overlay
 

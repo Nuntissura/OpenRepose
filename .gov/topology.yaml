@@ -368,6 +368,13 @@ i3_command_surface:
     - promote_to_library          # OPERATOR-ONLY
     - task_reject_wholesale       # OPERATOR-ONLY
     - intake_begin_run            # ComfyUI bridge prelude (WP-I3-005)
+    # WP-I4-001 — intake scale + DB hardening (registered in commands.py
+    # by commit 44f9e5c; listed here so audit-repo.ps1 dispatcher-commands-have-help
+    # accepts them. Spec/contract documentation lives in WP-I4-001 itself).
+    - intake_register_outputs_bulk
+    - intake_recover_audit
+    - intake_recover_retry
+    - intake_process_file_ops
   amood:
     - init_batch_package
     - library_create_card
@@ -396,3 +403,25 @@ i3_snapshot_targets:
     - library_card_with_pose
     - amood_card_with_pose
     - amood_batch_overview
+
+# ---------------------------------------------------------------------------
+# I4 additions: dispatcher commands authored by WP-I4-001.
+# Spec: openrepose_intake_v0_1.md "I4 Scale + DB Hardening Extension".
+# ---------------------------------------------------------------------------
+
+i4_command_surface:
+  description: "Commands added by WP-I4-001 (intake scale + DB hardening). Spec: openrepose_intake_v0_1.md."
+  intake_scale_and_recovery:
+    - intake_register_outputs_bulk   # bulk counterpart to intake_register_output; INTAKE-005/INTAKE-008
+    - intake_recover_audit            # read-only; reports missing files, pending/failed file ops, storage_state mismatches
+    - intake_recover_retry            # advances one library_file_ops row exactly once
+    - intake_process_file_ops         # operator/test-driven drain of pending file-op outbox
+
+i4_rules:
+  description: "Rule_ids added by WP-I4-001 to the registry. Cited from spec + manual + dispatcher errors."
+  added:
+    - { id: INTAKE-005, severity: block, short: "bulk request idempotency: (task_id, agent_id, idempotency_key) unique" }
+    - { id: INTAKE-006, severity: warn,  short: "storage_state truth: status='promoted' requires storage_state='accepted' (or missing flagged)" }
+    - { id: INTAKE-007, severity: warn,  short: "data-layer transactions: helpers do not commit; commands own commit/rollback" }
+    - { id: INTAKE-008, severity: block, short: "bulk batch cap: requests above bulk_batch_max (default 200) rejected pre-write" }
+    - { id: INTAKE-009, severity: info,  short: "library_search default excludes pending/diagnostic/rejected/soft_accepted; include_staging=true to include" }

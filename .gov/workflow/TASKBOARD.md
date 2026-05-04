@@ -1,22 +1,22 @@
 # OpenRepose Taskboard
 
-Last Updated: 2026-05-04 (I1 polish bundle complete and shipped to REVIEW: WP-I1-003 settings commands + WP-I1-005 drag-and-drop + WP-I1-016 clear workspace. 119/119 polish-bundle regression passing in 4:58; audit clean. WP-I4-001 intake scale + DB hardening still IN-PROGRESS. I3 sign-off still pending on the 4 REVIEW WPs.)
+Last Updated: 2026-05-04 (WP-I1-036 multi-file workspace spec shipped to REVIEW alongside the polish bundle (WP-I1-003 + 005 + 016). 8 WPs now pending operator sign-off across I1 + I3. WP-I4-001 intake scale + DB hardening still IN-PROGRESS.)
 
 Live status of all OpenRepose workpackets. Update in the same session as any workpacket transition. Rules in `.gov/workflow/README.md`. Template at `.gov/templates/WP_TEMPLATE.md`.
 
 ## Summary
 
-- WPs in flight (READY + IN-PROGRESS): 1 (WP-I4-001 intake scale + DB hardening IN-PROGRESS — spec/manual landed)
-- WPs pending review (REVIEW): 7 (WP-I1-003 settings commands + WP-I1-005 drag-and-drop + WP-I1-016 clear workspace — I1 polish bundle just shipped; WP-I3-009 audit-script extension; WP-I3-007 requirements editor + target tree; WP-I3-008 triage GUI tab + snapshot targets; WP-I3-010 e2e EXP120 verification)
+- WPs in flight (READY + IN-PROGRESS): 1 (WP-I4-001 intake scale + DB hardening IN-PROGRESS)
+- WPs pending review (REVIEW): 8 (WP-I1-003 settings commands + WP-I1-005 drag-and-drop + WP-I1-016 clear workspace + WP-I1-036 multi-file workspace spec; WP-I3-009 audit-script extension; WP-I3-007 requirements editor + target tree; WP-I3-008 triage GUI tab + snapshot targets; WP-I3-010 e2e EXP120 verification)
 - WPs done (I3): 5 (WP-I3-001 spec lock; WP-I3-002 stance primitives; WP-I3-003 PG schema migrations; WP-I3-004 intake/project/task command surface; WP-I3-005 default-staging ComfyUI bridge; WP-I3-006 AMood data-model commands)
 - WPs blocked (BLOCKED): 0
-- WPs draft (DRAFT, eligible to promote): 16 (15 I1 backlog + WP-I3-011 future OpenRepose AMood GPT + Claude wrappers)
+- WPs draft (DRAFT, eligible to promote): 15 (14 I1 backlog + WP-I3-011 future OpenRepose AMood GPT + Claude wrappers)
 - WPs deferred (DEFERRED): 1 (WP-I1-012 garment locks)
 - WPs done (I0): 4 (WP-I0-001/002/003/004) — I0 CLOSED 2026-05-02
 - WPs done (I1): 14 (12 prior + WP-I1-034/035 signed off 2026-05-03 Sweep A)
 - WPs done (I2): 8 (WP-I2-001..008 — Feature 3 OpenPose Library + ComfyUI bridge + PostgreSQL — I2 CLOSED 2026-05-03 Sweep A)
 - WPs reserved-not-drafted: 3 (WP-I1-019/020/021 joint-manipulation chain — operator deferred to later)
-- Iterations open: I1 (polish bundle in REVIEW: WP-I1-003 + 005 + 016), I3 (Sweep B in REVIEW awaiting operator sign-off across 4 WPs), I4 (WP-I4-001 IN-PROGRESS)
+- Iterations open: I1 (polish bundle + multi-file spec in REVIEW: WP-I1-003 + 005 + 016 + 036), I3 (Sweep B in REVIEW awaiting operator sign-off across 4 WPs), I4 (WP-I4-001 IN-PROGRESS)
 
 ## Active
 
@@ -35,6 +35,7 @@ Implementation claims to be done; awaiting operator verification.
 | WP-I1-003 | Settings persistence (set_settings + clear_settings commands; settings stayed at AppConfigLocation per kickoff-decision reversal) | assistant | IMPLEMENTATION | 2026-05-04 | 12/12 new + 43/43 existing settings-store tests = 55/55 in `target/test-artifacts/WP-I1-003/`; 119/119 polish-bundle + GUI regression; audit clean. |
 | WP-I1-016 | Clear workspace command + toolbar button (next to Open) + Edit menu | assistant | IMPLEMENTATION | 2026-05-04 | 11/11 in `target/test-artifacts/WP-I1-016/`; 119/119 polish-bundle + GUI regression; audit clean. |
 | WP-I1-005 | Drag-and-drop portrait import (MainWindow + both viewports; multi-file = accept first + WARN rest) | assistant | IMPLEMENTATION | 2026-05-04 | 15/15 in `target/test-artifacts/WP-I1-005/`; 119/119 polish-bundle + GUI regression; audit clean. |
+| WP-I1-036 | Multi-file workspace spec (tabs + per-file state + drag-drop import) | assistant | DOCUMENTATION | 2026-05-04 | New `## Multi-File Workspace` section (~310 lines, 14 subsections) in spec; new `multi-file-workspace.md` manual topic; topology updated for parallel WP-I4-001 commands. Audit clean. Evidence in `target/test-artifacts/WP-I1-036/`. |
 | WP-I3-009 | Audit script extension (rule registry coverage) | assistant | INFRASTRUCTURE | 2026-05-03 | `pwsh scripts/audit-repo.ps1` clean (8 OK, 1 SKIP) on HEAD; negative test in `target/test-artifacts/WP-I3-009/`. |
 | WP-I3-007 | Requirements editor + target tree commands | assistant | IMPLEMENTATION | 2026-05-03 | 29/29 pytest passing in 5:13 (incl. EXP120 byte-stable round-trip + counter rollup + inheritance); audit clean. Evidence in `target/test-artifacts/WP-I3-007/`. |
 | WP-I3-008 | Triage GUI tab + 3 snapshot targets | assistant | IMPLEMENTATION | 2026-05-04 | 35/35 pytest passing in 23.61s (triage pane + 14 snapshot targets parametrized + GUI no-focus-steal + headless render); audit clean. Evidence in `target/test-artifacts/WP-I3-008/`. |
@@ -79,7 +80,6 @@ I0 closed 2026-05-02. The I0-blocking constraint on every I1 WP below is satisfi
 | WP-I1-018 | Hand detection + OpenPose hand output | IMPLEMENTATION | M | Feature expansion (gates DWPose hand conditioning) | yes | I0; relates to WP-I1-014 |
 | WP-I1-022 | Read OpenPose JSON as alternate input | IMPLEMENTATION | M | Workflow expansion | yes | I0; composes with WP-I1-023 |
 | WP-I1-024 | Synchronized viewport zoom | IMPLEMENTATION | S | Polish | n/a (GUI sync only; headless covered by WP-I1-023) | WP-I0-004; WP-I1-015; WP-I1-023 |
-| WP-I1-036 | Multi-file workspace spec (DOCUMENTATION) | DOCUMENTATION | M | High (operator's stated need: tabs + per-file state + drag-drop import; large architectural change needs spec lock first) | n/a (spec only) | none |
 | WP-I3-011 | OpenRepose AMood GPT + Claude Skill Wrappers | DOCUMENTATION | M | Future integration (after DB/dispatcher/AMood command path is fully functional) | n/a (skill wrappers only) | WP-I3-003; WP-I3-004; WP-I3-006; WP-I3-007; WP-I3-010 |
 
 ## Recently Done

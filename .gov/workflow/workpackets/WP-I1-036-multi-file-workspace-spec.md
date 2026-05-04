@@ -2,10 +2,10 @@
 
 ## Header
 
-- **Owner**: TBD
+- **Owner**: assistant
 - **Date Opened**: 2026-05-03
-- **Last Updated**: 2026-05-03
-- **Status**: DRAFT
+- **Last Updated**: 2026-05-04
+- **Status**: REVIEW
 - **Iteration**: I1 (spec) → I3+ (implementation)
 - **Workflow Version**: 1.1
 - **Packet Class**: DOCUMENTATION
@@ -126,16 +126,16 @@ Author a new "## Multi-File Workspace" section in `.gov/spec/openrepose_v0_1.md`
 
 ## Definition Of Done
 
-- [ ] `.gov/spec/openrepose_v0_1.md` contains a new "## Multi-File Workspace" section with all 14 subsections listed In Scope.
-- [ ] Per-file state shape enumerated with explicit field list.
-- [ ] state.json v2 layout documented (top-level mirrors active file for backward compat).
-- [ ] At least 4 new LLM commands enumerated (`open_file`, `close_file`, `set_active_file`, `list_files`) with payload + return schemas.
-- [ ] Persistence semantics + lazy-re-fit allowance documented.
-- [ ] Snapshot targets behavior documented.
-- [ ] Multi-operator interaction with WP-I1-033 library locks resolved.
-- [ ] `pwsh scripts/audit-repo.ps1` exits 0.
+- [x] `.gov/spec/openrepose_v0_1.md` contains a new "## Multi-File Workspace" section with all 14 subsections from In Scope (Purpose, File Model, Per-File State Shape, state.json Layout (v2), GUI Layout, Drag-and-Drop Import, Tab Management, Empty State, LLM Command Surface, Persistence, Snapshot Targets, Multi-Operator Concurrency, Out Of Scope For v0.1 Multi-File, Reality Boundary For Multi-File Workspace).
+- [x] Per-file state shape enumerated with explicit field list (9 per-file + global split documented).
+- [x] state.json v2 layout documented (top-level mirrors active file for backward compat; `files: [...]` array + `active_file_id` added).
+- [x] 4 new LLM commands enumerated (`open_file`, `close_file`, `set_active_file`, `list_files`) with payload + return schemas. Existing commands gain optional `file_id` parameter (default = active file).
+- [x] Persistence semantics + lazy-re-fit allowance documented (Settings.persist_workspace; tab title "(loading…)"; rig.status="pending"; missing-path handling).
+- [x] Snapshot targets behavior documented (optional `file_id` parameter; offscreen render preserves no-focus-theft contract).
+- [x] Multi-operator interaction with WP-I1-033 library locks resolved (locked tab shows 🔒 prefix; write commands return error; reads still work).
+- [x] `pwsh scripts/audit-repo.ps1` exits 0.
 - [ ] Operator sign-off recorded.
-- [ ] **Manual Impact**: Yes — adds a new "Multi-File Workspace" topic file under `.gov/doc/manual/` summarizing the operator workflow + new commands. Created in this WP.
+- [x] **Manual Impact**: Yes — added `.gov/doc/manual/multi-file-workspace.md` summarizing operator workflow + new commands; index updated.
 
 ## Test Coverage Plan
 
@@ -159,7 +159,11 @@ DOCUMENTATION-class. No new tests. Verification is the audit + spec internal con
 
 ## Change Ledger
 
-- (filled at REVIEW)
+- 2026-05-04 — Authored new "## Multi-File Workspace" section in `.gov/spec/openrepose_v0_1.md` (between Feature 1's Reality Boundary and Feature 2). 14 subsections per the In Scope plan; ~310 lines. Locks per-file state shape, state.json v2 layout (mirror of active file at top-level for v0.1 LLM-agent backward compatibility), GUI layout (`FileTabsPane` of closeable tabs), drag-and-drop semantics (multi-file = open one tab per acceptable image, superseding WP-I1-005's single-file v1 policy), 4 new LLM commands + the `file_id` extension on existing per-file commands, persistence model (paths-only with lazy fit), snapshot behavior, multi-operator lock interaction with WP-I1-033 library locks.
+- 2026-05-04 — Small spec-side cross-references added: Feature 1 / GUI Requirements gained a forward-pointer to the multi-file section; LLM Control Surface command-list grew (informational shape only — full schema lives in the new section).
+- 2026-05-04 — Added new manual topic `.gov/doc/manual/multi-file-workspace.md` (94 lines) covering the operator workflow, headless command surface, state.json v2 schema, persistence, snapshot behavior, out-of-scope, and v0.1 backward compatibility.
+- 2026-05-04 — Updated `.gov/doc/manual/index.md` to list the new topic file under Topics.
+- 2026-05-04 — Added 4 WP-I4-001 intake commands (`intake_register_outputs_bulk`, `intake_recover_audit`, `intake_recover_retry`, `intake_process_file_ops`) to `topology.yaml` `i3_command_surface.intake_and_triage`. WP-I4-001 had registered them in `commands.py` (commit 44f9e5c) but missed updating the topology — audit was failing on every run as a result. Adding them here is a courtesy fix that keeps audit clean for everyone; WP-I4-001 owns the final spec/contract documentation for them.
 
 ## Checkpoint Commit Plan
 
@@ -178,17 +182,23 @@ DOCUMENTATION-class. No new tests. Verification is the audit + spec internal con
 
 ## Exit Criteria
 
-- [ ] Definition of Done items all checked.
-- [ ] Taskboard row reflects DONE.
-- [ ] Reality Boundary truthful.
-- [ ] Audit script exits 0.
-- [ ] Evidence section populated.
+- [x] Definition of Done items all checked (operator sign-off pending).
+- [x] Taskboard row reflects current status (REVIEW).
+- [x] Reality Boundary truthful.
+- [x] Audit script exits 0.
+- [x] Evidence section populated.
 - [ ] Operator sign-off recorded.
 
 ## Evidence
 
-- (filled at close)
+- `.gov/spec/openrepose_v0_1.md` — new "## Multi-File Workspace" section spans ~310 lines with the 14 subsections.
+- `.gov/doc/manual/multi-file-workspace.md` — 94-line operator manual page.
+- `.gov/doc/manual/index.md` — updated Topics list.
+- `target/test-artifacts/WP-I1-036/audit.log` — `pwsh scripts/audit-repo.ps1` exits 0 (8 OK, 1 SKIP).
+- `git diff` shows the spec section + manual topic + topology entry.
 
 ## Progress Log
 
 - 2026-05-03: WP drafted at status DRAFT. Operator surfaced the multi-file workspace need during 2026-05-03 GUI inspection. Authoring deferred to next session per operator request ("i will start a new session to implement this" referring to I2 work; this WP fits naturally alongside I2 in a fresh session).
+- 2026-05-04: Promoted DRAFT → IN-PROGRESS after the I1 polish bundle (WP-I1-003 + 005 + 016) shipped to REVIEW. Architecture decisions from the original DRAFT Decisions Log are honored as-is; surfacing any new decisions during authoring.
+- 2026-05-04: IN-PROGRESS → REVIEW. Spec section authored (~310 lines, 14 subsections) + manual topic file (94 lines) + manual index update + topology fix for parallel WP-I4-001 commands. Audit clean.
